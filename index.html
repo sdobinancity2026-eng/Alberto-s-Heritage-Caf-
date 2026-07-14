@@ -2,107 +2,115 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alberto's Heritage Café - POS System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Alberto's Heritage Café - POS</title>
+    <!-- PWA Elements -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#92400e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://placehold.co/192x192/92400e/ffffff?text=Alberto">
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* Touch optimization to prevent accidental double-tap zooming on mobile */
+        button, click-node { touch-action: manipulation; }
         @media print {
             body * { visibility: hidden; }
             #receipt-print-zone, #receipt-print-zone * { visibility: visible; }
             #receipt-print-zone { position: absolute; left: 0; top: 0; width: 58mm; }
         }
-        
     </style>
 </head>
-<body class="bg-gray-100 font-sans min-h-screen flex flex-col">
+<body class="bg-gray-100 font-sans min-h-screen flex flex-col pb-16 md:pb-0">
 
     <!-- Top Navigation -->
-    <nav class="bg-amber-800 text-white p-4 shadow-md flex justify-between items-center">
-        <h1 class="text-xl font-serif font-bold tracking-wide">Alberto's Heritage Café</h1>
-        <div class="flex gap-4 items-center">
+    <nav class="bg-amber-800 text-white p-4 shadow-md flex justify-between items-center sticky top-0 z-50">
+        <h1 class="text-lg md:text-xl font-serif font-bold tracking-wide">Alberto's POS</h1>
+        <div class="hidden md:flex gap-4 items-center">
             <span id="role-badge" class="bg-amber-600 px-3 py-1 rounded text-sm font-semibold">Employee Mode</span>
-            <button onclick="switchRole('employee')" class="bg-amber-700 hover:bg-amber-600 px-3 py-1 rounded text-sm">Employee View</button>
-            <button onclick="switchRole('admin')" class="bg-gray-800 hover:bg-gray-700 px-3 py-1 rounded text-sm">Admin View</button>
+            <button onclick="switchSection('menu')" class="bg-amber-700 hover:bg-amber-600 px-3 py-1 rounded text-sm">Register</button>
+            <button onclick="switchSection('admin')" class="bg-gray-800 hover:bg-gray-700 px-3 py-1 rounded text-sm">Admin Panel</button>
         </div>
+        <!-- Install PWA Button Trigger -->
+        <button id="pwa-install-btn" class="hidden bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-full font-bold shadow animate-pulse">Install App</button>
     </nav>
 
-    <!-- Main Content Container -->
-    <main class="flex-1 p-6 max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Main Content Grid -->
+    <main class="flex-1 p-4 md:p-6 max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        <!-- ================= EMPLOYEE VIEW ================= -->
-        <div id="employee-dashboard" class="lg:col-span-2 space-y-6">
-            <div class="bg-white p-6 rounded-lg shadow-sm">
+        <!-- ================= SECTION: MENU SYSTEM ================= -->
+        <div id="section-menu" class="lg:col-span-2 space-y-4 section-block">
+            <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm">
                 <h2 class="text-lg font-bold mb-4 text-gray-800">Menu Items</h2>
-                <div id="menu-grid" class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <!-- Loaded dynamically from Google Sheets -->
-                    <p class="text-gray-500 col-span-full">Loading delicious heritage inventory...</p>
+                <div id="menu-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
+                    <p class="text-gray-500 col-span-full text-center py-4">Loading menu database...</p>
                 </div>
             </div>
         </div>
 
-        <!-- Checkout / Cart Sidebar (Visible to Employees) -->
-        <div id="cart-sidebar" class="bg-white p-6 rounded-lg shadow-sm flex flex-col justify-between h-[600px]">
+        <!-- ================= SECTION: CART SYSTEM ================= -->
+        <div id="section-cart" class="bg-white p-4 md:p-6 rounded-xl shadow-sm flex flex-col justify-between h-[calc(100vh-160px)] md:h-[600px] section-block hidden lg:flex">
             <div>
-                <h2 class="text-lg font-bold mb-4 text-gray-800">Current Order</h2>
-                <div id="cart-items" class="space-y-3 overflow-y-auto h-[380px] pr-2">
+                <h2 class="text-lg font-bold mb-4 text-gray-800 flex justify-between items-center">
+                    <span>Current Order</span>
+                    <span id="cart-count-badge" class="bg-amber-100 text-amber-800 text-xs px-2.5 py-0.5 rounded-full font-bold">0 Items</span>
+                </h2>
+                <div id="cart-items" class="space-y-3 overflow-y-auto max-h-[60vh] md:max-h-[380px] pr-2">
                     <p class="text-gray-400 text-center py-8">Cart is empty.</p>
                 </div>
             </div>
-            <div class="border-t pt-4">
+            <div class="border-t pt-4 bg-white">
                 <div class="flex justify-between font-bold text-lg mb-4">
                     <span>Total:</span>
-                    <span id="cart-total">₱0.00</span>
+                    <span id="cart-total" class="font-mono text-xl text-amber-900">₱0.00</span>
                 </div>
-                <button onclick="submitOrder()" class="w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3 rounded-lg shadow transition">
+                <button onclick="submitOrder()" class="w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3.5 rounded-xl shadow transition text-center">
                     Place Order & Print Receipt
                 </button>
             </div>
         </div>
 
-        <!-- ================= ADMIN VIEW (Hidden by default) ================= -->
-        <div id="admin-dashboard" class="hidden lg:col-span-3 space-y-6">
+        <!-- ================= SECTION: ADMIN ANALYTICS ================= -->
+        <div id="section-admin" class="hidden lg:col-span-3 space-y-6 section-block">
             <!-- Analytics Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-emerald-500">
-                    <h3 class="text-sm font-semibold text-gray-500 uppercase">Daily Revenue</h3>
-                    <p id="sales-daily" class="text-2xl font-bold text-gray-800 mt-1">₱0.00</p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-emerald-500">
+                    <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Daily Sales</h3>
+                    <p id="sales-daily" class="text-2xl font-bold font-mono text-gray-800 mt-1">₱0.00</p>
                 </div>
-                <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-blue-500">
-                    <h3 class="text-sm font-semibold text-gray-500 uppercase">Weekly Revenue</h3>
-                    <p id="sales-weekly" class="text-2xl font-bold text-gray-800 mt-1">₱0.00</p>
+                <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-blue-500">
+                    <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Weekly Sales</h3>
+                    <p id="sales-weekly" class="text-2xl font-bold font-mono text-gray-800 mt-1">₱0.00</p>
                 </div>
-                <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-purple-500">
-                    <h3 class="text-sm font-semibold text-gray-500 uppercase">Monthly Revenue</h3>
-                    <p id="sales-monthly" class="text-2xl font-bold text-gray-800 mt-1">₱0.00</p>
+                <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-purple-500">
+                    <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Monthly Sales</h3>
+                    <p id="sales-monthly" class="text-2xl font-bold font-mono text-gray-800 mt-1">₱0.00</p>
                 </div>
             </div>
 
-            <!-- Stock Tracker & Chart Grid -->
+            <!-- Inventory Monitor & Visual Charts -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Critical Stock Alert Table -->
-                <div class="bg-white p-6 rounded-lg shadow-sm lg:col-span-1">
-                    <h3 class="text-md font-bold text-red-600 mb-3 flex items-center gap-2">
-                        ⚠️ Low Stock Tracker (&lt; 10 pcs)
+                <div class="bg-white p-5 rounded-xl shadow-sm lg:col-span-1">
+                    <h3 class="text-sm font-bold text-red-600 mb-3 flex items-center gap-2">
+                        ⚠️ Low Stock Monitor (&lt; 10 pcs)
                     </h3>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse">
                             <thead>
-                                <tr class="text-xs text-gray-500 uppercase border-b">
-                                    <th class="pb-2">Item</th>
-                                    <th class="pb-2 text-right">Stock Left</th>
+                                <tr class="text-xs text-gray-400 uppercase border-b">
+                                    <th class="pb-2">Item Name</th>
+                                    <th class="pb-2 text-right">Qty</th>
                                 </tr>
                             </thead>
-                            <tbody id="low-stock-list" class="divide-y text-sm">
-                                <!-- Loaded dynamically -->
-                            </tbody>
+                            <tbody id="low-stock-list" class="divide-y text-sm"></tbody>
                         </table>
                     </div>
                 </div>
 
-                <!-- Sales Analytics Graph -->
-                <div class="bg-white p-6 rounded-lg shadow-sm lg:col-span-2">
-                    <h3 class="text-md font-bold text-gray-800 mb-4">Sales Trends Visualization</h3>
+                <div class="bg-white p-5 rounded-xl shadow-sm lg:col-span-2">
+                    <h3 class="text-sm font-bold text-gray-800 mb-4">Earnings Dynamic Visualization</h3>
                     <div class="h-64">
                         <canvas id="analyticsChart"></canvas>
                     </div>
@@ -111,22 +119,36 @@
         </div>
     </main>
 
-    <!-- Hidden Thermal Receipt Node Sandbox -->
-    <div id="receipt-print-zone" class="font-mono text-xs p-2 hidden"></div>
+    <!-- Bottom Sticky Mobile Navbar Menu -->
+    <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg flex justify-around py-2 z-50">
+        <button onclick="switchSection('menu')" id="nav-menu" class="flex flex-col items-center text-amber-800 font-medium">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>
+            <span class="text-xs mt-0.5">Register</span>
+        </button>
+        <button onclick="switchSection('cart')" id="nav-cart" class="flex flex-col items-center text-gray-400 relative">
+            <span id="cart-badge-dot" class="hidden absolute top-0 right-2 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+            <span class="text-xs mt-0.5">Cart</span>
+        </button>
+        <button onclick="switchSection('admin')" id="nav-admin" class="flex flex-col items-center text-gray-400">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z"></path></svg>
+            <span class="text-xs mt-0.5">Admin</span>
+        </button>
+    </div>
 
-    <!-- Core App Logic Javascript -->
+    <!-- Hidden Thermal Printing Sandbox Layout Node -->
+    <div id="receipt-print-zone" class="hidden"></div>
+
     <script>
-        // PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE
-        const API_URL = "https://script.google.com/macros/s/AKfycbxulPl24lg5hJS8a_5KuXPxUH7usUHHpl-JqdASVCFHiG0PTej7GaGFZoSKNY-dOvD-Uw/exec"; 
-
-        let inventory = [];
-        let cart = [];
-        let currentRole = 'employee';
-        let chartInstance = null;
+        const API_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL"; 
+        let inventory = [], cart = [], chartInstance = null;
 
         async function initPOS() {
             await fetchInventory();
-            switchRole(currentRole);
+            // Handle service worker registration for PWA installability
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js').catch(err => console.log("SW registration bypassed", err));
+            }
         }
 
         async function fetchInventory() {
@@ -135,19 +157,17 @@
                 inventory = await response.json();
                 renderMenu();
                 renderLowStock();
-            } catch (err) {
-                console.error("Error loading structural inventory data:", err);
-            }
+            } catch (err) { console.error("Network synchronization lost", err); }
         }
 
         function renderMenu() {
             const grid = document.getElementById('menu-grid');
             grid.innerHTML = inventory.map(item => `
-                <button onclick="addToCart(${item.ItemID})" class="p-4 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl text-left transition flex flex-col justify-between h-28">
-                    <span class="font-bold text-amber-900">${item.ItemName}</span>
-                    <div class="flex justify-between items-center w-full mt-2">
-                        <span class="text-xs bg-amber-200 px-2 py-0.5 rounded text-amber-800">${item.Category}</span>
-                        <span class="font-mono font-bold text-gray-700">₱${Number(item.Price).toFixed(2)}</span>
+                <button onclick="addToCart(${item.ItemID})" class="p-3 bg-amber-50 active:bg-amber-200 border border-amber-100 rounded-xl text-left transition flex flex-col justify-between h-24 shadow-sm">
+                    <span class="font-bold text-amber-900 text-sm line-clamp-2 leading-tight">${item.ItemName}</span>
+                    <div class="flex justify-between items-center w-full mt-1">
+                        <span class="text-[10px] bg-amber-200 px-1.5 py-0.2 rounded text-amber-800 font-medium">${item.Category}</span>
+                        <span class="font-mono font-bold text-xs text-gray-700">₱${Number(item.Price).toFixed(0)}</span>
                     </div>
                 </button>
             `).join('');
@@ -156,19 +176,23 @@
         function addToCart(id) {
             const item = inventory.find(i => i.ItemID == id);
             const exist = cart.find(c => c.id == id);
-            if (exist) {
-                exist.quantity++;
-            } else {
-                cart.push({ id: item.ItemID, name: item.ItemName, price: item.Price, quantity: 1 });
-            }
+            if (exist) { exist.quantity++; } 
+            else { cart.push({ id: item.ItemID, name: item.ItemName, price: item.Price, quantity: 1 }); }
             renderCart();
+            
+            // Highlight Mobile Cart Notification Dot
+            document.getElementById('cart-badge-dot').classList.remove('hidden');
         }
 
         function renderCart() {
             const container = document.getElementById('cart-items');
+            const totalCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+            document.getElementById('cart-count-badge').innerText = `${totalCount} Items`;
+
             if(cart.length === 0) {
                 container.innerHTML = `<p class="text-gray-400 text-center py-8">Cart is empty.</p>`;
                 document.getElementById('cart-total').innerText = "₱0.00";
+                document.getElementById('cart-badge-dot').classList.add('hidden');
                 return;
             }
             
@@ -176,87 +200,94 @@
             container.innerHTML = cart.map(item => {
                 total += item.price * item.quantity;
                 return `
-                    <div class="flex justify-between items-center bg-gray-50 p-2 rounded">
+                    <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-100">
                         <div>
                             <p class="font-semibold text-sm text-gray-800">${item.name}</p>
                             <p class="text-xs text-gray-500">₱${item.price} x ${item.quantity}</p>
                         </div>
-                        <span class="font-mono font-semibold">₱${(item.price * item.quantity).toFixed(2)}</span>
+                        <div class="flex items-center gap-3">
+                            <span class="font-mono font-semibold text-sm">₱${(item.price * item.quantity).toFixed(2)}</span>
+                            <button onclick="removeFromCart(${item.id})" class="text-red-500 text-xs px-2 font-bold">✕</button>
+                        </div>
                     </div>
                 `;
             }).join('');
             document.getElementById('cart-total').innerText = `₱${total.toFixed(2)}`;
         }
 
+        function removeFromCart(id) {
+            cart = cart.filter(c => c.id !== id);
+            renderCart();
+        }
+
         async function submitOrder() {
-            if(cart.length === 0) return alert("Your transaction tray is completely empty!");
+            if(cart.length === 0) return alert("Add items to your cart first.");
             const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const payload = { action: "placeOrder", employee: "Mobile Station", items: cart, total: total, paymentMethod: "Cash" };
 
-            const payload = {
-                action: "placeOrder",
-                employee: "Staff Counter 1",
-                items: cart,
-                total: total,
-                paymentMethod: "Cash"
-            };
-
-            // Dynamic receipt configuration before backend lag
             printThermalReceipt(payload);
 
             try {
-                const response = await fetch(API_URL, {
-                    method: "POST",
-                    body: JSON.stringify(payload)
-                });
+                const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
                 const res = await response.json();
                 if(res.status === "SUCCESS") {
-                    alert("Order processed successfully!");
+                    alert("Order logged successfully!");
                     cart = [];
                     renderCart();
-                    initPOS(); // refresh inventory counters
+                    initPOS();
                 }
-            } catch(e) {
-                alert("Network transaction failed, check configuration endpoints.");
-            }
+            } catch(e) { alert("Network sync issue. Check network status."); }
         }
 
         function printThermalReceipt(payload) {
             const receipt = document.getElementById('receipt-print-zone');
-            let itemLines = cart.map(i => `${i.name.padEnd(16)} x${i.quantity} ₱${(i.price*i.quantity).toFixed(0)}`).join('\n');
-            
-            receipt.innerHTML = `
-<pre style="font-family: monospace; font-size: 10px;">
+            let itemLines = cart.map(i => `${i.name.substring(0,14).padEnd(14)} x${i.quantity} ₱${(i.price*i.quantity).toFixed(0)}`).join('\n');
+            receipt.innerHTML = `<pre style="font-family:monospace;font-size:11px;line-height:1.2;">
    ALBERTO'S HERITAGE CAFE
-   Calabarzon, Philippines
 ================================
-Items            Qty   Price
+Items          Qty   Price
 --------------------------------
 ${itemLines}
 --------------------------------
-TOTAL:                 ₱${payload.total.toFixed(2)}
+TOTAL:               ₱${payload.total.toFixed(2)}
 ================================
- Thank you for dining with us!
-   Come savor heritage again.
-</pre>
-            `;
+     Savoring Heritage.
+</pre>`;
             window.print();
         }
 
         function renderLowStock() {
             const list = document.getElementById('low-stock-list');
             const lowItems = inventory.filter(i => i.StockQuantity < 10);
-            
             if(lowItems.length === 0) {
-                list.innerHTML = `<tr><td class="py-2 text-emerald-600 font-semibold" colspan="2">All stock levels normal.</td></tr>`;
+                list.innerHTML = `<tr><td class="py-3 text-emerald-600 font-semibold text-center" colspan="2">Stock counts secure.</td></tr>`;
                 return;
             }
-
             list.innerHTML = lowItems.map(i => `
-                <tr class="border-b bg-red-50">
-                    <td class="py-2 font-medium text-gray-800">${i.ItemName}</td>
-                    <td class="py-2 text-right text-red-600 font-mono font-bold">${i.StockQuantity} pcs</td>
+                <tr class="border-b bg-red-50 text-xs">
+                    <td class="py-3 font-medium text-gray-800">${i.ItemName}</td>
+                    <td class="py-3 text-right text-red-600 font-mono font-bold">${i.StockQuantity} left</td>
                 </tr>
             `).join('');
+        }
+
+        function switchSection(target) {
+            document.querySelectorAll('.section-block').forEach(el => el.classList.add('hidden', 'lg:hidden'));
+            
+            // Reset mobile navigation icons styling
+            document.querySelectorAll('.fixed bottom-0 button').forEach(el => el.className = "flex flex-col items-center text-gray-400 relative");
+
+            if (target === 'menu') {
+                document.getElementById('section-menu').classList.remove('hidden');
+                document.getElementById('nav-menu').className = "flex flex-col items-center text-amber-800 font-medium";
+            } else if (target === 'cart') {
+                document.getElementById('section-cart').classList.remove('hidden', 'lg:hidden');
+                document.getElementById('nav-cart').className = "flex flex-col items-center text-amber-800 font-medium relative";
+            } else if (target === 'admin') {
+                document.getElementById('section-admin').classList.remove('hidden', 'lg:span-3');
+                document.getElementById('nav-admin').className = "flex flex-col items-center text-amber-800 font-medium";
+                fetchAndRenderAnalytics();
+            }
         }
 
         async function fetchAndRenderAnalytics() {
@@ -265,73 +296,59 @@ TOTAL:                 ₱${payload.total.toFixed(2)}
                 const rows = await response.json();
                 if(rows.length <= 1) return;
 
-                const dataRows = rows.slice(1); // Drop header row
+                const dataRows = rows.slice(1);
                 let daily = 0, weekly = 0, monthly = 0;
                 const now = new Date();
 
                 dataRows.forEach(row => {
                     const orderDate = new Date(row[1]);
                     const total = Number(row[4]);
-                    const diffTime = Math.abs(now - orderDate);
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    const diffDays = Math.ceil(Math.abs(now - orderDate) / (1000 * 60 * 60 * 24));
 
                     if(diffDays <= 1) daily += total;
                     if(diffDays <= 7) weekly += total;
                     if(diffDays <= 30) monthly += total;
                 });
 
-                document.getElementById('sales-daily').innerText = `₱${daily.toFixed(2)}`;
-                document.getElementById('sales-weekly').innerText = `₱${weekly.toFixed(2)}`;
-                document.getElementById('sales-monthly').innerText = `₱${monthly.toFixed(2)}`;
-
+                document.getElementById('sales-daily').innerText = `₱${daily.toFixed(0)}`;
+                document.getElementById('sales-weekly').innerText = `₱${weekly.toFixed(0)}`;
+                document.getElementById('sales-monthly').innerText = `₱${monthly.toFixed(0)}`;
                 renderChart(weekly, monthly);
-            } catch(e) {
-                console.error("Error drawing analytics panels:", e);
-            }
+            } catch(e) { console.error("Analytics failure", e); }
         }
 
-        function renderChart(weekly, monthly) {
+        function renderChart(w, m) {
             const ctx = document.getElementById('analyticsChart').getContext('2d');
             if(chartInstance) chartInstance.destroy();
-            
             chartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: ['Weekly Performance', 'Monthly Aggregates'],
-                    datasets: [{
-                        label: 'Gross Profit (₱)',
-                        data: [weekly, monthly],
-                        backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(147, 51, 234, 0.8)']
-                    }]
+                    labels: ['Weekly Gross', 'Monthly Gross'],
+                    datasets: [{ data: [w, m], backgroundColor: ['#3b82f6', '#a855f7'] }]
                 },
-                options: { responsive: true, maintainAspectRatio: false }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
         }
 
-        function switchRole(role) {
-            currentRole = role;
-            const empDash = document.getElementById('employee-dashboard');
-            const cartSidebar = document.getElementById('cart-sidebar');
-            const adminDash = document.getElementById('admin-dashboard');
-            const badge = document.getElementById('role-badge');
+        // Handle PWA Installation prompting interceptor
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('pwa-install-btn').classList.remove('hidden');
+        });
 
-            if (role === 'admin') {
-                empDash.classList.add('hidden');
-                cartSidebar.classList.add('hidden');
-                adminDash.classList.remove('hidden');
-                badge.innerText = "Admin Dashboard Mode";
-                badge.className = "bg-gray-800 px-3 py-1 rounded text-sm font-semibold";
-                fetchAndRenderAnalytics();
-            } else {
-                empDash.classList.remove('hidden');
-                cartSidebar.classList.remove('hidden');
-                adminDash.classList.add('hidden');
-                badge.innerText = "Employee Cashier Mode";
-                badge.className = "bg-amber-600 px-3 py-1 rounded text-sm font-semibold";
+        document.getElementById('pwa-install-btn').addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    document.getElementById('pwa-install-btn').classList.add('hidden');
+                }
+                deferredPrompt = null;
             }
-        }
+        });
 
-        // Run application on load
         window.onload = initPOS;
     </script>
 </body>
