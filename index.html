@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alberto's Heritage Café - POS System</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @media print {
+            body * { visibility: hidden; }
+            #receipt-print-zone, #receipt-print-zone * { visibility: visible; }
+            #receipt-print-zone { position: absolute; left: 0; top: 0; width: 58mm; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans min-h-screen flex flex-col">
+
+    <!-- Top Navigation -->
+    <nav class="bg-amber-800 text-white p-4 shadow-md flex justify-between items-center">
+        <h1 class="text-xl font-serif font-bold tracking-wide">Alberto's Heritage Café</h1>
+        <div class="flex gap-4 items-center">
+            <span id="role-badge" class="bg-amber-600 px-3 py-1 rounded text-sm font-semibold">Employee Mode</span>
+            <button onclick="switchRole('employee')" class="bg-amber-700 hover:bg-amber-600 px-3 py-1 rounded text-sm">Employee View</button>
+            <button onclick="switchRole('admin')" class="bg-gray-800 hover:bg-gray-700 px-3 py-1 rounded text-sm">Admin View</button>
+        </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 p-6 max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- ================= EMPLOYEE VIEW ================= -->
+        <div id="employee-dashboard" class="lg:col-span-2 space-y-6">
+            <div class="bg-white p-6 rounded-lg shadow-sm">
+                <h2 class="text-lg font-bold mb-4 text-gray-800">Menu Items</h2>
+                <div id="menu-grid" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <!-- Loaded dynamically from Google Sheets -->
+                    <p class="text-gray-500 col-span-full">Loading delicious heritage inventory...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Checkout / Cart Sidebar (Visible to Employees) -->
+        <div id="cart-sidebar" class="bg-white p-6 rounded-lg shadow-sm flex flex-col justify-between h-[600px]">
+            <div>
+                <h2 class="text-lg font-bold mb-4 text-gray-800">Current Order</h2>
+                <div id="cart-items" class="space-y-3 overflow-y-auto h-[380px] pr-2">
+                    <p class="text-gray-400 text-center py-8">Cart is empty.</p>
+                </div>
+            </div>
+            <div class="border-t pt-4">
+                <div class="flex justify-between font-bold text-lg mb-4">
+                    <span>Total:</span>
+                    <span id="cart-total">₱0.00</span>
+                </div>
+                <button onclick="submitOrder()" class="w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3 rounded-lg shadow transition">
+                    Place Order & Print Receipt
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= ADMIN VIEW (Hidden by default) ================= -->
+        <div id="admin-dashboard" class="hidden lg:col-span-3 space-y-6">
+            <!-- Analytics Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-emerald-500">
+                    <h3 class="text-sm font-semibold text-gray-500 uppercase">Daily Revenue</h3>
+                    <p id="sales-daily" class="text-2xl font-bold text-gray-800 mt-1">₱0.00</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-blue-500">
+                    <h3 class="text-sm font-semibold text-gray-500 uppercase">Weekly Revenue</h3>
+                    <p id="sales-weekly" class="text-2xl font-bold text-gray-800 mt-1">₱0.00</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-purple-500">
+                    <h3 class="text-sm font-semibold text-gray-500 uppercase">Monthly Revenue</h3>
+                    <p id="sales-monthly" class="text-2xl font-bold text-gray-800 mt-1">₱0.00</p>
+                </div>
+            </div>
+
+            <!-- Stock Tracker & Chart Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Critical Stock Alert Table -->
+                <div class="bg-white p-6 rounded-lg shadow-sm lg:col-span-1">
+                    <h3 class="text-md font-bold text-red-600 mb-3 flex items-center gap-2">
+                        ⚠️ Low Stock Tracker (&lt; 10 pcs)
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="text-xs text-gray-500 uppercase border-b">
+                                    <th class="pb-2">Item</th>
+                                    <th class="pb-2 text-right">Stock Left</th>
+                                </tr>
+                            </thead>
+                            <tbody id="low-stock-list" class="divide-y text-sm">
+                                <!-- Loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Sales Analytics Graph -->
+                <div class="bg-white p-6 rounded-lg shadow-sm lg:col-span-2">
+                    <h3 class="text-md font-bold text-gray-800 mb-4">Sales Trends Visualization</h3>
+                    <div class="h-64">
+                        <canvas id="analyticsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Hidden Thermal Receipt Node Sandbox -->
+    <div id="receipt-print-zone" class="font-mono text-xs p-2 hidden"></div>
+
+    <!-- Core App Logic Javascript -->
+    <script>
+        // PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE
+        const API_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL"; 
+
+        let inventory = [];
+        let cart = [];
+        let currentRole = 'employee';
+        let chartInstance = null;
+
+        async function initPOS() {
+            await fetchInventory();
+            switchRole(currentRole);
+        }
+
+        async function fetchInventory() {
+            try {
+                const response = await fetch(`${API_URL}?action=getInventory`);
+                inventory = await response.json();
+                renderMenu();
+                renderLowStock();
+            } catch (err) {
+                console.error("Error loading structural inventory data:", err);
+            }
+        }
+
+        function renderMenu() {
+            const grid = document.getElementById('menu-grid');
+            grid.innerHTML = inventory.map(item => `
+                <button onclick="addToCart(${item.ItemID})" class="p-4 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl text-left transition flex flex-col justify-between h-28">
+                    <span class="font-bold text-amber-900">${item.ItemName}</span>
+                    <div class="flex justify-between items-center w-full mt-2">
+                        <span class="text-xs bg-amber-200 px-2 py-0.5 rounded text-amber-800">${item.Category}</span>
+                        <span class="font-mono font-bold text-gray-700">₱${Number(item.Price).toFixed(2)}</span>
+                    </div>
+                </button>
+            `).join('');
+        }
+
+        function addToCart(id) {
+            const item = inventory.find(i => i.ItemID == id);
+            const exist = cart.find(c => c.id == id);
+            if (exist) {
+                exist.quantity++;
+            } else {
+                cart.push({ id: item.ItemID, name: item.ItemName, price: item.Price, quantity: 1 });
+            }
+            renderCart();
+        }
+
+        function renderCart() {
+            const container = document.getElementById('cart-items');
+            if(cart.length === 0) {
+                container.innerHTML = `<p class="text-gray-400 text-center py-8">Cart is empty.</p>`;
+                document.getElementById('cart-total').innerText = "₱0.00";
+                return;
+            }
+            
+            let total = 0;
+            container.innerHTML = cart.map(item => {
+                total += item.price * item.quantity;
+                return `
+                    <div class="flex justify-between items-center bg-gray-50 p-2 rounded">
+                        <div>
+                            <p class="font-semibold text-sm text-gray-800">${item.name}</p>
+                            <p class="text-xs text-gray-500">₱${item.price} x ${item.quantity}</p>
+                        </div>
+                        <span class="font-mono font-semibold">₱${(item.price * item.quantity).toFixed(2)}</span>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('cart-total').innerText = `₱${total.toFixed(2)}`;
+        }
+
+        async function submitOrder() {
+            if(cart.length === 0) return alert("Your transaction tray is completely empty!");
+            const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+            const payload = {
+                action: "placeOrder",
+                employee: "Staff Counter 1",
+                items: cart,
+                total: total,
+                paymentMethod: "Cash"
+            };
+
+            // Dynamic receipt configuration before backend lag
+            printThermalReceipt(payload);
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: "POST",
+                    body: JSON.stringify(payload)
+                });
+                const res = await response.json();
+                if(res.status === "SUCCESS") {
+                    alert("Order processed successfully!");
+                    cart = [];
+                    renderCart();
+                    initPOS(); // refresh inventory counters
+                }
+            } catch(e) {
+                alert("Network transaction failed, check configuration endpoints.");
+            }
+        }
+
+        function printThermalReceipt(payload) {
+            const receipt = document.getElementById('receipt-print-zone');
+            let itemLines = cart.map(i => `${i.name.padEnd(16)} x${i.quantity} ₱${(i.price*i.quantity).toFixed(0)}`).join('\n');
+            
+            receipt.innerHTML = `
+<pre style="font-family: monospace; font-size: 10px;">
+   ALBERTO'S HERITAGE CAFE
+   Calabarzon, Philippines
+================================
+Items            Qty   Price
+--------------------------------
+${itemLines}
+--------------------------------
+TOTAL:                 ₱${payload.total.toFixed(2)}
+================================
+ Thank you for dining with us!
+   Come savor heritage again.
+</pre>
+            `;
+            window.print();
+        }
+
+        function renderLowStock() {
+            const list = document.getElementById('low-stock-list');
+            const lowItems = inventory.filter(i => i.StockQuantity < 10);
+            
+            if(lowItems.length === 0) {
+                list.innerHTML = `<tr><td class="py-2 text-emerald-600 font-semibold" colspan="2">All stock levels normal.</td></tr>`;
+                return;
+            }
+
+            list.innerHTML = lowItems.map(i => `
+                <tr class="border-b bg-red-50">
+                    <td class="py-2 font-medium text-gray-800">${i.ItemName}</td>
+                    <td class="py-2 text-right text-red-600 font-mono font-bold">${i.StockQuantity} pcs</td>
+                </tr>
+            `).join('');
+        }
+
+        async function fetchAndRenderAnalytics() {
+            try {
+                const response = await fetch(`${API_URL}?action=getSalesData`);
+                const rows = await response.json();
+                if(rows.length <= 1) return;
+
+                const dataRows = rows.slice(1); // Drop header row
+                let daily = 0, weekly = 0, monthly = 0;
+                const now = new Date();
+
+                dataRows.forEach(row => {
+                    const orderDate = new Date(row[1]);
+                    const total = Number(row[4]);
+                    const diffTime = Math.abs(now - orderDate);
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                    if(diffDays <= 1) daily += total;
+                    if(diffDays <= 7) weekly += total;
+                    if(diffDays <= 30) monthly += total;
+                });
+
+                document.getElementById('sales-daily').innerText = `₱${daily.toFixed(2)}`;
+                document.getElementById('sales-weekly').innerText = `₱${weekly.toFixed(2)}`;
+                document.getElementById('sales-monthly').innerText = `₱${monthly.toFixed(2)}`;
+
+                renderChart(weekly, monthly);
+            } catch(e) {
+                console.error("Error drawing analytics panels:", e);
+            }
+        }
+
+        function renderChart(weekly, monthly) {
+            const ctx = document.getElementById('analyticsChart').getContext('2d');
+            if(chartInstance) chartInstance.destroy();
+            
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Weekly Performance', 'Monthly Aggregates'],
+                    datasets: [{
+                        label: 'Gross Profit (₱)',
+                        data: [weekly, monthly],
+                        backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(147, 51, 234, 0.8)']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function switchRole(role) {
+            currentRole = role;
+            const empDash = document.getElementById('employee-dashboard');
+            const cartSidebar = document.getElementById('cart-sidebar');
+            const adminDash = document.getElementById('admin-dashboard');
+            const badge = document.getElementById('role-badge');
+
+            if (role === 'admin') {
+                empDash.classList.add('hidden');
+                cartSidebar.classList.add('hidden');
+                adminDash.classList.remove('hidden');
+                badge.innerText = "Admin Dashboard Mode";
+                badge.className = "bg-gray-800 px-3 py-1 rounded text-sm font-semibold";
+                fetchAndRenderAnalytics();
+            } else {
+                empDash.classList.remove('hidden');
+                cartSidebar.classList.remove('hidden');
+                adminDash.classList.add('hidden');
+                badge.innerText = "Employee Cashier Mode";
+                badge.className = "bg-amber-600 px-3 py-1 rounded text-sm font-semibold";
+            }
+        }
+
+        // Run application on load
+        window.onload = initPOS;
+    </script>
+</body>
+</html>
