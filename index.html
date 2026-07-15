@@ -738,44 +738,60 @@
         const total = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
         const payload = {
-            action: "placeOrder",
-            employee: activeUser ? activeUser.name : "System",
-            items: activeCart,
-            total: total,
-            paymentMethod: "Cash"
-        };
+        employee: activeUser ? activeUser.name : "Employee",
+        items: activeCart,
+        total: activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+        paymentMethod: "Cash" // or dynamic value
+    };
 
-        printThermalReceipt(payload);
-
-        try {
-            const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
-            const res = await response.json();
-            if (res.status === "SUCCESS") {
-                showToast("Order logged and processed successfully!");
-                activeCart = [];
-                renderCart();
-                await fetchAllData();
-                renderMenu();
-                calculateShiftSales(); // Immediate shift total refresh post-purchase
-            }
-        } catch (err) {
-            showToast("Network sync error. Check internet connection.", "error");
+    // Send data to Google Apps Script Web App
+    fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "placeOrder", ...payload })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === "SUCCESS") {
+            // ✅ Fix: Call the correct printing function name, passing the sheet order ID
+            printThermalReceipt(payload, data.orderId);
+            
+            // Clear cart and refresh UI
+            activeCart = [];
+            renderCart();
+            renderMenu();
+        } else {
+            alert("Error placing order: " + data.message);
         }
+    })
+    .catch(err => console.error("Order submission failed:", err));
+}
+
+   function printThermalReceipt(payload, serverOrderId) {
+    const receipt = document.getElementById('receipt-container') || document.getElementById('receipt');
+    if (!receipt) {
+        console.error("Receipt rendering element not found!");
+        return;
     }
 
-    function printReceipt(payload, serverOrderId) {
-    // Falls back to timestamp if the server didn't send back an ID in time
-    const finalOrderId = serverOrderId || payload.orderId || payload.id || ("ORD-" + Date.now());
+    // Generate dynamic item rows
+    const itemLines = (payload.items || []).map(item => {
+        const name = item.name.substring(0, 14).padEnd(14, ' ');
+        const qty = item.quantity.toString().padStart(5, ' ');
+        const price = `₱${(item.price * item.quantity).toFixed(2)}`.padStart(11, ' ');
+        return `${name}${qty}${price}`;
+    }).join('\n');
+
+    const finalOrderId = serverOrderId || ("ORD-" + Date.now());
 
     receipt.innerHTML = `
 <div style="text-align: center; margin-bottom: 5px;">
-    <!-- Removed the apostrophe from file name to prevent string escaping bugs -->
+    <!-- Pointing to the clean filename without the apostrophe -->
     <img src="albertos.jpg" alt="Alberto's Logo" style="display: block; margin: 0 auto; max-width: 60px; height: auto;" />
 </div>
 <pre style="font-family: monospace; font-size: 12px; line-height: 1.3; margin-top: 0;">
      ALBERTO'S HERITAGE CAFE
 ================================
-Staff: ${payload.employee}
+Staff: ${payload.employee || 'Staff'}
 Date: ${new Date().toLocaleDateString()}
 Order ID: ${finalOrderId}
 --------------------------------
@@ -783,7 +799,7 @@ Items          Qty   Price
 --------------------------------
 ${itemLines}
 --------------------------------
-TOTAL:               ₱${payload.total.toFixed(2)}
+TOTAL:               ₱${Number(payload.total).toFixed(2)}
 ================================
 National Highway 
 (near Cabanbanan Arch)
@@ -795,6 +811,8 @@ Contact us at: 0969 299 2006
     Savor Heritage Today.
 </pre>
     `;
+    
+    // Trigger the physical print prompt
     window.print();
 }
 
