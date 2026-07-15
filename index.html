@@ -26,7 +26,7 @@
         }
     </style>
 </head>
-<body class="bg-slate-50 font-sans min-h-screen flex flex-col">
+<body class="bg-slate-50 font-sans h-screen overflow-hidden flex flex-col">
 
     <!-- ================= MODERN TOAST CONTAINER ================= -->
     <div id="toast-container" class="fixed top-5 right-5 z-[1000] flex flex-col gap-3 pointer-events-none"></div>
@@ -71,11 +71,11 @@
     </div>
 
     <!-- MAIN APP WRAPPER -->
-    <div id="app-wrapper" class="hidden min-h-screen flex flex-col md:flex-row">
+    <div id="app-wrapper" class="hidden h-screen w-screen flex flex-col md:flex-row overflow-hidden">
 
-        <!-- ================= SIDE NAV BAR ================= -->
-        <aside id="sidebar" class="bg-slate-900 text-slate-100 w-full md:w-64 flex flex-col border-r border-slate-800">
-            <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+        <!-- ================= SIDE NAV BAR (FIXED) ================= -->
+        <aside id="sidebar" class="bg-slate-900 text-slate-100 w-full md:w-64 flex flex-col border-r border-slate-800 flex-shrink-0 h-full">
+            <div class="p-4 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
                 <div class="flex items-center gap-2">
                     <img src="albertos.jpg" class="w-8 h-8 rounded-full object-cover">
                     <span class="font-black text-sm tracking-wider">ALBERTO'S</span>
@@ -83,8 +83,8 @@
                 <span id="connection-status" class="bg-emerald-600 px-2 py-0.5 rounded text-[10px] font-bold">Online</span>
             </div>
 
-            <!-- Switch tabs links -->
-            <nav class="flex-1 p-4 space-y-1 text-sm">
+            <!-- Switch tabs links (Scrollable internally if screen is tiny, but fixed container) -->
+            <nav class="flex-1 p-4 space-y-1 text-sm overflow-y-auto">
                 <!-- Employee Nav Items -->
                 <div class="space-y-1" id="emp-nav-links">
                     <p class="text-xs font-bold text-slate-500 uppercase tracking-wider px-2 py-1">Operations</p>
@@ -112,10 +112,10 @@
         </aside>
 
         <!-- ================= MAIN CORE DISPLAY ZONE ================= -->
-        <main class="flex-1 flex flex-col min-w-0">
+        <main class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
 
-            <!-- ================= TOP NAV BAR (EVERY DASHBOARD) ================= -->
-            <header class="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+            <!-- ================= TOP NAV BAR (FIXED) ================= -->
+            <header class="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between flex-shrink-0">
                 <div>
                     <h1 class="text-lg font-black text-slate-800" id="header-view-title">Menu Register</h1>
                     <p class="text-xs text-slate-400" id="header-system-date">Loading date details...</p>
@@ -130,28 +130,33 @@
                 </div>
             </header>
 
-            <!-- Dashboard Inner Content -->
-            <div class="p-6 flex-1 overflow-y-auto">
-                <!-- VIEW: REGISTER (Standard Employee POS view with Category Filters) -->
-                <div id="view-register" class="view-block grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <!-- Menu Layout -->
-                    <div class="lg:col-span-2 space-y-4">
-                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col min-h-[580px]">
-                            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
-                                <h2 class="text-md font-bold text-slate-800">Heritage Menu Selection</h2>
-                                <span class="text-xs text-orange-600 bg-orange-50 px-3 py-1 rounded-full font-bold self-start sm:self-auto" id="low-stock-alert">Loading Stock Monitor...</span>
+            <!-- Dashboard Inner Content Container (Scrollable or Layout Bound) -->
+            <div class="p-6 flex-1 overflow-y-auto h-full min-h-0">
+                
+                <!-- VIEW: REGISTER (Adjusted Heights and Scrolling Context) -->
+                <div id="view-register" class="view-block grid grid-cols-1 lg:grid-cols-3 gap-6 h-full max-h-[calc(100vh-120px)] overflow-hidden">
+                    
+                    <!-- Menu Layout (Fixed box bounds) -->
+                    <div class="lg:col-span-2 h-full flex flex-col min-h-0">
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col h-full overflow-hidden">
+                            <!-- Category Filter Panel (Fixed Header inside Menu Box) -->
+                            <div class="p-6 pb-2 flex-shrink-0">
+                                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
+                                    <h2 class="text-md font-bold text-slate-800">Heritage Menu Selection</h2>
+                                    <span class="text-xs text-orange-600 bg-orange-50 px-3 py-1 rounded-full font-bold self-start sm:self-auto" id="low-stock-alert">Loading Stock Monitor...</span>
+                                </div>
+
+                                <!-- Horizontal Scrollable Category Tab Bar (Fixed relative to table) -->
+                                <div class="flex gap-2 overflow-x-auto pb-3 mb-2 scrollbar-thin border-b border-slate-100 flex-shrink-0" id="category-tab-bar">
+                                    <!-- Dynamic categories inject here -->
+                                </div>
                             </div>
 
-                            <!-- Horizontal Scrollable Category Tab Bar -->
-                            <div class="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-thin border-b border-slate-100" id="category-tab-bar">
-                                <!-- Tabs will be generated dynamically by JavaScript -->
-                            </div>
-
-                            <!-- Structured Table to show Menus -->
-                            <div class="flex-1 overflow-y-auto">
+                            <!-- Scrollable Menu Table Body -->
+                            <div class="flex-1 overflow-y-auto px-6 pb-6 min-h-0">
                                 <table class="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr class="border-b border-slate-200 text-slate-400 text-xs font-bold uppercase tracking-wider">
+                                    <thead class="sticky top-0 bg-white z-10 border-b border-slate-200">
+                                        <tr class="text-slate-400 text-xs font-bold uppercase tracking-wider">
                                             <th class="py-3 px-2">ID</th>
                                             <th class="py-3 px-2">Item Name</th>
                                             <th class="py-3 px-2 text-right">Price</th>
@@ -167,21 +172,47 @@
                         </div>
                     </div>
 
-                    <!-- Transaction Sidebar -->
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between h-[580px]">
-                        <div>
-                            <h3 class="text-md font-bold text-slate-800 mb-4 flex justify-between">
+                    <!-- Transaction Sidebar (Fully Fixed / Internal Scroll basket) -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between h-full overflow-hidden min-h-0">
+                        <!-- Top Header and Basket List Section -->
+                        <div class="p-6 flex flex-col flex-1 overflow-hidden min-h-0">
+                            <h3 class="text-md font-bold text-slate-800 mb-4 flex justify-between flex-shrink-0">
                                 <span>Basket</span>
                                 <span id="basket-counter" class="text-xs bg-slate-100 px-2 py-0.5 rounded-full text-slate-600">0</span>
                             </h3>
-                            <div id="basket-list" class="space-y-3 overflow-y-auto max-h-[350px] pr-2"></div>
+                            <!-- Only the items inside this div scroll! -->
+                            <div id="basket-list" class="flex-1 space-y-3 overflow-y-auto pr-2 min-h-0"></div>
                         </div>
-                        <div class="border-t border-slate-100 pt-4">
-                            <div class="flex justify-between text-lg font-bold mb-4">
-                                <span>Grand Total:</span>
-                                <span id="basket-total" class="font-mono text-amber-900">₱0.00</span>
+                        
+                        <!-- Checkout Math Controls (Bottom Fixed Container) -->
+                        <div class="border-t border-slate-100 p-6 bg-slate-50 flex-shrink-0 space-y-4">
+                            <!-- Totals Display -->
+                            <div class="flex justify-between text-md font-bold text-slate-700">
+                                <span>Total Amount:</span>
+                                <span id="basket-total" class="font-mono text-amber-950">₱0.00</span>
                             </div>
-                            <button onclick="placeOrder()" class="w-full bg-amber-800 text-white font-bold py-3.5 rounded-xl hover:bg-amber-900 transition">Complete order</button>
+
+                            <!-- Cash Payment Input Form -->
+                            <div class="space-y-1">
+                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Cash Received</label>
+                                <div class="relative rounded-xl shadow-sm">
+                                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                        <span class="text-slate-400 font-bold text-sm">₱</span>
+                                    </div>
+                                    <input type="number" step="any" min="0" id="cash-tendered" oninput="calculateChange()" placeholder="0.00" 
+                                           class="w-full rounded-xl border border-slate-200 py-2.5 pl-7 pr-3 text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-amber-800 transition-all">
+                                </div>
+                            </div>
+
+                            <!-- Change calculation indicator -->
+                            <div class="flex justify-between items-center py-2 px-3 bg-white rounded-xl border border-dashed border-slate-200">
+                                <span class="text-xs font-bold text-slate-500">Change Due:</span>
+                                <span id="customer-change" class="text-sm font-mono font-bold text-slate-400">₱0.00</span>
+                            </div>
+
+                            <button onclick="placeOrder()" class="w-full bg-amber-800 text-white font-bold py-3.5 rounded-xl hover:bg-amber-900 transition-all shadow-md active:scale-[0.99]">
+                                Complete Order
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -193,7 +224,7 @@
                     <div class="space-y-4">
                         <div>
                             <label class="block text-xs font-semibold text-slate-500 mb-1">Starting Register Cash (₱)</label>
-                            <input type="number" id="recon-start-cash" value="2000" class="w-full p-3 rounded-lg border border-gray-200 font-mono">
+                            <input type="number" id="recon-start-cash" value="2000" class="w-full p-3 rounded-lg border border-gray-200 font-mono" readonly>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-slate-500 mb-1">Current Logged Sales (₱)</label>
@@ -346,7 +377,6 @@
 
     <!-- Hidden Printable Node Container for Thermal Output -->
     <div id="receipt-print-zone" class="hidden"></div>
-
     <!-- CORE LOGIC & ROUTING ENGINE -->
    <script>
     const API_URL = "https://script.google.com/macros/s/AKfycbxulPl24lg5hJS8a_5KuXPxUH7usUHHpl-JqdASVCFHiG0PTej7GaGFZoSKNY-dOvD-Uw/exec"; // REPLACE WITH YOUR DEPLOYED URL
@@ -733,15 +763,26 @@
         renderCart();
     }
 
-    async function placeOrder() {
-        if (activeCart.length === 0) return showToast("Your basket is empty!", "warning");
-        const total = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+   async function placeOrder() {
+    if (activeCart.length === 0) return showToast("Your basket is empty!", "warning");
+    
+    const total = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    
+    // 1. Get and validate the cash tendered amount
+    const cashInput = document.getElementById('cash-tendered');
+    const cashTendered = parseFloat(cashInput ? cashInput.value : 0) || 0;
+    
+    if (cashTendered < total) {
+        return showToast(`Insufficient payment! Total is ₱${total.toFixed(2)} but only ₱${cashTendered.toFixed(2)} was given.`, "warning");
+    }
 
-        const payload = {
+    const payload = {
         employee: activeUser ? activeUser.name : "Employee",
         items: activeCart,
-        total: activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-        paymentMethod: "Cash" // or dynamic value
+        total: total,
+        paymentMethod: "Cash", // or dynamic value
+        cashTendered: cashTendered,
+        change: cashTendered - total
     };
 
     // Send data to Google Apps Script Web App
@@ -755,15 +796,59 @@
             // ✅ Fix: Call the correct printing function name, passing the sheet order ID
             printThermalReceipt(payload, data.orderId);
             
-            // Clear cart and refresh UI
+            // Success indicator
+            showToast("Order placed successfully!", "success");
+            
+            // Clear cart, cash input, change displays, and refresh UI
             activeCart = [];
+            if (cashInput) cashInput.value = ''; // Clear the input field
+            
+            // Re-render everything to reset states
             renderCart();
             renderMenu();
+            
+            // Reset the "Change Due" display label to ₱0.00
+            const changeDisplay = document.getElementById('customer-change');
+            if (changeDisplay) {
+                changeDisplay.innerText = "₱0.00";
+                changeDisplay.className = "text-sm font-mono font-bold text-slate-400";
+            }
         } else {
             alert("Error placing order: " + data.message);
         }
     })
-    .catch(err => console.error("Order submission failed:", err));
+    .catch(err => {
+        console.error("Order submission failed:", err);
+        showToast("Order submission failed. Please check connection.", "error");
+    });
+}
+       let employeePettyCash = 0;
+
+// Call this function inside your logic flow right after the staff member logs in successfully
+function registerEmployeeShiftAssets(user) {
+    if (user.role.toLowerCase() === 'employee') {
+        let entry = prompt("Shift Started. Please declare your receiving starting Petty Cash float amount (₱):", "1000.00");
+        
+        // Loop protection against bad values
+        while (entry === null || isNaN(parseFloat(entry)) || parseFloat(entry) < 0) {
+            entry = prompt("A valid numeric float amount (₱) is required to initialize your drawer:", "1000.00");
+        }
+        
+        employeePettyCash = parseFloat(entry);
+        
+        // Apply starting cash instantly to the End Shift view input
+        const reconStartInput = document.getElementById('recon-start-cash');
+        if (reconStartInput) {
+            reconStartInput.value = employeePettyCash;
+        }
+    } else {
+        // Admin or non-employee defaults
+        employeePettyCash = 2000; // or your business's default float amount
+        const reconStartInput = document.getElementById('recon-start-cash');
+        if (reconStartInput) {
+            reconStartInput.value = employeePettyCash;
+        }
+    }
 }
 
    function printThermalReceipt(payload, serverOrderId) {
@@ -1033,6 +1118,47 @@ function calculateShiftSales() {
             }
         } catch(e) { showToast("Product updates failed.", "error"); }
     }
+
+       let basketTotalSum = 0; // Tracking variable for basket totals
+
+    function calculateChange() {
+    const cashInput = document.getElementById('cash-tendered');
+    const changeDisplay = document.getElementById('customer-change');
+    
+    if (!cashInput || !changeDisplay) return;
+
+    const cashValue = parseFloat(cashInput.value);
+    
+    // Clear display if no valid value has been entered
+    if (isNaN(cashValue) || cashValue <= 0) {
+        changeDisplay.innerText = "₱0.00";
+        changeDisplay.className = "text-sm font-mono font-bold text-slate-400";
+        return;
+    }
+
+    const calculatedChange = cashValue - basketTotalSum;
+    changeDisplay.innerText = `₱${calculatedChange.toFixed(2)}`;
+
+    // Color indicators to warn the cashier
+    if (calculatedChange < 0) {
+        changeDisplay.className = "text-sm font-mono font-bold text-red-500"; // Shortage warning
+    } else {
+        changeDisplay.className = "text-sm font-mono font-bold text-emerald-600"; // Success green
+    }
+}
+
+// Hook into your custom renderCart() / basket UI updating routine to reset math inputs
+function onBasketUpdated(newTotal) {
+    basketTotalSum = newTotal;
+    
+    // Reset cash tendered inputs whenever items are cleared out entirely
+    if (basketTotalSum === 0) {
+        const cashInput = document.getElementById('cash-tendered');
+        if (cashInput) cashInput.value = '';
+    }
+    
+    calculateChange();
+}
 
     function renderReprintTable() {
         const container = document.getElementById('reprint-table-body');
