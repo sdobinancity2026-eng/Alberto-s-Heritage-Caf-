@@ -1133,29 +1133,45 @@ function calculateShiftSales() {
 
        let basketTotalSum = 0; // Tracking variable for basket totals
 
-    function calculateChange() {
+   function calculateChange() {
     const cashInput = document.getElementById('cash-tendered');
     const changeDisplay = document.getElementById('customer-change');
+    const totalDisplay = document.getElementById('basket-total');
     
     if (!cashInput || !changeDisplay) return;
 
+    // 1. Get Cash Tendered
     const cashValue = parseFloat(cashInput.value);
     
-    // Clear display if no valid value has been entered
+    // If no cash is entered yet, reset display to ₱0.00
     if (isNaN(cashValue) || cashValue <= 0) {
         changeDisplay.innerText = "₱0.00";
         changeDisplay.className = "text-sm font-mono font-bold text-slate-400";
         return;
     }
 
-    const calculatedChange = cashValue - basketTotalSum;
-    changeDisplay.innerText = `₱${calculatedChange.toFixed(2)}`;
+    // 2. Get the Current Total (pull dynamically from basket variable OR the UI element)
+    let currentTotal = 0;
+    if (typeof activeCart !== 'undefined') {
+        // Pull directly from your active array memory (Recommended)
+        currentTotal = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    } else if (totalDisplay) {
+        // Fallback: Scraping the text on screen & removing the Currency Symbol
+        currentTotal = parseFloat(totalDisplay.innerText.replace(/[^0-9.]/g, '')) || 0;
+    }
 
-    // Color indicators to warn the cashier
-    if (calculatedChange < 0) {
-        changeDisplay.className = "text-sm font-mono font-bold text-red-500"; // Shortage warning
+    // 3. Compute the Difference (Cash Received - Total)
+    const difference = cashValue - currentTotal;
+    
+    // 4. Update UI styling and text dynamically
+    if (difference < 0) {
+        // If they paid less than the total, show remaining amount in RED with a minus sign
+        changeDisplay.innerText = `-₱${Math.abs(difference).toFixed(2)}`;
+        changeDisplay.className = "text-sm font-mono font-bold text-red-500";
     } else {
-        changeDisplay.className = "text-sm font-mono font-bold text-emerald-600"; // Success green
+        // If they paid enough, show the positive change in Green
+        changeDisplay.innerText = `₱${difference.toFixed(2)}`;
+        changeDisplay.className = "text-sm font-mono font-bold text-emerald-600";
     }
 }
 
