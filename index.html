@@ -4,22 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Alberto's Heritage Café - POS</title>
-    <!-- PWA Elements -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#92400e">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-   <!-- Tab Icon (Favicon) -->
-    <link rel="icon" type="image/jpeg" href="https://raw.githubusercontent.com/sdobinancity2026-eng/Alberto-s-Heritage-Caf-/main/alberto's.jpg">
-    
-    <!-- iOS Home Screen Icon -->
-    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/sdobinancity2026-eng/Alberto-s-Heritage-Caf-/main/alberto's.jpg">
+    <link rel="icon" href="alberto's.jpg">
+    <link rel="apple-touch-icon" href="alberto's.jpg">
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Touch optimization to prevent accidental double-tap zooming on mobile */
-        button, click-node { touch-action: manipulation; }
+        button { touch-action: manipulation; }
         @media print {
             body * { visibility: hidden; }
             #receipt-print-zone, #receipt-print-zone * { visibility: visible; }
@@ -31,30 +24,32 @@
 
     <!-- Top Navigation -->
     <nav class="bg-amber-800 text-white p-4 shadow-md flex justify-between items-center sticky top-0 z-50">
-        <h1 class="text-lg md:text-xl font-serif font-bold tracking-wide">Alberto's POS</h1>
+        <div class="flex items-center gap-3">
+            <h1 class="text-lg md:text-xl font-serif font-bold tracking-wide">Alberto's POS</h1>
+            <!-- Connection Status Badge -->
+            <span id="connection-status" class="bg-emerald-600 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded-full">Online</span>
+        </div>
         <div class="hidden md:flex gap-4 items-center">
-            <span id="role-badge" class="bg-amber-600 px-3 py-1 rounded text-sm font-semibold">Employee Mode</span>
+            <span id="queue-badge" class="hidden bg-orange-600 text-white text-xs px-2.5 py-1 rounded font-bold animate-bounce">0 Pending Sync</span>
             <button onclick="switchSection('menu')" class="bg-amber-700 hover:bg-amber-600 px-3 py-1 rounded text-sm">Register</button>
             <button onclick="switchSection('admin')" class="bg-gray-800 hover:bg-gray-700 px-3 py-1 rounded text-sm">Admin Panel</button>
         </div>
-        <!-- Install PWA Button Trigger -->
-        <button id="pwa-install-btn" class="hidden bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-full font-bold shadow animate-pulse">Install App</button>
     </nav>
 
     <!-- Main Content Grid -->
     <main class="flex-1 p-4 md:p-6 max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        <!-- ================= SECTION: MENU SYSTEM ================= -->
+        <!-- SECTION: MENU SYSTEM -->
         <div id="section-menu" class="lg:col-span-2 space-y-4 section-block">
             <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm">
                 <h2 class="text-lg font-bold mb-4 text-gray-800">Menu Items</h2>
                 <div id="menu-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
-                    <p class="text-gray-500 col-span-full text-center py-4">Loading menu database...</p>
+                    <p class="text-gray-500 col-span-full text-center py-4">Loading menu...</p>
                 </div>
             </div>
         </div>
 
-        <!-- ================= SECTION: CART SYSTEM ================= -->
+        <!-- SECTION: CART SYSTEM -->
         <div id="section-cart" class="bg-white p-4 md:p-6 rounded-xl shadow-sm flex flex-col justify-between h-[calc(100vh-160px)] md:h-[600px] section-block hidden lg:flex">
             <div>
                 <h2 class="text-lg font-bold mb-4 text-gray-800 flex justify-between items-center">
@@ -71,14 +66,13 @@
                     <span id="cart-total" class="font-mono text-xl text-amber-900">₱0.00</span>
                 </div>
                 <button onclick="submitOrder()" class="w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3.5 rounded-xl shadow transition text-center">
-                    Place Order & Print Receipt
+                    Place Order & Print
                 </button>
             </div>
         </div>
 
-        <!-- ================= SECTION: ADMIN ANALYTICS ================= -->
+        <!-- SECTION: ADMIN ANALYTICS -->
         <div id="section-admin" class="hidden lg:col-span-3 space-y-6 section-block">
-            <!-- Analytics Cards -->
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-emerald-500">
                     <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Daily Sales</h3>
@@ -94,78 +88,85 @@
                 </div>
             </div>
 
-            <!-- Inventory Monitor & Visual Charts -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div class="bg-white p-5 rounded-xl shadow-sm lg:col-span-1">
-                    <h3 class="text-sm font-bold text-red-600 mb-3 flex items-center gap-2">
-                        ⚠️ Low Stock Monitor (&lt; 10 pcs)
-                    </h3>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="text-xs text-gray-400 uppercase border-b">
-                                    <th class="pb-2">Item Name</th>
-                                    <th class="pb-2 text-right">Qty</th>
-                                </tr>
-                            </thead>
-                            <tbody id="low-stock-list" class="divide-y text-sm"></tbody>
-                        </table>
-                    </div>
+                    <h3 class="text-sm font-bold text-red-600 mb-3 flex items-center gap-2">⚠️ Low Stock Monitor</h3>
+                    <div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr class="text-xs text-gray-400 uppercase border-b"><th class="pb-2">Item Name</th><th class="pb-2 text-right">Qty</th></tr></thead><tbody id="low-stock-list" class="divide-y text-sm"></tbody></table></div>
                 </div>
-
-                <div class="bg-white p-5 rounded-xl shadow-sm lg:col-span-2">
-                    <h3 class="text-sm font-bold text-gray-800 mb-4">Earnings Dynamic Visualization</h3>
-                    <div class="h-64">
-                        <canvas id="analyticsChart"></canvas>
-                    </div>
-                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm lg:col-span-2"><h3 class="text-sm font-bold text-gray-800 mb-4">Earnings Dynamic Visualization</h3><div class="h-64"><canvas id="analyticsChart"></canvas></div></div>
             </div>
         </div>
     </main>
 
     <!-- Bottom Sticky Mobile Navbar Menu -->
     <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg flex justify-around py-2 z-50">
-        <button onclick="switchSection('menu')" id="nav-menu" class="flex flex-col items-center text-amber-800 font-medium">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>
-            <span class="text-xs mt-0.5">Register</span>
-        </button>
-        <button onclick="switchSection('cart')" id="nav-cart" class="flex flex-col items-center text-gray-400 relative">
-            <span id="cart-badge-dot" class="hidden absolute top-0 right-2 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
-            <span class="text-xs mt-0.5">Cart</span>
-        </button>
-        <button onclick="switchSection('admin')" id="nav-admin" class="flex flex-col items-center text-gray-400">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z"></path></svg>
-            <span class="text-xs mt-0.5">Admin</span>
-        </button>
+        <button onclick="switchSection('menu')" id="nav-menu" class="flex flex-col items-center text-amber-800 font-medium"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg><span class="text-xs mt-0.5">Register</span></button>
+        <button onclick="switchSection('cart')" id="nav-cart" class="flex flex-col items-center text-gray-400 relative"><span id="cart-badge-dot" class="hidden absolute top-0 right-2 w-2.5 h-2.5 bg-red-500 rounded-full"></span><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg><span class="text-xs mt-0.5">Cart</span></button>
+        <button onclick="switchSection('admin')" id="nav-admin" class="flex flex-col items-center text-gray-400"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z"></path></svg><span class="text-xs mt-0.5">Admin</span></button>
     </div>
 
-    <!-- Hidden Thermal Printing Sandbox Layout Node -->
     <div id="receipt-print-zone" class="hidden"></div>
 
     <script>
         const API_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL"; 
         let inventory = [], cart = [], chartInstance = null;
+        let isOnline = navigator.onLine;
 
         async function initPOS() {
+            setupConnectionListeners();
             await fetchInventory();
-            // Handle service worker registration for PWA installability
+            updateQueueBadge();
+            
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('sw.js').catch(err => console.log("SW registration bypassed", err));
+                navigator.serviceWorker.register('sw.js').catch(err => console.log(err));
             }
+            // Check for stuck unsynced sales if online at boot
+            if (isOnline) syncOfflineOrders();
+        }
+
+        function setupConnectionListeners() {
+            const updateStatus = () => {
+                isOnline = navigator.onLine;
+                const badge = document.getElementById('connection-status');
+                if (isOnline) {
+                    badge.innerText = "Online";
+                    badge.className = "bg-emerald-600 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded-full";
+                    syncOfflineOrders();
+                } else {
+                    badge.innerText = "Offline Mode";
+                    badge.className = "bg-red-600 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded-full";
+                }
+            };
+            window.addEventListener('online', updateStatus);
+            window.addEventListener('offline', updateStatus);
+            updateStatus();
         }
 
         async function fetchInventory() {
             try {
-                const response = await fetch(`${API_URL}?action=getInventory`);
-                inventory = await response.json();
+                if (isOnline) {
+                    const response = await fetch(`${API_URL}?action=getInventory`);
+                    inventory = await response.json();
+                    localStorage.setItem('cached_inventory', JSON.stringify(inventory)); // Save fallback copy
+                } else {
+                    // Fallback to locally stored copy if offline
+                    inventory = JSON.parse(localStorage.getItem('cached_inventory')) || [];
+                }
                 renderMenu();
                 renderLowStock();
-            } catch (err) { console.error("Network synchronization lost", err); }
+            } catch (err) {
+                inventory = JSON.parse(localStorage.getItem('cached_inventory')) || [];
+                renderMenu();
+                renderLowStock();
+            }
         }
 
         function renderMenu() {
             const grid = document.getElementById('menu-grid');
+            if(inventory.length === 0) {
+                grid.innerHTML = `<p class="text-gray-500 col-span-full text-center">No internet and no cached menu found.</p>`;
+                return;
+            }
             grid.innerHTML = inventory.map(item => `
                 <button onclick="addToCart(${item.ItemID})" class="p-3 bg-amber-50 active:bg-amber-200 border border-amber-100 rounded-xl text-left transition flex flex-col justify-between h-24 shadow-sm">
                     <span class="font-bold text-amber-900 text-sm line-clamp-2 leading-tight">${item.ItemName}</span>
@@ -183,8 +184,6 @@
             if (exist) { exist.quantity++; } 
             else { cart.push({ id: item.ItemID, name: item.ItemName, price: item.Price, quantity: 1 }); }
             renderCart();
-            
-            // Highlight Mobile Cart Notification Dot
             document.getElementById('cart-badge-dot').classList.remove('hidden');
         }
 
@@ -227,20 +226,78 @@
         async function submitOrder() {
             if(cart.length === 0) return alert("Add items to your cart first.");
             const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            const payload = { action: "placeOrder", employee: "Mobile Station", items: cart, total: total, paymentMethod: "Cash" };
+            const payload = { action: "placeOrder", employee: "Counter Station", items: cart, total: total, paymentMethod: "Cash", timestamp: new Date().toISOString() };
 
+            // Print immediately regardless of network state
             printThermalReceipt(payload);
 
-            try {
-                const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
-                const res = await response.json();
-                if(res.status === "SUCCESS") {
-                    alert("Order logged successfully!");
-                    cart = [];
-                    renderCart();
-                    initPOS();
+            if (isOnline) {
+                try {
+                    const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+                    const res = await response.json();
+                    if(res.status === "SUCCESS") {
+                        alert("Order executed successfully!");
+                    }
+                } catch(e) {
+                    saveOfflineOrder(payload);
                 }
-            } catch(e) { alert("Network sync issue. Check network status."); }
+            } else {
+                saveOfflineOrder(payload);
+            }
+
+            // Locally subtract simulation so cashier inventory doesn't drift during the shift
+            cart.forEach(c => {
+                let match = inventory.find(i => i.ItemID == c.id);
+                if(match) match.StockQuantity -= c.quantity;
+            });
+            localStorage.setItem('cached_inventory', JSON.stringify(inventory));
+
+            cart = [];
+            renderCart();
+            renderLowStock();
+            renderMenu();
+        }
+
+        function saveOfflineOrder(payload) {
+            let queue = JSON.parse(localStorage.getItem('offline_orders_queue')) || [];
+            queue.push(payload);
+            localStorage.setItem('offline_orders_queue', JSON.stringify(queue));
+            updateQueueBadge();
+            alert("Saved locally! Order will automatically upload once internet reconnects.");
+        }
+
+        async function syncOfflineOrders() {
+            let queue = JSON.parse(localStorage.getItem('offline_orders_queue')) || [];
+            if (queue.length === 0) return;
+
+            console.log(`Attempting to upload ${queue.length} pending offline orders...`);
+            
+            // Process queue backlogs sequentially
+            for(let i = 0; i < queue.length; i++) {
+                try {
+                    await fetch(API_URL, { method: "POST", body: JSON.stringify(queue[i]) });
+                } catch(err) {
+                    console.error("Sync failed mid-process. Aborting remaining queue.", err);
+                    return; // Stop if network drops again during sync loop
+                }
+            }
+
+            // If loops complete cleanly, purge storage queue
+            localStorage.removeItem('offline_orders_queue');
+            updateQueueBadge();
+            alert("All offline backlogs synchronized to Cloud Database successfully!");
+            fetchInventory(); // get true adjusted quantities
+        }
+
+        function updateQueueBadge() {
+            let queue = JSON.parse(localStorage.getItem('offline_orders_queue')) || [];
+            const badge = document.getElementById('queue-badge');
+            if(queue.length > 0) {
+                badge.innerText = `${queue.length} Saved Offline`;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
         }
 
         function printThermalReceipt(payload) {
@@ -255,7 +312,7 @@ ${itemLines}
 --------------------------------
 TOTAL:               ₱${payload.total.toFixed(2)}
 ================================
-     Savoring Heritage.
+  Receipt Printed Offline Secure
 </pre>`;
             window.print();
         }
@@ -277,20 +334,14 @@ TOTAL:               ₱${payload.total.toFixed(2)}
 
         function switchSection(target) {
             document.querySelectorAll('.section-block').forEach(el => el.classList.add('hidden', 'lg:hidden'));
-            
-            // Reset mobile navigation icons styling
-            document.querySelectorAll('.fixed bottom-0 button').forEach(el => el.className = "flex flex-col items-center text-gray-400 relative");
-
             if (target === 'menu') {
                 document.getElementById('section-menu').classList.remove('hidden');
-                document.getElementById('nav-menu').className = "flex flex-col items-center text-amber-800 font-medium";
             } else if (target === 'cart') {
                 document.getElementById('section-cart').classList.remove('hidden', 'lg:hidden');
-                document.getElementById('nav-cart').className = "flex flex-col items-center text-amber-800 font-medium relative";
             } else if (target === 'admin') {
                 document.getElementById('section-admin').classList.remove('hidden', 'lg:span-3');
-                document.getElementById('nav-admin').className = "flex flex-col items-center text-amber-800 font-medium";
-                fetchAndRenderAnalytics();
+                if (isOnline) fetchAndRenderAnalytics();
+                else alert("Analytics trends require active internet execution panels.");
             }
         }
 
@@ -317,41 +368,20 @@ TOTAL:               ₱${payload.total.toFixed(2)}
                 document.getElementById('sales-daily').innerText = `₱${daily.toFixed(0)}`;
                 document.getElementById('sales-weekly').innerText = `₱${weekly.toFixed(0)}`;
                 document.getElementById('sales-monthly').innerText = `₱${monthly.toFixed(0)}`;
-                renderChart(weekly, monthly);
-            } catch(e) { console.error("Analytics failure", e); }
+                
+                // Render Chart
+                const ctx = document.getElementById('analyticsChart').getContext('2d');
+                if(chartInstance) chartInstance.destroy();
+                chartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Weekly Gross', 'Monthly Gross'],
+                        datasets: [{ data: [weekly, monthly], backgroundColor: ['#3b82f6', '#a855f7'] }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+            } catch(e) { console.error("Analytics network exception", e); }
         }
-
-        function renderChart(w, m) {
-            const ctx = document.getElementById('analyticsChart').getContext('2d');
-            if(chartInstance) chartInstance.destroy();
-            chartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['Weekly Gross', 'Monthly Gross'],
-                    datasets: [{ data: [w, m], backgroundColor: ['#3b82f6', '#a855f7'] }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-            });
-        }
-
-        // Handle PWA Installation prompting interceptor
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            document.getElementById('pwa-install-btn').classList.remove('hidden');
-        });
-
-        document.getElementById('pwa-install-btn').addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    document.getElementById('pwa-install-btn').classList.add('hidden');
-                }
-                deferredPrompt = null;
-            }
-        });
 
         window.onload = initPOS;
     </script>
