@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Alberto's Heritage Café - POS</title>
+    <title>Alberto's Heritage Café - Hybrid POS</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#92400e">
     <link rel="icon" href="alberto's.jpg">
@@ -16,374 +16,757 @@
         @media print {
             body * { visibility: hidden; }
             #receipt-print-zone, #receipt-print-zone * { visibility: visible; }
-            #receipt-print-zone { position: absolute; left: 0; top: 0; width: 58mm; }
+            #receipt-print-zone { position: absolute; left: 0; top: 0; width: 58mm; display: block !important; }
         }
     </style>
 </head>
-<body class="bg-gray-100 font-sans min-h-screen flex flex-col pb-16 md:pb-0">
+<body class="bg-slate-50 font-sans min-h-screen flex flex-col">
 
-    <!-- Top Navigation -->
-    <nav class="bg-amber-800 text-white p-4 shadow-md flex justify-between items-center sticky top-0 z-50">
-        <div class="flex items-center gap-3">
-            <h1 class="text-lg md:text-xl font-serif font-bold tracking-wide">Alberto's POS</h1>
-            <!-- Connection Status Badge -->
-            <span id="connection-status" class="bg-emerald-600 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded-full">Online</span>
-        </div>
-        <div class="hidden md:flex gap-4 items-center">
-            <span id="queue-badge" class="hidden bg-orange-600 text-white text-xs px-2.5 py-1 rounded font-bold animate-bounce">0 Pending Sync</span>
-            <button onclick="switchSection('menu')" class="bg-amber-700 hover:bg-amber-600 px-3 py-1 rounded text-sm">Register</button>
-            <button onclick="switchSection('admin')" class="bg-gray-800 hover:bg-gray-700 px-3 py-1 rounded text-sm">Admin Panel</button>
-        </div>
-    </nav>
-
-    <!-- Main Content Grid -->
-    <main class="flex-1 p-4 md:p-6 max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <!-- SECTION: MENU SYSTEM -->
-        <div id="section-menu" class="lg:col-span-2 space-y-4 section-block">
-            <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm">
-                <h2 class="text-lg font-bold mb-4 text-gray-800">Menu Items</h2>
-                <div id="menu-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
-                    <p class="text-gray-500 col-span-full text-center py-4">Loading menu...</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- SECTION: CART SYSTEM -->
-        <div id="section-cart" class="bg-white p-4 md:p-6 rounded-xl shadow-sm flex flex-col justify-between h-[calc(100vh-160px)] md:h-[600px] section-block hidden lg:flex">
+    <!-- ================= AUTHENTICATION PORTAL ================= -->
+    <div id="login-screen" class="fixed inset-0 bg-amber-900 flex items-center justify-center p-4 z-[999]">
+        <div class="bg-white p-8 rounded-2xl shadow-xl max-w-sm w-full text-center space-y-6">
+            <img src="alberto's.jpg" class="w-24 h-24 mx-auto rounded-full object-cover border-4 border-amber-100" alt="Cafe Logo">
             <div>
-                <h2 class="text-lg font-bold mb-4 text-gray-800 flex justify-between items-center">
-                    <span>Current Order</span>
-                    <span id="cart-count-badge" class="bg-amber-100 text-amber-800 text-xs px-2.5 py-0.5 rounded-full font-bold">0 Items</span>
-                </h2>
-                <div id="cart-items" class="space-y-3 overflow-y-auto max-h-[60vh] md:max-h-[380px] pr-2">
-                    <p class="text-gray-400 text-center py-8">Cart is empty.</p>
-                </div>
+                <h2 class="text-xl font-bold text-gray-800">Alberto's Heritage Café</h2>
+                <p class="text-xs text-gray-500">Sign in to open POS terminal register</p>
             </div>
-            <div class="border-t pt-4 bg-white">
-                <div class="flex justify-between font-bold text-lg mb-4">
-                    <span>Total:</span>
-                    <span id="cart-total" class="font-mono text-xl text-amber-900">₱0.00</span>
-                </div>
-                <button onclick="submitOrder()" class="w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3.5 rounded-xl shadow transition text-center">
-                    Place Order & Print
-                </button>
+            <div class="space-y-4">
+                <input type="text" id="login-username" placeholder="Employee Name / Username" class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-800 text-sm">
+                <input type="password" id="login-password" placeholder="Terminal Passkey" class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-800 text-sm">
+                <button onclick="handleLogin()" class="w-full bg-amber-800 text-white font-bold py-3 rounded-lg shadow-md hover:bg-amber-950 transition">Access Terminal</button>
             </div>
         </div>
-
-        <!-- SECTION: ADMIN ANALYTICS -->
-        <div id="section-admin" class="hidden lg:col-span-3 space-y-6 section-block">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-emerald-500">
-                    <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Daily Sales</h3>
-                    <p id="sales-daily" class="text-2xl font-bold font-mono text-gray-800 mt-1">₱0.00</p>
-                </div>
-                <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-blue-500">
-                    <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Weekly Sales</h3>
-                    <p id="sales-weekly" class="text-2xl font-bold font-mono text-gray-800 mt-1">₱0.00</p>
-                </div>
-                <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-purple-500">
-                    <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Monthly Sales</h3>
-                    <p id="sales-monthly" class="text-2xl font-bold font-mono text-gray-800 mt-1">₱0.00</p>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="bg-white p-5 rounded-xl shadow-sm lg:col-span-1">
-                    <h3 class="text-sm font-bold text-red-600 mb-3 flex items-center gap-2">⚠️ Low Stock Monitor</h3>
-                    <div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr class="text-xs text-gray-400 uppercase border-b"><th class="pb-2">Item Name</th><th class="pb-2 text-right">Qty</th></tr></thead><tbody id="low-stock-list" class="divide-y text-sm"></tbody></table></div>
-                </div>
-                <div class="bg-white p-5 rounded-xl shadow-sm lg:col-span-2"><h3 class="text-sm font-bold text-gray-800 mb-4">Earnings Dynamic Visualization</h3><div class="h-64"><canvas id="analyticsChart"></canvas></div></div>
-            </div>
-        </div>
-    </main>
-
-    <!-- Bottom Sticky Mobile Navbar Menu -->
-    <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg flex justify-around py-2 z-50">
-        <button onclick="switchSection('menu')" id="nav-menu" class="flex flex-col items-center text-amber-800 font-medium"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg><span class="text-xs mt-0.5">Register</span></button>
-        <button onclick="switchSection('cart')" id="nav-cart" class="flex flex-col items-center text-gray-400 relative"><span id="cart-badge-dot" class="hidden absolute top-0 right-2 w-2.5 h-2.5 bg-red-500 rounded-full"></span><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg><span class="text-xs mt-0.5">Cart</span></button>
-        <button onclick="switchSection('admin')" id="nav-admin" class="flex flex-col items-center text-gray-400"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z"></path></svg><span class="text-xs mt-0.5">Admin</span></button>
     </div>
 
+    <!-- MAIN APP WRAPPER (Hidden until Authentication clears) -->
+    <div id="app-wrapper" class="hidden min-h-screen flex flex-col md:flex-row">
+
+        <!-- ================= SIDE NAV BAR (ADMIN & EMPLOYEE QUICK LINKS) ================= -->
+        <aside id="sidebar" class="bg-slate-900 text-slate-100 w-full md:w-64 flex flex-col border-r border-slate-800">
+            <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <img src="alberto's.jpg" class="w-8 h-8 rounded-full object-cover">
+                    <span class="font-bold text-sm">Alberto's Core</span>
+                </div>
+                <button onclick="logout()" class="text-xs bg-slate-800 px-2.5 py-1 rounded hover:bg-red-700">Logout</button>
+            </div>
+            
+            <div class="p-4 bg-slate-800 text-xs flex justify-between items-center">
+                <div>
+                    <p class="font-bold text-slate-300" id="current-user-display">Staff Name</p>
+                    <p class="text-slate-500 capitalize" id="current-role-display">Role</p>
+                </div>
+                <span id="connection-status" class="bg-emerald-600 px-2 py-0.5 rounded text-[10px] font-bold">Online</span>
+            </div>
+
+            <!-- Dashboard Switch tabs links -->
+            <nav class="flex-1 p-4 space-y-1 text-sm">
+                <!-- Employee Nav Items -->
+                <div class="space-y-1" id="emp-nav-links">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider px-2 py-1">Operations</p>
+                    <button onclick="navigateView('register')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 font-medium bg-slate-800 text-white transition" id="nav-btn-register">
+                        🛒 Menu Register
+                    </button>
+                    <button onclick="navigateView('reconcile')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-reconcile">
+                        💵 End Shift / Drawer
+                    </button>
+                </div>
+
+                <!-- Admin Dynamic Navigation Links -->
+                <div class="space-y-1 pt-4 hidden" id="admin-nav-links">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider px-2 py-1">Administration</p>
+                    <button onclick="navigateView('admin-daily')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-daily">📊 Daily Sales</button>
+                    <button onclick="navigateView('admin-weekly')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-weekly">📅 Weekly Sales</button>
+                    <button onclick="navigateView('admin-monthly')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-monthly">🗓️ Monthly Sales</button>
+                    <button onclick="navigateView('admin-employees')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-employees">👤 Register Employee</button>
+                    <button onclick="navigateView('admin-inventory')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-inventory">📥 Input Inventory</button>
+                    <button onclick="navigateView('admin-update')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-update">⚙️ Update Product</button>
+                    <button onclick="navigateView('admin-reprint')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-reprint">🖨️ Reprint Receipt</button>
+                    <button onclick="navigateView('admin-analytics')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-analytics">📈 Charts & Analytics</button>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- ================= MAIN DISPLAY ZONE ================= -->
+        <main class="flex-1 p-6 overflow-y-auto">
+
+            <!-- VIEW: REGISTER (Standard Employee POS view) -->
+            <div id="view-register" class="view-block grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Menu Layout -->
+                <div class="lg:col-span-2 space-y-4">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-lg font-bold text-slate-800">Heritage Menu</h2>
+                            <span class="text-xs text-orange-600 bg-orange-50 px-3 py-1 rounded-full font-bold" id="low-stock-alert">Loading Stock Monitor...</span>
+                        </div>
+                        <div id="menu-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+                    </div>
+                </div>
+
+                <!-- Transaction Sidebar -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between h-[580px]">
+                    <div>
+                        <h3 class="text-md font-bold text-slate-800 mb-4 flex justify-between">
+                            <span>Basket</span>
+                            <span id="basket-counter" class="text-xs bg-slate-100 px-2 py-0.5 rounded-full text-slate-600">0</span>
+                        </h3>
+                        <div id="basket-list" class="space-y-3 overflow-y-auto max-h-[380px] pr-2"></div>
+                    </div>
+                    <div class="border-t border-slate-100 pt-4">
+                        <div class="flex justify-between text-lg font-bold mb-4">
+                            <span>Grand Total:</span>
+                            <span id="basket-total" class="font-mono text-amber-900">₱0.00</span>
+                        </div>
+                        <button onclick="placeOrder()" class="w-full bg-amber-800 text-white font-bold py-3.5 rounded-xl hover:bg-amber-900 transition">Complete order</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: RECONCILE (Shift Close Checkouts) -->
+            <div id="view-reconcile" class="view-block hidden max-w-md mx-auto bg-white p-6 rounded-2xl shadow-sm border">
+                <h2 class="text-lg font-bold text-slate-800 mb-2">Shift Cash drawer Reconciliation</h2>
+                <p class="text-xs text-slate-500 mb-6">Verify your actual physical drawer coins and bills to check against standard system calculations.</p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Starting Register Cash (₱)</label>
+                        <input type="number" id="recon-start-cash" value="2000" class="w-full p-3 rounded-lg border border-gray-200 font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Current Logged Sales (₱)</label>
+                        <input type="number" id="recon-sales" readonly class="w-full p-3 rounded-lg border border-gray-100 font-mono bg-slate-50 text-slate-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Actual Physical Cash inside Drawer (₱)</label>
+                        <input type="number" oninput="calculateDrawerDiscrepancy()" id="recon-actual" placeholder="Count actual cash" class="w-full p-3 rounded-lg border border-gray-200 font-mono text-lg font-bold text-slate-800">
+                    </div>
+                    
+                    <div class="p-4 rounded-xl flex justify-between items-center bg-slate-50" id="recon-discrepancy-panel">
+                        <span class="text-sm font-semibold">Variance Check:</span>
+                        <span id="recon-variance" class="font-mono font-bold text-sm">₱0.00</span>
+                    </div>
+                    
+                    <button onclick="submitShiftReconciliation()" class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-950 transition">Confirm End of Shift</button>
+                </div>
+            </div>
+
+            <!-- VIEW: DAILY SALES -->
+            <div id="view-admin-daily" class="view-block hidden space-y-6">
+                <h2 class="text-xl font-bold text-slate-800">Daily Ledger Summary</h2>
+                <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+                    <table class="w-full text-left text-sm"><thead class="bg-slate-50 text-slate-500 border-b"><tr><th class="p-4">Timestamp</th><th class="p-4">OrderID</th><th class="p-4">Employee</th><th class="p-4 text-right">Revenue</th></tr></thead><tbody id="daily-table-body" class="divide-y"></tbody></table>
+                </div>
+            </div>
+
+            <!-- VIEW: WEEKLY SALES -->
+            <div id="view-admin-weekly" class="view-block hidden space-y-6">
+                <h2 class="text-xl font-bold text-slate-800">Weekly Performance Report</h2>
+                <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+                    <table class="w-full text-left text-sm"><thead class="bg-slate-50 text-slate-500 border-b"><tr><th class="p-4">Week Range</th><th class="p-4">Orders Checked Out</th><th class="p-4 text-right">Sales Volume</th></tr></thead><tbody id="weekly-table-body" class="divide-y"></tbody></table>
+                </div>
+            </div>
+
+            <!-- VIEW: MONTHLY SALES -->
+            <div id="view-admin-monthly" class="view-block hidden space-y-6">
+                <h2 class="text-xl font-bold text-slate-800">Monthly Operating Audits</h2>
+                <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+                    <table class="w-full text-left text-sm"><thead class="bg-slate-50 text-slate-500 border-b"><tr><th class="p-4">Month</th><th class="p-4">Transactions Logged</th><th class="p-4 text-right">Total Net Earnings</th></tr></thead><tbody id="monthly-table-body" class="divide-y"></tbody></table>
+                </div>
+            </div>
+
+            <!-- VIEW: REGISTER EMPLOYEE -->
+            <div id="view-admin-employees" class="view-block hidden max-w-md mx-auto bg-white p-6 rounded-2xl shadow-sm border">
+                <h2 class="text-lg font-bold text-slate-800 mb-6">Register New System Employee</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Employee ID / Code</label>
+                        <input type="text" id="reg-emp-id" placeholder="e.g. EMP-105" class="w-full p-3 rounded-lg border">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Full Name</label>
+                        <input type="text" id="reg-emp-name" placeholder="Full name of staff" class="w-full p-3 rounded-lg border">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">System Role</label>
+                        <select id="reg-emp-role" class="w-full p-3 rounded-lg border">
+                            <option value="employee">Cashier / Staff</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Security PIN / Password</label>
+                        <input type="password" id="reg-emp-pass" placeholder="Numeric keycode" class="w-full p-3 rounded-lg border">
+                    </div>
+                    <button onclick="registerEmployee()" class="w-full bg-amber-800 text-white font-bold py-3 rounded-lg hover:bg-amber-900 transition">Register & Save</button>
+                </div>
+            </div>
+
+            <!-- VIEW: INPUT INVENTORY ITEMS -->
+            <div id="view-admin-inventory" class="view-block hidden max-w-md mx-auto bg-white p-6 rounded-2xl shadow-sm border">
+                <h2 class="text-lg font-bold text-slate-800 mb-6">Import New Catalog Product</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Product ID (Numeric)</label>
+                        <input type="number" id="add-inv-id" placeholder="Unique ID, e.g. 505" class="w-full p-3 rounded-lg border">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Item Name</label>
+                        <input type="text" id="add-inv-name" placeholder="e.g. Spanish Latte" class="w-full p-3 rounded-lg border">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Menu Category</label>
+                        <input type="text" id="add-inv-cat" placeholder="Espresso, Pastry, etc." class="w-full p-3 rounded-lg border">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Selling Price (₱)</label>
+                        <input type="number" id="add-inv-price" class="w-full p-3 rounded-lg border font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Starting Stock Count</label>
+                        <input type="number" id="add-inv-stock" class="w-full p-3 rounded-lg border font-mono">
+                    </div>
+                    <button onclick="addInventoryItem()" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-lg hover:bg-emerald-700 transition">Add Product to Inventory</button>
+                </div>
+            </div>
+
+            <!-- VIEW: UPDATE PRODUCT -->
+            <div id="view-admin-update" class="view-block hidden max-w-lg mx-auto bg-white p-6 rounded-2xl shadow-sm border">
+                <h2 class="text-lg font-bold text-slate-800 mb-4">Edit Product Inventory Data</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Select Product to Edit</label>
+                        <select id="edit-select-prod" onchange="populateEditForm()" class="w-full p-3 rounded-lg border"></select>
+                    </div>
+                    <div id="edit-form-fields" class="hidden space-y-4 border-t pt-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Item Name</label>
+                            <input type="text" id="edit-inv-name" class="w-full p-3 rounded-lg border">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Category</label>
+                            <input type="text" id="edit-inv-cat" class="w-full p-3 rounded-lg border">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Price (₱)</label>
+                            <input type="number" id="edit-inv-price" class="w-full p-3 rounded-lg border font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Stock Level Count</label>
+                            <input type="number" id="edit-inv-stock" class="w-full p-3 rounded-lg border font-mono">
+                        </div>
+                        <button onclick="submitProductUpdate()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition">Commit Database Updates</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: REPRINT RECEIPT -->
+            <div id="view-admin-reprint" class="view-block hidden space-y-6">
+                <h2 class="text-xl font-bold text-slate-800">Archive Order Logs</h2>
+                <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+                    <table class="w-full text-left text-sm"><thead class="bg-slate-50 text-slate-500 border-b"><tr><th class="p-4">OrderID</th><th class="p-4">Time</th><th class="p-4">Amount</th><th class="p-4 text-right">Actions</th></tr></thead><tbody id="reprint-table-body" class="divide-y"></tbody></table>
+                </div>
+            </div>
+
+            <!-- VIEW: ANALYTICS -->
+            <div id="view-admin-analytics" class="view-block hidden space-y-6">
+                <h2 class="text-xl font-bold text-slate-800">Earnings Charts & Analytics</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-2xl border shadow-sm h-96">
+                        <h3 class="text-sm font-bold text-slate-700 mb-4">Earnings History</h3>
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl border shadow-sm h-96">
+                        <h3 class="text-sm font-bold text-slate-700 mb-4">Sales Share by Category</h3>
+                        <canvas id="pieChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Hidden Printable Node Container for Thermal Output -->
     <div id="receipt-print-zone" class="hidden"></div>
 
+    <!-- CORE SPA LOGICAL ROUTING ENGINE -->
     <script>
-        const API_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL"; 
-        let inventory = [], cart = [], chartInstance = null;
-        let isOnline = navigator.onLine;
+        const API_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL"; // REPLACE THIS
 
-        async function initPOS() {
-            setupConnectionListeners();
-            await fetchInventory();
-            updateQueueBadge();
-            
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('sw.js').catch(err => console.log(err));
-            }
-            // Check for stuck unsynced sales if online at boot
-            if (isOnline) syncOfflineOrders();
+        let db = { inventory: [], employees: [], orders: [], shifts: [] };
+        let activeUser = null;
+        let activeCart = [];
+        let analyticsCharts = { trend: null, pie: null };
+
+        async function initApp() {
+            await fetchAllData();
+            checkAutoLogin();
         }
 
-        function setupConnectionListeners() {
-            const updateStatus = () => {
-                isOnline = navigator.onLine;
-                const badge = document.getElementById('connection-status');
-                if (isOnline) {
-                    badge.innerText = "Online";
-                    badge.className = "bg-emerald-600 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded-full";
-                    syncOfflineOrders();
-                } else {
-                    badge.innerText = "Offline Mode";
-                    badge.className = "bg-red-600 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded-full";
-                }
-            };
-            window.addEventListener('online', updateStatus);
-            window.addEventListener('offline', updateStatus);
-            updateStatus();
-        }
-
-        async function fetchInventory() {
+        async function fetchAllData() {
             try {
-                if (isOnline) {
-                    const response = await fetch(`${API_URL}?action=getInventory`);
-                    inventory = await response.json();
-                    localStorage.setItem('cached_inventory', JSON.stringify(inventory)); // Save fallback copy
-                } else {
-                    // Fallback to locally stored copy if offline
-                    inventory = JSON.parse(localStorage.getItem('cached_inventory')) || [];
-                }
-                renderMenu();
-                renderLowStock();
+                const response = await fetch(`${API_URL}?action=getInitialData`);
+                db = await response.json();
+                localStorage.setItem('local_db', JSON.stringify(db));
             } catch (err) {
-                inventory = JSON.parse(localStorage.getItem('cached_inventory')) || [];
-                renderMenu();
-                renderLowStock();
+                db = JSON.parse(localStorage.getItem('local_db')) || db;
+                document.getElementById('connection-status').innerText = "Offline";
+                document.getElementById('connection-status').className = "bg-red-600 px-2 py-0.5 rounded text-[10px] font-bold";
             }
+        }
+
+        function checkAutoLogin() {
+            const saved = localStorage.getItem('logged_user');
+            if (saved) {
+                activeUser = JSON.parse(saved);
+                authorizedSessionStart();
+            }
+        }
+
+        function handleLogin() {
+            const user = document.getElementById('login-username').value.trim();
+            const pass = document.getElementById('login-password').value.trim();
+
+            const match = db.employees.find(e => e.Name.toLowerCase() === user.toLowerCase() && e.Password.toString() === pass);
+            if (match) {
+                activeUser = { name: match.Name, role: match.Role };
+                localStorage.setItem('logged_user', JSON.stringify(activeUser));
+                authorizedSessionStart();
+            } else {
+                alert("Incorrect username or passkey PIN");
+            }
+        }
+
+        function authorizedSessionStart() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('app-wrapper').classList.remove('hidden');
+            
+            document.getElementById('current-user-display').innerText = activeUser.name;
+            document.getElementById('current-role-display').innerText = activeUser.role;
+
+            if (activeUser.role === 'admin') {
+                document.getElementById('admin-nav-links').classList.remove('hidden');
+            } else {
+                document.getElementById('admin-nav-links').classList.add('hidden');
+            }
+
+            navigateView('register');
+            calculateShiftSales();
+            renderMenu();
+        }
+
+        function logout() {
+            localStorage.removeItem('logged_user');
+            activeUser = null;
+            document.getElementById('login-screen').classList.remove('hidden');
+            document.getElementById('app-wrapper').classList.add('hidden');
+        }
+
+        function navigateView(viewName) {
+            document.querySelectorAll('.view-block').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`view-${viewName}`).classList.remove('hidden');
+
+            document.querySelectorAll('#sidebar nav button').forEach(el => {
+                el.classList.remove('bg-slate-800', 'text-white');
+                el.classList.add('text-slate-400');
+            });
+            const activeBtn = document.getElementById(`nav-btn-${viewName}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('text-slate-400');
+                activeBtn.classList.add('bg-slate-800', 'text-white');
+            }
+
+            // Route-specific initializers
+            if (viewName === 'admin-daily') renderDailyLedger();
+            if (viewName === 'admin-weekly') renderWeeklyLedger();
+            if (viewName === 'admin-monthly') renderMonthlyLedger();
+            if (viewName === 'admin-update') loadUpdateSelect();
+            if (viewName === 'admin-reprint') renderReprintTable();
+            if (viewName === 'admin-analytics') renderCharts();
+            if (viewName === 'reconcile') calculateShiftSales();
         }
 
         function renderMenu() {
             const grid = document.getElementById('menu-grid');
-            if(inventory.length === 0) {
-                grid.innerHTML = `<p class="text-gray-500 col-span-full text-center">No internet and no cached menu found.</p>`;
-                return;
-            }
-            grid.innerHTML = inventory.map(item => `
-                <button onclick="addToCart(${item.ItemID})" class="p-3 bg-amber-50 active:bg-amber-200 border border-amber-100 rounded-xl text-left transition flex flex-col justify-between h-24 shadow-sm">
-                    <span class="font-bold text-amber-900 text-sm line-clamp-2 leading-tight">${item.ItemName}</span>
-                    <div class="flex justify-between items-center w-full mt-1">
-                        <span class="text-[10px] bg-amber-200 px-1.5 py-0.2 rounded text-amber-800 font-medium">${item.Category}</span>
-                        <span class="font-mono font-bold text-xs text-gray-700">₱${Number(item.Price).toFixed(0)}</span>
+            grid.innerHTML = db.inventory.map(item => `
+                <button onclick="addToCart(${item.ItemID})" class="p-4 bg-amber-50 active:bg-amber-100 border border-amber-200 rounded-xl text-left flex flex-col justify-between h-24 shadow-sm">
+                    <span class="font-bold text-amber-900 text-sm leading-tight">${item.ItemName}</span>
+                    <div class="flex justify-between items-center w-full mt-2">
+                        <span class="text-[10px] bg-amber-200 px-2 py-0.5 rounded text-amber-800 font-medium">${item.Category}</span>
+                        <span class="font-mono text-xs font-bold text-slate-700">₱${Number(item.Price).toFixed(2)}</span>
                     </div>
                 </button>
             `).join('');
+
+            const lowCount = db.inventory.filter(i => i.StockQuantity < 10).length;
+            document.getElementById('low-stock-alert').innerText = `${lowCount} Low Items Flagged`;
         }
 
         function addToCart(id) {
-            const item = inventory.find(i => i.ItemID == id);
-            const exist = cart.find(c => c.id == id);
-            if (exist) { exist.quantity++; } 
-            else { cart.push({ id: item.ItemID, name: item.ItemName, price: item.Price, quantity: 1 }); }
+            const item = db.inventory.find(i => i.ItemID == id);
+            const exist = activeCart.find(c => c.id == id);
+            if (exist) {
+                exist.quantity++;
+            } else {
+                activeCart.push({ id: item.ItemID, name: item.ItemName, price: item.Price, category: item.Category, quantity: 1 });
+            }
             renderCart();
-            document.getElementById('cart-badge-dot').classList.remove('hidden');
         }
 
         function renderCart() {
-            const container = document.getElementById('cart-items');
-            const totalCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-            document.getElementById('cart-count-badge').innerText = `${totalCount} Items`;
+            const container = document.getElementById('basket-list');
+            document.getElementById('basket-counter').innerText = activeCart.reduce((sum, item) => sum + item.quantity, 0);
 
-            if(cart.length === 0) {
-                container.innerHTML = `<p class="text-gray-400 text-center py-8">Cart is empty.</p>`;
-                document.getElementById('cart-total').innerText = "₱0.00";
-                document.getElementById('cart-badge-dot').classList.add('hidden');
+            if(activeCart.length === 0) {
+                container.innerHTML = `<p class="text-slate-400 text-center py-12 text-sm">Basket is empty.</p>`;
+                document.getElementById('basket-total').innerText = "₱0.00";
                 return;
             }
-            
+
             let total = 0;
-            container.innerHTML = cart.map(item => {
+            container.innerHTML = activeCart.map(item => {
                 total += item.price * item.quantity;
                 return `
-                    <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-100">
+                    <div class="flex justify-between items-center bg-slate-50 p-3 rounded-lg border">
                         <div>
-                            <p class="font-semibold text-sm text-gray-800">${item.name}</p>
-                            <p class="text-xs text-gray-500">₱${item.price} x ${item.quantity}</p>
+                            <p class="font-semibold text-xs text-slate-800">${item.name}</p>
+                            <p class="text-[10px] text-slate-400">₱${item.price} x ${item.quantity}</p>
                         </div>
-                        <div class="flex items-center gap-3">
-                            <span class="font-mono font-semibold text-sm">₱${(item.price * item.quantity).toFixed(2)}</span>
-                            <button onclick="removeFromCart(${item.id})" class="text-red-500 text-xs px-2 font-bold">✕</button>
+                        <div class="flex items-center gap-2">
+                            <span class="font-mono text-xs font-semibold">₱${(item.price * item.quantity).toFixed(2)}</span>
+                            <button onclick="removeFromCart(${item.id})" class="text-red-500 text-xs px-1 font-bold">✕</button>
                         </div>
                     </div>
                 `;
             }).join('');
-            document.getElementById('cart-total').innerText = `₱${total.toFixed(2)}`;
+            document.getElementById('basket-total').innerText = `₱${total.toFixed(2)}`;
         }
 
         function removeFromCart(id) {
-            cart = cart.filter(c => c.id !== id);
+            activeCart = activeCart.filter(c => c.id !== id);
             renderCart();
         }
 
-        async function submitOrder() {
-            if(cart.length === 0) return alert("Add items to your cart first.");
-            const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            const payload = { action: "placeOrder", employee: "Counter Station", items: cart, total: total, paymentMethod: "Cash", timestamp: new Date().toISOString() };
+        async function placeOrder() {
+            if (activeCart.length === 0) return alert("Your basket is empty!");
+            const total = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-            // Print immediately regardless of network state
+            const payload = {
+                action: "placeOrder",
+                employee: activeUser.name,
+                items: activeCart,
+                total: total,
+                paymentMethod: "Cash"
+            };
+
             printThermalReceipt(payload);
 
-            if (isOnline) {
-                try {
-                    const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
-                    const res = await response.json();
-                    if(res.status === "SUCCESS") {
-                        alert("Order executed successfully!");
-                    }
-                } catch(e) {
-                    saveOfflineOrder(payload);
+            try {
+                const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+                const res = await response.json();
+                if (res.status === "SUCCESS") {
+                    alert("Order logged successfully!");
+                    activeCart = [];
+                    renderCart();
+                    await fetchAllData();
+                    renderMenu();
                 }
-            } else {
-                saveOfflineOrder(payload);
-            }
-
-            // Locally subtract simulation so cashier inventory doesn't drift during the shift
-            cart.forEach(c => {
-                let match = inventory.find(i => i.ItemID == c.id);
-                if(match) match.StockQuantity -= c.quantity;
-            });
-            localStorage.setItem('cached_inventory', JSON.stringify(inventory));
-
-            cart = [];
-            renderCart();
-            renderLowStock();
-            renderMenu();
-        }
-
-        function saveOfflineOrder(payload) {
-            let queue = JSON.parse(localStorage.getItem('offline_orders_queue')) || [];
-            queue.push(payload);
-            localStorage.setItem('offline_orders_queue', JSON.stringify(queue));
-            updateQueueBadge();
-            alert("Saved locally! Order will automatically upload once internet reconnects.");
-        }
-
-        async function syncOfflineOrders() {
-            let queue = JSON.parse(localStorage.getItem('offline_orders_queue')) || [];
-            if (queue.length === 0) return;
-
-            console.log(`Attempting to upload ${queue.length} pending offline orders...`);
-            
-            // Process queue backlogs sequentially
-            for(let i = 0; i < queue.length; i++) {
-                try {
-                    await fetch(API_URL, { method: "POST", body: JSON.stringify(queue[i]) });
-                } catch(err) {
-                    console.error("Sync failed mid-process. Aborting remaining queue.", err);
-                    return; // Stop if network drops again during sync loop
-                }
-            }
-
-            // If loops complete cleanly, purge storage queue
-            localStorage.removeItem('offline_orders_queue');
-            updateQueueBadge();
-            alert("All offline backlogs synchronized to Cloud Database successfully!");
-            fetchInventory(); // get true adjusted quantities
-        }
-
-        function updateQueueBadge() {
-            let queue = JSON.parse(localStorage.getItem('offline_orders_queue')) || [];
-            const badge = document.getElementById('queue-badge');
-            if(queue.length > 0) {
-                badge.innerText = `${queue.length} Saved Offline`;
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
+            } catch (err) {
+                alert("Order failed to reach server. Try again.");
             }
         }
 
         function printThermalReceipt(payload) {
             const receipt = document.getElementById('receipt-print-zone');
-            let itemLines = cart.map(i => `${i.name.substring(0,14).padEnd(14)} x${i.quantity} ₱${(i.price*i.quantity).toFixed(0)}`).join('\n');
-            receipt.innerHTML = `<pre style="font-family:monospace;font-size:11px;line-height:1.2;">
-   ALBERTO'S HERITAGE CAFE
+            let itemLines = payload.items.map(i => `${i.name.substring(0,14).padEnd(14)} x${i.quantity} ₱${(i.price*i.quantity).toFixed(0)}`).join('\n');
+            
+            receipt.innerHTML = `
+<pre style="font-family: monospace; font-size: 10px; line-height: 1.3;">
+     ALBERTO'S HERITAGE CAFE
 ================================
+Staff: ${payload.employee}
+Date: ${new Date().toLocaleDateString()}
+--------------------------------
 Items          Qty   Price
 --------------------------------
 ${itemLines}
 --------------------------------
 TOTAL:               ₱${payload.total.toFixed(2)}
 ================================
-  Receipt Printed Offline Secure
-</pre>`;
+    Savor Heritage Today.
+</pre>
+            `;
             window.print();
         }
 
-        function renderLowStock() {
-            const list = document.getElementById('low-stock-list');
-            const lowItems = inventory.filter(i => i.StockQuantity < 10);
-            if(lowItems.length === 0) {
-                list.innerHTML = `<tr><td class="py-3 text-emerald-600 font-semibold text-center" colspan="2">Stock counts secure.</td></tr>`;
+        // --- DRAW RECONCILIATION ---
+        function calculateShiftSales() {
+            const staffSales = db.orders
+                .filter(o => o.EmployeeName === activeUser.name)
+                .reduce((sum, o) => sum + Number(o.TotalAmount), 0);
+            
+            document.getElementById('recon-sales').value = staffSales;
+            calculateDrawerDiscrepancy();
+        }
+
+        function calculateDrawerDiscrepancy() {
+            const start = Number(document.getElementById('recon-start-cash').value) || 0;
+            const sales = Number(document.getElementById('recon-sales').value) || 0;
+            const actual = Number(document.getElementById('recon-actual').value) || 0;
+
+            const expected = start + sales;
+            const discrepancy = actual - expected;
+
+            const label = document.getElementById('recon-variance');
+            const panel = document.getElementById('recon-discrepancy-panel');
+
+            label.innerText = `₱${discrepancy.toFixed(2)}`;
+
+            if (discrepancy === 0) {
+                label.className = "font-mono font-bold text-sm text-emerald-600";
+                panel.className = "p-4 rounded-xl flex justify-between items-center bg-emerald-50";
+            } else if (discrepancy < 0) {
+                label.className = "font-mono font-bold text-sm text-red-600";
+                panel.className = "p-4 rounded-xl flex justify-between items-center bg-red-50";
+                label.innerText = `₱${Math.abs(discrepancy).toFixed(2)} (SHORT)`;
+            } else {
+                label.className = "font-mono font-bold text-sm text-blue-600";
+                panel.className = "p-4 rounded-xl flex justify-between items-center bg-blue-50";
+                label.innerText = `₱${discrepancy.toFixed(2)} (OVER)`;
+            }
+        }
+
+        async function submitShiftReconciliation() {
+            const start = Number(document.getElementById('recon-start-cash').value) || 0;
+            const sales = Number(document.getElementById('recon-sales').value) || 0;
+            const actual = Number(document.getElementById('recon-actual').value) || 0;
+            const discrepancy = actual - (start + sales);
+
+            const payload = {
+                action: "closeShift",
+                employee: activeUser.name,
+                startCash: start,
+                systemSales: sales,
+                actualCash: actual,
+                discrepancy: discrepancy
+            };
+
+            try {
+                const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+                const res = await response.json();
+                if (res.status === "SUCCESS") {
+                    alert("Shift closed and logged in database! Session will now close.");
+                    logout();
+                }
+            } catch (err) {
+                alert("Could not sync reconciliation sheet. Check your connection.");
+            }
+        }
+
+        // --- ADMIN: LEDGER REPORTS ---
+        function renderDailyLedger() {
+            const container = document.getElementById('daily-table-body');
+            const todayStr = new Date().toDateString();
+            
+            const todayOrders = db.orders.filter(o => new Date(o.Timestamp).toDateString() === todayStr);
+
+            if (todayOrders.length === 0) {
+                container.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">No transactions recorded today.</td></tr>`;
                 return;
             }
-            list.innerHTML = lowItems.map(i => `
-                <tr class="border-b bg-red-50 text-xs">
-                    <td class="py-3 font-medium text-gray-800">${i.ItemName}</td>
-                    <td class="py-3 text-right text-red-600 font-mono font-bold">${i.StockQuantity} left</td>
+
+            container.innerHTML = todayOrders.map(o => `
+                <tr>
+                    <td class="p-4 font-mono text-xs">${new Date(o.Timestamp).toLocaleTimeString()}</td>
+                    <td class="p-4 font-bold text-slate-700">${o.OrderID}</td>
+                    <td class="p-4">${o.EmployeeName}</td>
+                    <td class="p-4 text-right font-mono font-bold text-slate-800">₱${Number(o.TotalAmount).toFixed(2)}</td>
                 </tr>
             `).join('');
         }
 
-        function switchSection(target) {
-            document.querySelectorAll('.section-block').forEach(el => el.classList.add('hidden', 'lg:hidden'));
-            if (target === 'menu') {
-                document.getElementById('section-menu').classList.remove('hidden');
-            } else if (target === 'cart') {
-                document.getElementById('section-cart').classList.remove('hidden', 'lg:hidden');
-            } else if (target === 'admin') {
-                document.getElementById('section-admin').classList.remove('hidden', 'lg:span-3');
-                if (isOnline) fetchAndRenderAnalytics();
-                else alert("Analytics trends require active internet execution panels.");
-            }
+        function renderWeeklyLedger() {
+            const container = document.getElementById('weekly-table-body');
+            // Mock dynamic rolling 7-day groups
+            let sales = db.orders.reduce((sum, o) => sum + Number(o.TotalAmount), 0);
+            container.innerHTML = `
+                <tr>
+                    <td class="p-4 font-semibold text-slate-700">Current Week (Rolling)</td>
+                    <td class="p-4">${db.orders.length}</td>
+                    <td class="p-4 text-right font-mono font-bold text-emerald-600">₱${sales.toFixed(2)}</td>
+                </tr>
+            `;
         }
 
-        async function fetchAndRenderAnalytics() {
+        function renderMonthlyLedger() {
+            const container = document.getElementById('monthly-table-body');
+            // Mock monthly group bucket
+            let sales = db.orders.reduce((sum, o) => sum + Number(o.TotalAmount), 0);
+            container.innerHTML = `
+                <tr>
+                    <td class="p-4 font-semibold text-slate-700">${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</td>
+                    <td class="p-4">${db.orders.length}</td>
+                    <td class="p-4 text-right font-mono font-bold text-indigo-600">₱${sales.toFixed(2)}</td>
+                </tr>
+            `;
+        }
+
+        // --- ADMIN: MANAGE SYSTEM USERS ---
+        async function registerEmployee() {
+            const id = document.getElementById('reg-emp-id').value.trim();
+            const name = document.getElementById('reg-emp-name').value.trim();
+            const role = document.getElementById('reg-emp-role').value;
+            const password = document.getElementById('reg-emp-pass').value.trim();
+
+            if (!id || !name || !password) return alert("Please fill in all inputs.");
+
+            const payload = { action: "saveEmployee", id, name, role, password };
+
             try {
-                const response = await fetch(`${API_URL}?action=getSalesData`);
-                const rows = await response.json();
-                if(rows.length <= 1) return;
-
-                const dataRows = rows.slice(1);
-                let daily = 0, weekly = 0, monthly = 0;
-                const now = new Date();
-
-                dataRows.forEach(row => {
-                    const orderDate = new Date(row[1]);
-                    const total = Number(row[4]);
-                    const diffDays = Math.ceil(Math.abs(now - orderDate) / (1000 * 60 * 60 * 24));
-
-                    if(diffDays <= 1) daily += total;
-                    if(diffDays <= 7) weekly += total;
-                    if(diffDays <= 30) monthly += total;
-                });
-
-                document.getElementById('sales-daily').innerText = `₱${daily.toFixed(0)}`;
-                document.getElementById('sales-weekly').innerText = `₱${weekly.toFixed(0)}`;
-                document.getElementById('sales-monthly').innerText = `₱${monthly.toFixed(0)}`;
-                
-                // Render Chart
-                const ctx = document.getElementById('analyticsChart').getContext('2d');
-                if(chartInstance) chartInstance.destroy();
-                chartInstance = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: ['Weekly Gross', 'Monthly Gross'],
-                        datasets: [{ data: [weekly, monthly], backgroundColor: ['#3b82f6', '#a855f7'] }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-                });
-            } catch(e) { console.error("Analytics network exception", e); }
+                const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+                const res = await response.json();
+                if (res.status === "SUCCESS") {
+                    alert("Staff registration logged in sheet!");
+                    await fetchAllData();
+                    navigateView('register');
+                }
+            } catch(e) { alert("Registration network error."); }
         }
 
-        window.onload = initPOS;
+        // --- ADMIN: MANAGE INVENTORY ITEMS ---
+        async function addInventoryItem() {
+            const id = document.getElementById('add-inv-id').value.trim();
+            const name = document.getElementById('add-inv-name').value.trim();
+            const category = document.getElementById('add-inv-cat').value.trim();
+            const price = Number(document.getElementById('add-inv-price').value);
+            const stock = Number(document.getElementById('add-inv-stock').value);
+
+            if (!id || !name || !category) return alert("Complete the input fields.");
+
+            const payload = { action: "addInventory", id, name, category, price, stock };
+
+            try {
+                const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+                const res = await response.json();
+                if (res.status === "SUCCESS") {
+                    alert("Product catalog updated successfully!");
+                    await fetchAllData();
+                    renderMenu();
+                    navigateView('register');
+                }
+            } catch(e) { alert("Catalog insert failed."); }
+        }
+
+        // --- ADMIN: EDIT PRODUCT DATA ---
+        function loadUpdateSelect() {
+            const select = document.getElementById('edit-select-prod');
+            select.innerHTML = '<option value="">-- Choose Product --</option>' + 
+                db.inventory.map(i => `<option value="${i.ItemID}">${i.ItemName}</option>`).join('');
+        }
+
+        function populateEditForm() {
+            const id = document.getElementById('edit-select-prod').value;
+            const fields = document.getElementById('edit-form-fields');
+            
+            if(!id) {
+                fields.classList.add('hidden');
+                return;
+            }
+
+            const item = db.inventory.find(i => i.ItemID == id);
+            document.getElementById('edit-inv-name').value = item.ItemName;
+            document.getElementById('edit-inv-cat').value = item.Category;
+            document.getElementById('edit-inv-price').value = item.Price;
+            document.getElementById('edit-inv-stock').value = item.StockQuantity;
+
+            fields.classList.remove('hidden');
+        }
+
+        async function submitProductUpdate() {
+            const id = document.getElementById('edit-select-prod').value;
+            const name = document.getElementById('edit-inv-name').value.trim();
+            const category = document.getElementById('edit-inv-cat').value.trim();
+            const price = Number(document.getElementById('edit-inv-price').value);
+            const stock = Number(document.getElementById('edit-inv-stock').value);
+
+            const payload = { action: "updateProduct", id, name, category, price, stock };
+
+            try {
+                const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+                const res = await response.json();
+                if (res.status === "SUCCESS") {
+                    alert("Catalog metadata item committed to cloud database.");
+                    await fetchAllData();
+                    renderMenu();
+                    navigateView('register');
+                }
+            } catch(e) { alert("Product update failed."); }
+        }
+
+        // --- ADMIN: ARCHIVE & REPRINT ---
+        function renderReprintTable() {
+            const container = document.getElementById('reprint-table-body');
+            container.innerHTML = db.orders.map(o => `
+                <tr>
+                    <td class="p-4 font-mono text-xs font-bold">${o.OrderID}</td>
+                    <td class="p-4 text-xs">${new Date(o.Timestamp).toLocaleString()}</td>
+                    <td class="p-4 font-mono font-semibold">₱${Number(o.TotalAmount).toFixed(2)}</td>
+                    <td class="p-4 text-right">
+                        <button onclick="reprintOrder('${o.OrderID}')" class="bg-amber-800 text-white text-xs px-3 py-1.5 rounded hover:bg-amber-900">Print Copy</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function reprintOrder(id) {
+            const order = db.orders.find(o => o.OrderID === id);
+            const items = JSON.parse(order.ItemsOrdered);
+            const payload = { employee: order.EmployeeName, items: items, total: Number(order.TotalAmount) };
+            printThermalReceipt(payload);
+        }
+
+        // --- ADMIN: ANALYTICS CHARTS ---
+        function renderCharts() {
+            const categories = {};
+            db.orders.forEach(o => {
+                const items = JSON.parse(o.ItemsOrdered);
+                items.forEach(i => {
+                    categories[i.category] = (categories[i.category] || 0) + (i.price * i.quantity);
+                });
+            });
+
+            // Pie Chart Configuration
+            const pieCtx = document.getElementById('pieChart').getContext('2d');
+            if(analyticsCharts.pie) analyticsCharts.pie.destroy();
+            analyticsCharts.pie = new Chart(pieCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(categories),
+                    datasets: [{
+                        data: Object.values(categories),
+                        backgroundColor: ['#b45309', '#f59e0b', '#3b82f6', '#10b981', '#ec4899']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // Trend Performance Chart Configuration
+            const trendCtx = document.getElementById('trendChart').getContext('2d');
+            if(analyticsCharts.trend) analyticsCharts.trend.destroy();
+            analyticsCharts.trend = new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: db.orders.map(o => new Date(o.Timestamp).toLocaleDateString()),
+                    datasets: [{
+                        label: 'Revenue Timeline',
+                        data: db.orders.map(o => Number(o.TotalAmount)),
+                        borderColor: '#92400e',
+                        fill: false
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        window.onload = initApp;
     </script>
 </body>
 </html>
