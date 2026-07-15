@@ -868,6 +868,16 @@ function registerEmployeeShiftAssets(user) {
 
     const finalOrderId = serverOrderId || ("ORD-" + Date.now());
 
+    // Extract dynamic payment details from the payload
+    const totalAmount = Number(payload.total).toFixed(2);
+    const cashReceived = Number(payload.cashTendered || 0).toFixed(2);
+    const changeDue = Number(payload.change || 0).toFixed(2);
+
+    // Padding calculations for clean tabular alignment (32 characters wide)
+    const formattedTotal = `₱${totalAmount}`.padStart(11, ' ');
+    const formattedCash  = `₱${cashReceived}`.padStart(11, ' ');
+    const formattedChange = `₱${changeDue}`.padStart(11, ' ');
+
     receipt.innerHTML = `
 <div style="text-align: center; margin-bottom: 5px;">
     <!-- Pointing to the clean filename without the apostrophe -->
@@ -884,7 +894,9 @@ Items          Qty   Price
 --------------------------------
 ${itemLines}
 --------------------------------
-TOTAL:               ₱${Number(payload.total).toFixed(2)}
+TOTAL:               ${formattedTotal}
+CASH RECEIVED:       ${formattedCash}
+CHANGE:              ${formattedChange}
 ================================
 National Highway 
 (near Cabanbanan Arch)
