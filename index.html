@@ -379,7 +379,7 @@
     <div id="receipt-print-zone" class="hidden"></div>
     <!-- CORE LOGIC & ROUTING ENGINE -->
    <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbxulPl24lg5hJS8a_5KuXPxUH7usUHHpl-JqdASVCFHiG0PTej7GaGFZoSKNY-dOvD-Uw/exec"; // REPLACE WITH YOUR DEPLOYED URL
+    const API_URL = "https://script.google.com/macros/s/AKfycbxulPl24lg5hJS8a_5KuXPxUH7usUHHpl-JqdASVCFHiG0PTej7GaGFZoSKNY-dOvD-Uw/exec";
 
     let db = { inventory: [], employees: [], orders: [], shifts: [] };
     let activeUser = null;
@@ -768,7 +768,7 @@
     
     const total = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     
-    // 1. Get and validate the cash tendered amount
+    // Validate the cash tendered amount
     const cashInput = document.getElementById('cash-tendered');
     const cashTendered = parseFloat(cashInput ? cashInput.value : 0) || 0;
     
@@ -780,47 +780,62 @@
         employee: activeUser ? activeUser.name : "Employee",
         items: activeCart,
         total: total,
-        paymentMethod: "Cash", // or dynamic value
+        paymentMethod: "Cash",
         cashTendered: cashTendered,
         change: cashTendered - total
     };
 
-    // Send data to Google Apps Script Web App
-    fetch(SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify({ action: "placeOrder", ...payload })
-    })
-    .then(res => res.json())
-    .then(data => {
+    // Safe Offline Fallback Check
+    if (typeof SCRIPT_URL === 'undefined' || SCRIPT_URL === "" || SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
+        console.warn("SCRIPT_URL is not defined or configured. Running in Local POS Print Mode.");
+        showToast("Database Offline. Printing receipt locally...", "warning");
+        
+        // Directly print and clean cart
+        printThermalReceipt(payload, "LOCAL-" + Date.now());
+        finalizeLocalCheckout();
+        return;
+    }
+
+    // Attempt Server Sync
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({ action: "placeOrder", ...payload })
+        });
+        const data = await response.json();
+
         if (data.status === "SUCCESS") {
-            // ✅ Fix: Call the correct printing function name, passing the sheet order ID
             printThermalReceipt(payload, data.orderId);
-            
-            // Success indicator
             showToast("Order placed successfully!", "success");
-            
-            // Clear cart, cash input, change displays, and refresh UI
-            activeCart = [];
-            if (cashInput) cashInput.value = ''; // Clear the input field
-            
-            // Re-render everything to reset states
-            renderCart();
-            renderMenu();
-            
-            // Reset the "Change Due" display label to ₱0.00
-            const changeDisplay = document.getElementById('customer-change');
-            if (changeDisplay) {
-                changeDisplay.innerText = "₱0.00";
-                changeDisplay.className = "text-sm font-mono font-bold text-slate-400";
-            }
+            finalizeLocalCheckout();
         } else {
-            alert("Error placing order: " + data.message);
+            alert("Error placing order on server: " + data.message);
         }
-    })
-    .catch(err => {
-        console.error("Order submission failed:", err);
-        showToast("Order submission failed. Please check connection.", "error");
-    });
+    } catch (err) {
+        console.error("Database connection failed. Falling back to local printer...", err);
+        showToast("Cloud sync failed. Printing physical receipt...", "warning");
+        
+        // Print receipt locally even if network is dead
+        printThermalReceipt(payload, "OFFLINE-" + Date.now());
+        finalizeLocalCheckout();
+    }
+}
+
+// Clean UI after successful printing (either online or offline)
+function finalizeLocalCheckout() {
+    activeCart = [];
+    const cashInput = document.getElementById('cash-tendered');
+    if (cashInput) cashInput.value = ''; // Clear input
+
+    renderCart();
+    renderMenu();
+    
+    // Reset "Change Due" display label
+    const changeDisplay = document.getElementById('customer-change');
+    if (changeDisplay) {
+        changeDisplay.innerText = "₱0.00";
+        changeDisplay.className = "text-sm font-mono font-bold text-slate-400";
+    }
 }
        let employeePettyCash = 0;
 
