@@ -789,18 +789,22 @@ TOTAL:               ₱${payload.total.toFixed(2)}
     }
 
     // Drawer Reconciliation Module
-    function calculateShiftSales() {
-        if (!activeUser) return;
-        const staffSales = db.orders
-            .filter(o => o.EmployeeName === activeUser.name)
-            .reduce((sum, o) => sum + Number(o.TotalAmount || 0), 0);
-        
-        const salesField = document.getElementById('recon-sales');
-        if (salesField) {
-            salesField.value = staffSales;
-            calculateDrawerDiscrepancy();
-        }
+function calculateShiftSales() {
+    if (!activeUser) return;
+    
+    // Safety check: Make sure db and db.orders exist, otherwise fallback to an empty array []
+    const ordersList = (db && db.orders) ? db.orders : [];
+    
+    const staffSales = ordersList
+        .filter(o => o && o.EmployeeName === activeUser.name)
+        .reduce((sum, o) => sum + Number(o.TotalAmount || 0), 0);
+    
+    const salesField = document.getElementById('recon-sales');
+    if (salesField) {
+        salesField.value = staffSales;
+        calculateDrawerDiscrepancy();
     }
+}
 
     function calculateDrawerDiscrepancy() {
         const start = Number(document.getElementById('recon-start-cash').value) || 0;
