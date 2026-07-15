@@ -132,17 +132,38 @@
 
             <!-- Dashboard Inner Content -->
             <div class="p-6 flex-1 overflow-y-auto">
-
-                <!-- VIEW: REGISTER (Standard Employee POS view) -->
+                <!-- VIEW: REGISTER (Standard Employee POS view with Category Filters) -->
                 <div id="view-register" class="view-block grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <!-- Menu Layout -->
                     <div class="lg:col-span-2 space-y-4">
-                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                            <div class="flex justify-between items-center mb-4">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col min-h-[580px]">
+                            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
                                 <h2 class="text-md font-bold text-slate-800">Heritage Menu Selection</h2>
-                                <span class="text-xs text-orange-600 bg-orange-50 px-3 py-1 rounded-full font-bold" id="low-stock-alert">Loading Stock Monitor...</span>
+                                <span class="text-xs text-orange-600 bg-orange-50 px-3 py-1 rounded-full font-bold self-start sm:self-auto" id="low-stock-alert">Loading Stock Monitor...</span>
                             </div>
-                            <div id="menu-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+
+                            <!-- Horizontal Scrollable Category Tab Bar -->
+                            <div class="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-thin border-b border-slate-100" id="category-tab-bar">
+                                <!-- Tabs will be generated dynamically by JavaScript -->
+                            </div>
+
+                            <!-- Structured Table to show Menus -->
+                            <div class="flex-1 overflow-y-auto">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="border-b border-slate-200 text-slate-400 text-xs font-bold uppercase tracking-wider">
+                                            <th class="py-3 px-2">ID</th>
+                                            <th class="py-3 px-2">Item Name</th>
+                                            <th class="py-3 px-2 text-right">Price</th>
+                                            <th class="py-3 px-2 text-center">Stock</th>
+                                            <th class="py-3 px-2 text-right">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="menu-table-body" class="divide-y divide-slate-100">
+                                        <!-- Filtered items will inject here as table rows -->
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
 
@@ -529,24 +550,97 @@
             if (viewName === 'reconcile') calculateShiftSales();
         }
 
+        // Tracking the active category tab (defaulting to "All" on start)
+        let activeCategoryTab = "All";
+
+        // Categories explicitly requested to match your sheets layout
+        const menuCategories = [
+            "All", "Appetizer", "Soup", "Salad", "AllDayBfast", 
+            "FilipinoSetMeals", "Beverages", "Dessert", "Sandwiches", 
+            "Pizza", "Pasta", "MainCourse", "BestSeller"
+        ];
+
         function renderMenu() {
-            const grid = document.getElementById('menu-grid');
-            if(!db.inventory || db.inventory.length === 0) {
-                grid.innerHTML = `<p class="text-center text-slate-400 py-6 col-span-3">No active items in database.</p>`;
+            // 1. Render Category Buttons Tab Bar
+            const tabContainer = document.getElementById('category-tab-bar');
+            tabContainer.innerHTML = menuCategories.map(cat => {
+                const isActive = cat.toLowerCase() === activeCategoryTab.toLowerCase();
+                const activeClasses = "bg-amber-800 text-white font-bold shadow-sm shadow-amber-800/10";
+                const inactiveClasses = "bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 font-semibold border border-slate-200/60";
+                
+                return `
+                    <button onclick="setCategoryFilter('${cat}')" class="px-4 py-2 rounded-xl text-xs whitespace-nowrap transition-all duration-200 ${isActive ? activeClasses : inactiveClasses}">
+                        ${cat === 'All' ? '🌐 Show All' : cat}
+                    </button>
+                `;
+            }).join('');
+
+            // 2. Filter Database Inventory items by Category Selection
+            let filteredItems = db.inventory || [];
+            if (activeCategoryTab !== "All") {
+                filteredItems = db.inventory.filter(item => {
+                    const itemCat = item.Category || item.category || "";
+                    return itemCat.toLowerCase().trim() === activeCategoryTab.toLowerCase().trim();
+                });
+            }
+
+            // 3. Render Items into HTML Table
+            const tableBody = document.getElementById('menu-table-body');
+            
+            if (filteredItems.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="py-12 text-center text-sm text-slate-400">
+                            No active items found under "${activeCategoryTab}".
+                        </td>
+                    </tr>
+                `;
                 return;
             }
-            grid.innerHTML = db.inventory.map(item => `
-                <button onclick="addToCart(${item.ItemID})" class="p-4 bg-amber-50 active:bg-amber-100 border border-amber-200 rounded-xl text-left flex flex-col justify-between h-24 shadow-sm transition-all hover:shadow-md">
-                    <span class="font-bold text-amber-900 text-sm leading-tight">${item.ItemName}</span>
-                    <div class="flex justify-between items-center w-full mt-2">
-                        <span class="text-[10px] bg-amber-200 px-2 py-0.5 rounded text-amber-800 font-medium">${item.Category}</span>
-                        <span class="font-mono text-xs font-bold text-slate-700">₱${Number(item.Price).toFixed(2)}</span>
-                    </div>
-                </button>
-            `).join('');
 
-            const lowCount = db.inventory.filter(i => i.StockQuantity < 10).length;
+            tableBody.innerHTML = filteredItems.map(item => {
+                const stock = item.StockQuantity !== undefined ? item.StockQuantity : (item.stock || 0);
+                const isOutOfStock = stock <= 0;
+                
+                return `
+                    <tr class="hover:bg-slate-50/50 transition">
+                        <td class="py-3.5 px-2 text-xs font-mono text-slate-400 font-medium">#${item.ItemID}</td>
+                        <td class="py-3.5 px-2">
+                            <span class="font-bold text-slate-800 text-sm block leading-tight">${item.ItemName}</span>
+                            <span class="text-[10px] text-amber-800 font-medium bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">${item.Category}</span>
+                        </td>
+                        <td class="py-3.5 px-2 text-right font-mono font-bold text-slate-700 text-sm">₱${Number(item.Price).toFixed(2)}</td>
+                        <td class="py-3.5 px-2 text-center">
+                            <span class="px-2 py-0.5 rounded text-[11px] font-extrabold ${stock < 10 ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-slate-100 text-slate-600'}">
+                                ${stock}
+                            </span>
+                        </td>
+                        <td class="py-3.5 px-2 text-right">
+                            <button 
+                                onclick="addToCart(${item.ItemID})" 
+                                ${isOutOfStock ? 'disabled' : ''}
+                                class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                    isOutOfStock 
+                                    ? 'bg-slate-100 text-slate-300 cursor-not-allowed' 
+                                    : 'bg-amber-800 hover:bg-amber-900 text-white hover:shadow-md'
+                                }"
+                            >
+                                ${isOutOfStock ? 'Sold Out' : '＋ Add'}
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Update Low Stock Indicator Counter badge
+            const lowCount = db.inventory.filter(i => (i.StockQuantity || i.stock || 0) < 10).length;
             document.getElementById('low-stock-alert').innerText = `${lowCount} Low Items Flagged`;
+        }
+
+        // Tab selection click handler
+        function setCategoryFilter(categoryName) {
+            activeCategoryTab = categoryName;
+            renderMenu();
         }
 
         function addToCart(id) {
