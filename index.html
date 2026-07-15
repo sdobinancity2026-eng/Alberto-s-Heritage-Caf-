@@ -638,7 +638,7 @@
                     </td>
                     <td class="py-3.5 px-2 text-right">
                         <button 
-                            onclick="addToCart(${item.ItemID})" 
+                            onclick="addToCart('${item.ItemID}')" 
                             ${isOutOfStock ? 'disabled' : ''}
                             class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                                 isOutOfStock 
@@ -720,7 +720,7 @@
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="font-mono text-xs font-semibold">₱${(item.price * item.quantity).toFixed(2)}</span>
-                        <button onclick="removeFromCart(${item.id})" class="text-red-500 text-xs px-1 font-bold">✕</button>
+                        <button onclick="removeFromCart('${item.id}')" class="text-red-500 text-xs px-1 font-bold">✕</button>
                     </div>
                 </div>
             `;
