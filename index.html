@@ -332,31 +332,85 @@
                     </div>
                 </div>
 
-                <!-- VIEW: INPUT INVENTORY ITEMS -->
+                <!-- ADMIN VIEW: IMPORT NEW CATALOG ITEM -->
                 <div id="view-admin-inventory" class="view-block hidden max-w-md mx-auto bg-white p-6 rounded-2xl shadow-sm border">
-                    <h2 class="text-lg font-bold text-slate-800 mb-6">Import New Catalog Product</h2>
+                    <h2 class="text-lg font-bold text-slate-800 mb-2">Import New Catalog Product</h2>
+                    <p class="text-xs text-slate-500 mb-6">Add a brand new item directly into your menu category tabs.</p>
+                    
                     <div class="space-y-4">
+                        <!-- Category Selector -->
                         <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1">Product ID (Numeric)</label>
-                            <input type="number" id="add-inv-id" placeholder="Unique ID, e.g. 505" class="w-full p-3 rounded-lg border">
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Menu Category (Sheet Tab)</label>
+                            <select 
+                                id="catalog-category-select" 
+                                class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-slate-500"
+                                onchange="autoAssignProductID()"
+                            >
+                                <option value="">-- Choose Category Tab --</option>
+                                <option value="MainCourse">MainCourse</option>
+                                <option value="Pasta">Pasta</option>
+                                <option value="Pizza">Pizza</option>
+                                <option value="Sandwiches">Sandwiches</option>
+                                <option value="Dessert">Dessert</option>
+                                <option value="Beverages">Beverages</option>
+                                <option value="FilipinoSetMeals">FilipinoSetMeals</option>
+                                <option value="AllDayBfast">AllDayBfast</option>
+                                <option value="Salad">Salad</option>
+                                <option value="Soup">Soup</option>
+                                <option value="Appetizer">Appetizer</option>
+                            </select>
                         </div>
+                
+                        <!-- Automatically Assigned Product ID (Read-only for safety!) -->
                         <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1">Item Name</label>
-                            <input type="text" id="add-inv-name" placeholder="e.g. Spanish Latte" class="w-full p-3 rounded-lg border">
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Assigned Product ID (Auto-Generated)</label>
+                            <input 
+                                type="text" 
+                                id="catalog-product-id" 
+                                readonly 
+                                class="w-full bg-slate-100 border border-slate-200 rounded-xl p-3 text-sm font-mono font-bold text-slate-500 cursor-not-allowed"
+                                placeholder="Select a category first..."
+                            />
                         </div>
+                
+                        <!-- Product Name Input -->
                         <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1">Menu Category</label>
-                            <input type="text" id="add-inv-cat" placeholder="Espresso, Pastry, etc." class="w-full p-3 rounded-lg border">
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Product Name</label>
+                            <input 
+                                type="text" 
+                                id="catalog-product-name" 
+                                class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:ring-2 focus:ring-slate-500"
+                                placeholder="e.g., Greek Salad"
+                            />
                         </div>
+                
+                        <!-- Product Price Input -->
                         <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1">Selling Price (₱)</label>
-                            <input type="number" id="add-inv-price" class="w-full p-3 rounded-lg border font-mono">
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Price (₱)</label>
+                            <input 
+                                type="number" 
+                                id="catalog-product-price" 
+                                step="0.01"
+                                class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-mono text-slate-800 focus:ring-2 focus:ring-slate-500"
+                                placeholder="0.00"
+                            />
                         </div>
+                
+                        <!-- Product Stock Input -->
                         <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1">Starting Stock Count</label>
-                            <input type="number" id="add-inv-stock" class="w-full p-3 rounded-lg border font-mono">
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Initial Stock</label>
+                            <input 
+                                type="number" 
+                                id="catalog-product-stock" 
+                                class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-mono text-slate-800 focus:ring-2 focus:ring-slate-500"
+                                placeholder="0"
+                                value="5"
+                            />
                         </div>
-                        <button onclick="addInventoryItem()" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-lg hover:bg-emerald-700 transition">Add Product to Inventory</button>
+                
+                        <button onclick="submitNewCatalogProduct()" class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-950 transition mt-2">
+                            Import Product to Sheet
+                        </button>
                     </div>
                 </div>
 
@@ -1543,7 +1597,7 @@ function renderCharts() {
 window.onload = initApp;
 
 // 1. Populates the Employee dropdown list dynamically
-// Populate the Employee dropdown menu dynamically using active data
+// Populate the Employee dropdown menu dynamically using active sheet data
 function populateEmployeeAllocationDropdown() {
     const dropdown = document.getElementById('recon-employee-select');
     if (!dropdown) return;
@@ -1551,28 +1605,39 @@ function populateEmployeeAllocationDropdown() {
     const selectedValue = dropdown.value;
     dropdown.innerHTML = '<option value="">-- Choose Staff Member --</option>';
 
-    // Fetch employee list dynamically from db, or fall back to local allocations list
     let staffList = [];
+
+    // Check if your local db has the employees list loaded
     if (typeof db !== 'undefined' && db.employees) {
-        staffList = db.employees.map(e => e.name);
+        // Filter: Keep only users whose role is "employee" or "cashier"
+        staffList = db.employees
+            .filter(emp => {
+                if (!emp || !emp.role) return false;
+                const role = emp.role.toLowerCase();
+                return role === 'employee' || role === 'cashier';
+            })
+            .map(emp => emp.name);
     } else {
+        // Fallback: If db is not loaded yet, use the keys from your local allocations
         staffList = Object.keys(window.employeeStartingCashAllocations);
     }
 
-    // De-duplicate elements in the array
-    staffList = [...new Set(staffList)];
+    // Clean up: Remove any duplicate names or empty values
+    staffList = [...new Set(staffList)].filter(Boolean);
 
+    // Append options to the select element
     staffList.forEach(name => {
-        if (!name) return;
         const option = document.createElement('option');
         option.value = name;
         option.textContent = name;
         dropdown.appendChild(option);
     });
 
-    if (selectedValue) dropdown.value = selectedValue;
+    // Keep the previously selected user highlighted if they are still in the list
+    if (selectedValue && staffList.includes(selectedValue)) {
+        dropdown.value = selectedValue;
+    }
 }
-
 // Loads manual allocation profile when an employee is chosen (Admin Only)
 function handleEmployeeCashAllocationChange() {
     const dropdown = document.getElementById('recon-employee-select');
@@ -1604,6 +1669,113 @@ function saveAllocatedCashChange() {
         localStorage.setItem('caf_cash_allocations', JSON.stringify(window.employeeStartingCashAllocations));
     }
     calculateDrawerDiscrepancy();
+}
+
+    // =======================================================
+// AUTOMATIC PRODUCT ID GENERATION LOGIC
+// =======================================================
+
+function autoAssignProductID() {
+    const categorySelect = document.getElementById('catalog-category-select');
+    const productIdInput = document.getElementById('catalog-product-id');
+
+    if (!categorySelect || !productIdInput) return;
+
+    const selectedCategory = categorySelect.value;
+    if (!selectedCategory) {
+        productIdInput.value = "";
+        return;
+    }
+
+    // 1. Get the first two letters of the tab name and make them uppercase (e.g. "Salad" -> "SA")
+    const prefix = selectedCategory.substring(0, 2).toUpperCase();
+
+    let maxNum = 0;
+
+    // 2. Scan database menu items matching the category prefix
+    if (typeof db !== 'undefined' && db.menu) {
+        db.menu.forEach(item => {
+            const itemId = String(item.id || item.ItemID || "");
+            
+            // Check if this ID begins with our target prefix (e.g., "SA")
+            if (itemId.startsWith(prefix)) {
+                // Extract the numeric portion following the prefix (e.g., "SA0003" -> "0003")
+                const numPart = itemId.substring(prefix.length);
+                const parsedNum = parseInt(numPart, 10);
+                
+                if (!isNaN(parsedNum) && parsedNum > maxNum) {
+                    maxNum = parsedNum;
+                }
+            }
+        });
+    }
+
+    // 3. Increment the highest number by 1
+    const nextNum = maxNum + 1;
+
+    // 4. Pad with zeroes up to 4 digits (e.g., 4 -> "0004")
+    const paddedNum = String(nextNum).padStart(4, '0');
+
+    // 5. Combine and display in the read-only input
+    productIdInput.value = `${prefix}${paddedNum}`;
+}
+
+// =======================================================
+// DATABASE CATALOG SUBMISSION HANDLER
+// =======================================================
+
+async function submitNewCatalogProduct() {
+    const categoryEl = document.getElementById('catalog-category-select');
+    const idEl = document.getElementById('catalog-product-id');
+    const nameEl = document.getElementById('catalog-product-name');
+    const priceEl = document.getElementById('catalog-product-price');
+    const stockEl = document.getElementById('catalog-product-stock');
+
+    if (!categoryEl.value || !idEl.value || !nameEl.value.trim() || !priceEl.value) {
+        showToast("Please fill out all product fields before saving.", "error");
+        return;
+    }
+
+    const payload = {
+        action: "importCatalogProduct",
+        categoryTab: categoryEl.value, // Specifies exact sheet tab name: e.g., "Salad"
+        itemId: idEl.value,            // e.g., "SA0004"
+        itemName: nameEl.value.trim(),
+        price: parseFloat(priceEl.value),
+        stock: parseInt(stockEl.value, 10) || 0
+    };
+
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: "POST",
+            mode: "cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+
+        if (data.status === "SUCCESS") {
+            showToast("Product successfully added to " + categoryEl.value + " sheet!", "success");
+            
+            // Clear inputs and recalculate for the next item
+            nameEl.value = "";
+            priceEl.value = "";
+            stockEl.value = "5";
+            
+            // Refetch the database items to refresh local tracking instantly
+            if (typeof fetchDatabase === 'function') {
+                await fetchDatabase();
+            }
+            
+            // Update to next available auto ID
+            autoAssignProductID();
+        } else {
+            showToast("Failed to save product: " + data.message, "error");
+        }
+    } catch (err) {
+        console.error("Catalog import network failure:", err);
+        showToast("Server connection failed. Try again.", "error");
+    }
 }
 
 </script>
