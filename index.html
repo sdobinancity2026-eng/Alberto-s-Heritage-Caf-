@@ -768,7 +768,7 @@
         renderCart();
     }
 
-   async function placeOrder() {
+  async function placeOrder() {
     if (activeCart.length === 0) return showToast("Your basket is empty!", "warning");
     
     const total = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -781,16 +781,20 @@
         return showToast(`Insufficient payment! Total is ₱${total.toFixed(2)} but only ₱${cashTendered.toFixed(2)} was given.`, "warning");
     }
 
+    // ✅ FIXED: Keys matched exactly to your Google Sheet columns 
+    // (Ensure your Google Apps Script maps these matching property keys to the columns)
     const payload = {
-        employee: activeUser ? activeUser.name : "Employee",
-        items: activeCart,
-        total: total,
-        paymentMethod: "Cash",
+        EmployeeName: activeUser ? activeUser.name : "Employee",
+        ItemsOrdered: activeCart, 
+        TotalAmount: total,
+        PaymentMethod: "Cash",
+        
+        // These are used locally by your receipt printer
         cashTendered: cashTendered,
         change: cashTendered - total
     };
 
-    // ✅ FIX: Safe Offline Fallback Check (Triggers only if the URL is missing or still set as a placeholder)
+    // Safe Offline Fallback Check (Adjusted to allow your actual live script URL to process)
     if (typeof SCRIPT_URL === 'undefined' || SCRIPT_URL === "" || SCRIPT_URL.includes("YOUR_SCRIPT_URL_PLACEHOLDER")) {
         console.warn("SCRIPT_URL is not defined or configured. Running in Local POS Print Mode.");
         showToast("Database Offline. Printing receipt locally...", "warning");
@@ -805,6 +809,7 @@
     try {
         const response = await fetch(SCRIPT_URL, {
             method: "POST",
+            // Send the corrected payload keys
             body: JSON.stringify({ action: "placeOrder", ...payload })
         });
         const data = await response.json();
@@ -844,15 +849,15 @@ function finalizeLocalCheckout() {
 }
 
 function printThermalReceipt(payload, serverOrderId) {
-    // ✅ FIX: Target your actual HTML container ID (receipt-print-zone)
     const receipt = document.getElementById('receipt-print-zone');
     if (!receipt) {
         console.error("Receipt rendering element (#receipt-print-zone) not found!");
         return;
     }
 
-    // Generate dynamic item rows (Truncates names to 14 chars to align on 58mm roll widths)
-    const itemLines = (payload.items || []).map(item => {
+    // ✅ FIXED: Read from payload.ItemsOrdered instead of payload.items
+    const itemsList = payload.ItemsOrdered || payload.items || [];
+    const itemLines = itemsList.map(item => {
         const name = item.name.substring(0, 14).padEnd(14, ' ');
         const qty = item.quantity.toString().padStart(5, ' ');
         const price = `₱${(item.price * item.quantity).toFixed(2)}`.padStart(11, ' ');
@@ -861,25 +866,23 @@ function printThermalReceipt(payload, serverOrderId) {
 
     const finalOrderId = serverOrderId || ("ORD-" + Date.now());
 
-    // Extract dynamic payment details from the payload
-    const totalAmount = Number(payload.total).toFixed(2);
+    // ✅ FIXED: Read from payload.TotalAmount instead of payload.total
+    const totalAmount = Number(payload.TotalAmount || payload.total || 0).toFixed(2);
     const cashReceived = Number(payload.cashTendered || 0).toFixed(2);
     const changeDue = Number(payload.change || 0).toFixed(2);
 
-    // Padding calculations for clean tabular alignment (32 characters wide)
     const formattedTotal = `₱${totalAmount}`.padStart(11, ' ');
     const formattedCash = `₱${cashReceived}`.padStart(11, ' ');
     const formattedChange = `₱${changeDue}`.padStart(11, ' ');
 
     receipt.innerHTML = `
 <div style="text-align: center; margin-bottom: 5px;">
-    <!-- Pointing to the clean filename without the apostrophe -->
     <img src="albertos.jpg" alt="Alberto's Logo" style="display: block; margin: 0 auto; max-width: 60px; height: auto;" />
 </div>
 <pre style="font-family: monospace; font-size: 12px; line-height: 1.3; margin-top: 0; white-space: pre-wrap;">
      ALBERTO'S HERITAGE CAFE
 ================================
-Staff: ${payload.employee || 'Staff'}
+Staff: ${payload.EmployeeName || payload.employee || 'Staff'}
 Date: ${new Date().toLocaleDateString()}
 Order ID: ${finalOrderId}
 --------------------------------
@@ -902,7 +905,6 @@ Contact us at: 0969 299 2006
 </pre>
     `;
     
-    // Trigger the physical print prompt
     window.print();
 }
        let employeePettyCash = 0;
