@@ -1046,47 +1046,40 @@ function calculateShiftSales() {
     calculateDrawerDiscrepancy(staffSales);
 }
 
-// Live calculation comparing Physical Cash vs System Expected Cash
 function calculateDrawerDiscrepancy(systemSales = null) {
-    // If systemSales isn't passed, look up the value from the input field
+    const salesField = document.getElementById('recon-sales');
+    
+    // If systemSales isn't passed, safely read it from the input field
     if (systemSales === null) {
-        const salesField = document.getElementById('recon-sales');
         systemSales = parseFloat(salesField ? salesField.value : 0) || 0;
     }
 
-    const startCash = parseFloat(document.getElementById('start-cash').value) || 0;
-    const actualCash = parseFloat(document.getElementById('actual-cash').value) || 0;
+    // Safely look up input elements to prevent null reference errors
+    const startCashEl = document.getElementById('start-cash');
+    const actualCashEl = document.getElementById('actual-cash');
 
-    // What mathematically should be in the drawer
+    // Read values safely. If the element is null, fall back to 0
+    const startCash = parseFloat(startCashEl ? startCashEl.value : 0) || 0;
+    const actualCash = parseFloat(actualCashEl ? actualCashEl.value : 0) || 0;
+
+    // Calculate expectations and discrepancies
     const expectedCash = startCash + systemSales;
-    
-    // Difference (negative is short, positive is over)
     const discrepancy = actualCash - expectedCash;
 
-    // Display it to the screen
+    // Display the result only if the DOM element exists
     const discrepancyDisplay = document.getElementById('discrepancy-display');
     if (discrepancyDisplay) {
         discrepancyDisplay.innerText = `₱${discrepancy.toFixed(2)}`;
         
-        // Dynamically shift UI styles depending on the audit health
         if (discrepancy < 0) {
-            // Shortage (Red)
             discrepancyDisplay.className = "text-md font-mono font-bold text-rose-600";
         } else if (discrepancy > 0) {
-            // Overage (Green)
             discrepancyDisplay.className = "text-md font-mono font-bold text-emerald-600";
         } else {
-            // Balanced (Slate)
             discrepancyDisplay.className = "text-md font-mono font-bold text-slate-600";
         }
     }
 }
-
-// Bind live event listeners to inputs so calculations trigger instantly as typing happens
-document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById('actual-cash')?.addEventListener('input', () => calculateDrawerDiscrepancy());
-    document.getElementById('start-cash')?.addEventListener('input', () => calculateDrawerDiscrepancy());
-});
             async function submitCloseShift() {
     const employee = activeUser ? activeUser.name : "Employee";
     const startCash = parseFloat(document.getElementById('start-cash').value) || 0;
