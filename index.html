@@ -218,40 +218,72 @@
                     </div>
                 </div>
 
-                <!-- VIEW: RECONCILE (Shift Close Checkouts) -->
-                <div id="view-reconcile" class="view-block hidden max-w-md mx-auto bg-white p-6 rounded-2xl shadow-sm border">
-                    <h2 class="text-lg font-bold text-slate-800 mb-2">Shift Cash Drawer Reconciliation</h2>
-                    <p class="text-xs text-slate-500 mb-6">Verify your actual physical drawer coins and bills to check against system calculations.</p>
-                    <div class="space-y-4">
-                        
-                        <!-- Adjust the ID to match whatever ID your existing script uses for starting cash -->
-                        <div class="mb-4">
-                          <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Starting Register Cash (₱)</label>
-                          <input type="number" 
-                            id="start-cash" 
-                            class="w-full bg-slate-100 border border-slate-200 rounded-xl p-3 text-sm font-mono font-bold text-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
-                            placeholder="0.00"
-                            step="0.01"
-                          />
-                          <p id="start-cash-hint" class="text-[10px] text-amber-700 mt-1 hidden">⚠️ Only Administrators can edit this starting balance.</p>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1">Current Logged Sales (₱)</label>
-                            <input type="number" id="recon-sales" readonly class="w-full p-3 rounded-lg border border-gray-100 font-mono bg-slate-50 text-slate-500">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1">Actual Physical Cash inside Drawer (₱)</label>
-                            <input type="number" oninput="calculateDrawerDiscrepancy()" id="recon-actual" placeholder="Count actual cash" class="w-full p-3 rounded-lg border border-gray-200 font-mono text-lg font-bold text-slate-800">
-                        </div>
+               <!-- VIEW: RECONCILE (Shift Close Checkouts) -->
+<div id="view-reconcile" class="view-block hidden max-w-md mx-auto bg-white p-6 rounded-2xl shadow-sm border">
+    <h2 class="text-lg font-bold text-slate-800 mb-2">Shift Cash Drawer Reconciliation</h2>
+    <p class="text-xs text-slate-500 mb-6">Verify your actual physical drawer coins and bills to check against system calculations.</p>
+    
+    <div class="space-y-4">
+        
+        <!-- 1. Employee Allocation Dropdown (Editable by Admin only) -->
+        <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">Select Employee to Allocate Cash</label>
+            <select 
+                id="recon-employee-select" 
+                class="w-full bg-slate-100 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
+                onchange="handleEmployeeCashAllocationChange()"
+            >
+                <option value="">-- Choose Staff Member --</option>
+                <!-- Dynamically populated -->
+            </select>
+        </div>
 
-                        <div class="p-4 rounded-xl flex justify-between items-center bg-slate-50" id="recon-discrepancy-panel">
-                            <span class="text-sm font-semibold">Variance Check:</span>
-                            <span id="recon-variance" class="font-mono font-bold text-sm">₱0.00</span>
-                        </div>
+        <!-- 2. Starting Register Cash (₱) (Editable by Admin only) -->
+        <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">Starting Register Cash (₱)</label>
+            <input 
+                type="number" 
+                id="start-cash" 
+                class="w-full bg-slate-100 border border-slate-200 rounded-xl p-3 text-sm font-mono font-bold text-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
+                placeholder="0.00"
+                step="0.01"
+                oninput="saveAllocatedCashChange()"
+            />
+            <p id="start-cash-hint" class="text-[10px] text-amber-700 mt-1 hidden">⚠️ Only Administrators can allocate and edit this starting balance.</p>
+        </div>
 
-                        <button onclick="submitShiftReconciliation()" class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-950 transition">Confirm End of Shift</button>
-                    </div>
-                </div>
+        <!-- 3. Current Logged Sales (₱) (Read-only) -->
+        <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">Current Logged Sales (₱)</label>
+            <input 
+                type="number" 
+                id="recon-sales" 
+                readonly 
+                class="w-full p-3 rounded-lg border border-gray-100 font-mono bg-slate-50 text-slate-500"
+            />
+        </div>
+
+        <!-- 4. Actual Physical Cash inside Drawer (₱) -->
+        <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">Actual Physical Cash inside Drawer (₱)</label>
+            <input 
+                type="number" 
+                id="recon-actual" 
+                oninput="calculateDrawerDiscrepancy()" 
+                placeholder="Count actual cash" 
+                class="w-full p-3 rounded-lg border border-gray-200 font-mono text-lg font-bold text-slate-800"
+            />
+        </div>
+
+        <!-- 5. Variance Check Panel -->
+        <div class="p-4 rounded-xl flex justify-between items-center bg-slate-50" id="recon-discrepancy-panel">
+            <span class="text-sm font-semibold">Variance Check:</span>
+            <span id="recon-variance" class="font-mono font-bold text-sm text-slate-600">₱0.00</span>
+        </div>
+
+        <button onclick="submitShiftReconciliation()" class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-950 transition">Confirm End of Shift</button>
+    </div>
+</div>
 
                 <!-- VIEW: DAILY SALES -->
                 <div id="view-admin-daily" class="view-block hidden space-y-6">
@@ -610,22 +642,39 @@
 
 function evaluateStartingCashAccess() {
     const startCashInput = document.getElementById('start-cash');
+    const dropdown = document.getElementById('recon-employee-select');
     const hintMessage = document.getElementById('start-cash-hint');
     
-    if (!startCashInput) return;
+    // First, populate the dropdown list
+    populateEmployeeAllocationDropdown();
 
-    // Check if there is an active user and if their role is Admin (case-insensitive)
+    if (!startCashInput || !dropdown) return;
+
     const isAdmin = activeUser && activeUser.role && activeUser.role.toLowerCase() === 'admin';
 
     if (isAdmin) {
+        // Admins can select any employee and assign starting cash quantities
         startCashInput.disabled = false;
+        dropdown.disabled = false;
         startCashInput.classList.remove('bg-slate-100', 'cursor-not-allowed');
+        dropdown.classList.remove('bg-slate-100', 'cursor-not-allowed');
         startCashInput.classList.add('bg-white');
+        dropdown.classList.add('bg-white');
         if (hintMessage) hintMessage.classList.add('hidden');
     } else {
+        // Standard Cashiers are locked out. It auto-selects their account.
         startCashInput.disabled = true;
+        dropdown.disabled = true;
         startCashInput.classList.remove('bg-white');
+        dropdown.classList.remove('bg-white');
         startCashInput.classList.add('bg-slate-100', 'cursor-not-allowed');
+        dropdown.classList.add('bg-slate-100', 'cursor-not-allowed');
+        
+        // Auto-select the logged-in cashier's profile
+        dropdown.value = activeUser.name;
+        const allocatedAmount = employeeStartingCashAllocations[activeUser.name] || 500.00;
+        startCashInput.value = allocatedAmount;
+
         if (hintMessage) hintMessage.classList.remove('hidden');
     }
 }
@@ -669,10 +718,10 @@ function evaluateStartingCashAccess() {
       }
 
       // 4. Trigger specific actions depending on which view is being loaded
-      if (viewName === 'reconcile') {
-          evaluateStartingCashAccess(); // Locks/unlocks starting cash based on current user role
-          calculateShiftSales();        // Recalculates latest sales numbers
-      }
+             if (viewName === 'reconcile') {
+            evaluateStartingCashAccess(); 
+            calculateShiftSales();        
+        }
       if (viewName === 'admin-daily' && typeof renderDailyLedger === 'function') renderDailyLedger();
       if (viewName === 'admin-weekly' && typeof renderWeeklyLedger === 'function') renderWeeklyLedger();
       if (viewName === 'admin-monthly' && typeof renderMonthlyLedger === 'function') renderMonthlyLedger();
@@ -1046,37 +1095,44 @@ function calculateShiftSales() {
     calculateDrawerDiscrepancy(staffSales);
 }
 
+// Dictionary tracking starting cash allocations in memory
+let employeeStartingCashAllocations = {
+    "Kristine Reyes": 1000.00,
+    "Employee": 500.00
+};
+
+// Live calculation comparing Physical Cash vs System Expected Cash
 function calculateDrawerDiscrepancy(systemSales = null) {
     const salesField = document.getElementById('recon-sales');
     
-    // If systemSales isn't passed, safely read it from the input field
+    // Safely parse system sales
     if (systemSales === null) {
         systemSales = parseFloat(salesField ? salesField.value : 0) || 0;
     }
 
-    // Safely look up input elements to prevent null reference errors
     const startCashEl = document.getElementById('start-cash');
-    const actualCashEl = document.getElementById('actual-cash');
+    const actualCashEl = document.getElementById('recon-actual'); // Matched to your HTML ID
 
-    // Read values safely. If the element is null, fall back to 0
     const startCash = parseFloat(startCashEl ? startCashEl.value : 0) || 0;
     const actualCash = parseFloat(actualCashEl ? actualCashEl.value : 0) || 0;
 
-    // Calculate expectations and discrepancies
     const expectedCash = startCash + systemSales;
     const discrepancy = actualCash - expectedCash;
 
-    // Display the result only if the DOM element exists
-    const discrepancyDisplay = document.getElementById('discrepancy-display');
+    // Display the calculation result dynamically using your exact HTML ID
+    const discrepancyDisplay = document.getElementById('recon-variance');
     if (discrepancyDisplay) {
         discrepancyDisplay.innerText = `₱${discrepancy.toFixed(2)}`;
         
         if (discrepancy < 0) {
-            discrepancyDisplay.className = "text-md font-mono font-bold text-rose-600";
+            // Shortage
+            discrepancyDisplay.className = "font-mono font-bold text-sm text-rose-600";
         } else if (discrepancy > 0) {
-            discrepancyDisplay.className = "text-md font-mono font-bold text-emerald-600";
+            // Overage
+            discrepancyDisplay.className = "font-mono font-bold text-sm text-emerald-600";
         } else {
-            discrepancyDisplay.className = "text-md font-mono font-bold text-slate-600";
+            // Balanced
+            discrepancyDisplay.className = "font-mono font-bold text-sm text-slate-600";
         }
     }
 }
@@ -1121,23 +1177,21 @@ function calculateDrawerDiscrepancy(systemSales = null) {
 }
 
 async function submitShiftReconciliation() {
-    // 1. Gather elements safely
     const startCashEl = document.getElementById('start-cash');
-    const actualCashEl = document.getElementById('actual-cash');
+    const actualCashEl = document.getElementById('recon-actual'); // Matched to your HTML
     const salesFieldEl = document.getElementById('recon-sales');
 
-    // 2. Alert you immediately if an element is completely missing from your HTML
+    // Safety check to log exactly if something fails to grab
     if (!startCashEl || !actualCashEl || !salesFieldEl) {
         console.error("Reconciliation Elements Missing:", {
             'start-cash': startCashEl,
-            'actual-cash': actualCashEl,
+            'recon-actual': actualCashEl,
             'recon-sales': salesFieldEl
         });
-        alert("System Error: One or more input fields are missing from the HTML structure. Please check the console (F12) for details.");
-        return; 
+        alert("Unable to close shift. Some page elements are missing. Contact your admin.");
+        return;
     }
 
-    // 3. Extract values safely now that we know they exist
     const employee = activeUser ? activeUser.name : "Employee";
     const startCash = parseFloat(startCashEl.value) || 0;
     const actualCash = parseFloat(actualCashEl.value) || 0;
@@ -1464,6 +1518,74 @@ function renderCharts() {
 }
 
 window.onload = initApp;
+
+
+    // Dictionary tracking allocated starting cash for each user (keeps state while app runs)
+let employeeStartingCashAllocations = {
+    // Default allocations. These will adjust as the Admin changes them.
+    "Kristine Reyes": 1000.00,
+    "Employee": 500.00
+};
+
+// 1. Populates the Employee dropdown list dynamically
+function populateEmployeeAllocationDropdown() {
+    const dropdown = document.getElementById('recon-employee-select');
+    if (!dropdown) return;
+
+    // Save existing selection to avoid wiping it out
+    const selectedValue = dropdown.value;
+    dropdown.innerHTML = '<option value="">-- Choose Staff Member --</option>';
+
+    // Fetch employee names from your local DB system if available, or fall back to known keys
+    const staffList = (db && db.employees) ? db.employees.map(e => e.name) : Object.keys(employeeStartingCashAllocations);
+
+    staffList.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        dropdown.appendChild(option);
+    });
+
+    // Re-apply previously selected value if it exists
+    if (selectedValue) {
+        dropdown.value = selectedValue;
+    }
+}
+
+// 2. Triggers when Admin selects a different staff member from the dropdown
+function handleEmployeeCashAllocationChange() {
+    const dropdown = document.getElementById('recon-employee-select');
+    const startCashInput = document.getElementById('start-cash');
+    if (!dropdown || !startCashInput) return;
+
+    const selectedName = dropdown.value;
+    if (selectedName) {
+        // Look up allocated cash for this person, default to 500 if unassigned
+        const allocatedAmount = employeeStartingCashAllocations[selectedName] || 500.00;
+        startCashInput.value = allocatedAmount;
+    } else {
+        startCashInput.value = "";
+    }
+    
+    // Recalculate discrepancies with the new target start cash
+    calculateShiftSales();
+}
+
+// 3. Allows Admin to edit and save the allocated amount to the active employee in memory
+function saveAllocatedCashChange() {
+    const dropdown = document.getElementById('recon-employee-select');
+    const startCashInput = document.getElementById('start-cash');
+    if (!dropdown || !startCashInput) return;
+
+    const selectedName = dropdown.value;
+    const newAmount = parseFloat(startCashInput.value) || 0;
+
+    if (selectedName) {
+        employeeStartingCashAllocations[selectedName] = newAmount;
+    }
+    
+    calculateDrawerDiscrepancy();
+}
 
 </script>
 </body>
