@@ -406,60 +406,80 @@
     <!-- Hidden Printable Node Container for Thermal Output (Keep Only One) -->
     <div id="receipt-print-zone" class="hidden"></div>
     
-    <!-- CORE LOGIC & ROUTING ENGINE -->
-   <script>
+  <!-- CORE LOGIC & ROUTING ENGINE -->
+<script>
     const API_URL = "https://script.google.com/macros/s/AKfycbxulPl24lg5hJS8a_5KuXPxUH7usUHHpl-JqdASVCFHiG0PTej7GaGFZoSKNY-dOvD-Uw/exec";
     const SCRIPT_URL = API_URL;
-       
+        
+    // ==========================================
+    // 1. GLOBAL STATE & CONFIG CONSTANTS
+    // ==========================================
     let db = { inventory: [], employees: [], orders: [], shifts: [] };
     let activeUser = null;
     let activeCart = [];
     let analyticsCharts = { trend: null, pie: null };
 
+    // Tracking the active category tab (defaulting to "All" on start)
+    let activeCategoryTab = "All";
+
+    // Categories explicitly requested to match your sheets layout
+    const menuCategories = [
+        "All", "Appetizer", "Soup", "Salad", "AllDayBfast", 
+        "FilipinoSetMeals", "Beverages", "Dessert", "Sandwiches", 
+        "Pizza", "Pasta", "MainCourse", "BestSeller"
+    ];
+
+    // ==========================================
+    // 2. INITIALIZATION / BOOTSTRAP LOGIC
+    // ==========================================
     async function initApp() {
         updateSystemDate();
         await fetchAllData();
         checkAutoLogin();
     }
 
-       // Run as soon as your main JS executes
-checkAutoLogin();
+    // Run app initialization when script executes
+    // (Or wrap in document.addEventListener("DOMContentLoaded", initApp) for maximum safety)
+    initApp();
 
-function checkAutoLogin() {
-    const saved = localStorage.getItem('logged_user');
-    if (saved) {
-        try {
-            activeUser = JSON.parse(saved);
-            
-            // Re-sync states
-            document.getElementById('login-screen').classList.add('hidden');
-            document.getElementById('app-wrapper').classList.remove('hidden');
-            
-            // Populate Sticky Nav details
-            document.getElementById('topbar-user-name').innerText = activeUser.name;
-            document.getElementById('topbar-user-role').innerText = activeUser.role;
+    // ==========================================
+    // 3. APPLICATION FUNCTIONS
+    // ==========================================
+    function checkAutoLogin() {
+        const saved = localStorage.getItem('logged_user');
+        if (saved) {
+            try {
+                activeUser = JSON.parse(saved);
+                
+                // Re-sync states
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('app-wrapper').classList.remove('hidden');
+                
+                // Populate Sticky Nav details
+                document.getElementById('topbar-user-name').innerText = activeUser.name;
+                document.getElementById('topbar-user-role').innerText = activeUser.role;
 
-            if (activeUser.role && activeUser.role.toLowerCase() === 'admin') {
-                document.getElementById('admin-nav-links').classList.remove('hidden');
-            } else {
-                document.getElementById('admin-nav-links').classList.add('hidden');
+                if (activeUser.role && activeUser.role.toLowerCase() === 'admin') {
+                    document.getElementById('admin-nav-links').classList.remove('hidden');
+                } else {
+                    document.getElementById('admin-nav-links').classList.add('hidden');
+                }
+
+                // Standard layout load tasks
+                navigateView('register');
+                calculateShiftSales();
+                renderMenu();
+                
+            } catch (e) {
+                console.error("Error parsing auto-login cache:", e);
+                logout();
             }
-
-            // Standard layout load tasks
-            navigateView('register');
-            calculateShiftSales();
-            renderMenu();
-            
-        } catch (e) {
-            console.error("Error parsing auto-login cache:", e);
-            logout();
+        } else {
+            // Safe fallback: No user active, clean up layout states
+            document.getElementById('login-screen').classList.remove('hidden');
+            document.getElementById('app-wrapper').classList.add('hidden');
         }
-    } else {
-        // Safe fallback: No user active, clean up layout states
-        document.getElementById('login-screen').classList.remove('hidden');
-        document.getElementById('app-wrapper').classList.add('hidden');
     }
-}
 
     function updateSystemDate() {
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -538,15 +558,6 @@ function checkAutoLogin() {
             passInput.type = "password";
             if (eyeOpen) eyeOpen.classList.remove('hidden');
             if (eyeClosed) eyeClosed.classList.add('hidden');
-        }
-    }
-
-    function checkAutoLogin() {
-        const saved = localStorage.getItem('logged_user');
-        if (saved) {
-            activeUser = JSON.parse(saved);
-            authorizedSessionStart();
-            showToast(`Welcome back, ${activeUser.name}!`);
         }
     }
 
@@ -667,16 +678,6 @@ function checkAutoLogin() {
         if (viewName === 'admin-analytics') renderCharts();
         if (viewName === 'reconcile') calculateShiftSales();
     }
-
-    // Tracking the active category tab (defaulting to "All" on start)
-    let activeCategoryTab = "All";
-
-    // Categories explicitly requested to match your sheets layout
-    const menuCategories = [
-        "All", "Appetizer", "Soup", "Salad", "AllDayBfast", 
-        "FilipinoSetMeals", "Beverages", "Dessert", "Sandwiches", 
-        "Pizza", "Pasta", "MainCourse", "BestSeller"
-    ];
 
     function renderMenu() {
         // 1. Render Category Buttons Tab Bar
@@ -832,69 +833,63 @@ function checkAutoLogin() {
         renderCart();
     }
 
-  async function placeOrder() {
-    if (activeCart.length === 0) return showToast("Your basket is empty!", "warning");
-    
-    const total = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    
-    // Validate the cash tendered amount
-    const cashInput = document.getElementById('cash-tendered');
-    const cashTendered = parseFloat(cashInput ? cashInput.value : 0) || 0;
-    
-    if (cashTendered < total) {
-        return showToast(`Insufficient payment! Total is ₱${total.toFixed(2)} but only ₱${cashTendered.toFixed(2)} was given.`, "warning");
-    }
-
-    // ✅ FIXED: Keys matched exactly to your Google Sheet columns 
-    // (Ensure your Google Apps Script maps these matching property keys to the columns)
-    const payload = {
-        EmployeeName: activeUser ? activeUser.name : "Employee",
-        ItemsOrdered: activeCart, 
-        TotalAmount: total,
-        PaymentMethod: "Cash",
+    async function placeOrder() {
+        if (activeCart.length === 0) return showToast("Your basket is empty!", "warning");
         
-        // These are used locally by your receipt printer
-        cashTendered: cashTendered,
-        change: cashTendered - total
-    };
-
-    // Safe Offline Fallback Check (Adjusted to allow your actual live script URL to process)
-    if (typeof SCRIPT_URL === 'undefined' || SCRIPT_URL === "" || SCRIPT_URL.includes("YOUR_SCRIPT_URL_PLACEHOLDER")) {
-        console.warn("SCRIPT_URL is not defined or configured. Running in Local POS Print Mode.");
-        showToast("Database Offline. Printing receipt locally...", "warning");
+        const total = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
         
-        // Directly print and clean cart
-        printThermalReceipt(payload, "LOCAL-" + Date.now());
-        finalizeLocalCheckout();
-        return;
-    }
-
-    // Attempt Server Sync
-    try {
-        const response = await fetch(SCRIPT_URL, {
-            method: "POST",
-            // Send the corrected payload keys
-            body: JSON.stringify({ action: "placeOrder", ...payload })
-        });
-        const data = await response.json();
-
-        if (data.status === "SUCCESS") {
-            printThermalReceipt(payload, data.orderId);
-            showToast("Order placed successfully!", "success");
-            finalizeLocalCheckout();
-        } else {
-            alert("Error placing order on server: " + data.message);
+        // Validate the cash tendered amount
+        const cashInput = document.getElementById('cash-tendered');
+        const cashTendered = parseFloat(cashInput ? cashInput.value : 0) || 0;
+        
+        if (cashTendered < total) {
+            return showToast(`Insufficient payment! Total is ₱${total.toFixed(2)} but only ₱${cashTendered.toFixed(2)} was given.`, "warning");
         }
-    } catch (err) {
-        console.error("Database connection failed. Falling back to local printer...", err);
-        showToast("Cloud sync failed. Printing physical receipt...", "warning");
-        
-        // Print receipt locally even if network is dead
-        printThermalReceipt(payload, "OFFLINE-" + Date.now());
-        finalizeLocalCheckout();
-    }
-}
 
+        const payload = {
+            EmployeeName: activeUser ? activeUser.name : "Employee",
+            ItemsOrdered: activeCart, 
+            TotalAmount: total,
+            PaymentMethod: "Cash",
+            
+            // These are used locally by your receipt printer
+            cashTendered: cashTendered,
+            change: cashTendered - total
+        };
+
+        // Safe Offline Fallback Check
+        if (typeof SCRIPT_URL === 'undefined' || SCRIPT_URL === "" || SCRIPT_URL.includes("YOUR_SCRIPT_URL_PLACEHOLDER")) {
+            console.warn("SCRIPT_URL is not defined or configured. Running in Local POS Print Mode.");
+            showToast("Database Offline. Printing receipt locally...", "warning");
+            
+            printThermalReceipt(payload, "LOCAL-" + Date.now());
+            finalizeLocalCheckout();
+            return;
+        }
+
+        // Attempt Server Sync
+        try {
+            const response = await fetch(SCRIPT_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "placeOrder", ...payload })
+            });
+            const data = await response.json();
+
+            if (data.status === "SUCCESS") {
+                printThermalReceipt(payload, data.orderId);
+                showToast("Order placed successfully!", "success");
+                finalizeLocalCheckout();
+            } else {
+                alert("Error placing order on server: " + data.message);
+            }
+        } catch (err) {
+            console.error("Database connection failed. Falling back to local printer...", err);
+            showToast("Cloud sync failed. Printing physical receipt...", "warning");
+            
+            printThermalReceipt(payload, "OFFLINE-" + Date.now());
+            finalizeLocalCheckout();
+        }
+    }
 // Clean UI after successful printing (either online or offline)
 function finalizeLocalCheckout() {
     activeCart = [];
@@ -965,13 +960,14 @@ Brgy. Cabanbanan, Pagsanjan
 Contact us at: 0969 299 2006
 ================================
 
-    Savor Heritage Today.
+     Savor Heritage Today.
 </pre>
     `;
     
     window.print();
 }
-       let employeePettyCash = 0;
+
+let employeePettyCash = 0;
 
 // Call this function inside your logic flow right after the staff member logs in successfully
 function registerEmployeeShiftAssets(user) {
@@ -1000,7 +996,7 @@ function registerEmployeeShiftAssets(user) {
     }
 }
 
-    // Drawer Reconciliation Module
+// Drawer Reconciliation Module
 function calculateShiftSales() {
     if (!activeUser) return;
     
@@ -1018,209 +1014,209 @@ function calculateShiftSales() {
     }
 }
 
-    function calculateDrawerDiscrepancy() {
-        const start = Number(document.getElementById('recon-start-cash').value) || 0;
-        const sales = Number(document.getElementById('recon-sales').value) || 0;
-        const actual = Number(document.getElementById('recon-actual').value) || 0;
+function calculateDrawerDiscrepancy() {
+    const start = Number(document.getElementById('recon-start-cash').value) || 0;
+    const sales = Number(document.getElementById('recon-sales').value) || 0;
+    const actual = Number(document.getElementById('recon-actual').value) || 0;
 
-        const expected = start + sales;
-        const discrepancy = actual - expected;
+    const expected = start + sales;
+    const discrepancy = actual - expected;
 
-        const label = document.getElementById('recon-variance');
-        const panel = document.getElementById('recon-discrepancy-panel');
+    const label = document.getElementById('recon-variance');
+    const panel = document.getElementById('recon-discrepancy-panel');
 
-        if (!label || !panel) return;
+    if (!label || !panel) return;
 
-        label.innerText = `₱${discrepancy.toFixed(2)}`;
+    label.innerText = `₱${discrepancy.toFixed(2)}`;
 
-        if (discrepancy === 0) {
-            label.className = "font-mono font-bold text-sm text-emerald-600";
-            panel.className = "p-4 rounded-xl flex justify-between items-center bg-emerald-50";
-        } else if (discrepancy < 0) {
-            label.className = "font-mono font-bold text-sm text-red-600";
-            panel.className = "p-4 rounded-xl flex justify-between items-center bg-red-50";
-            label.innerText = `₱${Math.abs(discrepancy).toFixed(2)} (SHORT)`;
-        } else {
-            label.className = "font-mono font-bold text-sm text-blue-600";
-            panel.className = "p-4 rounded-xl flex justify-between items-center bg-blue-50";
-            label.innerText = `₱${discrepancy.toFixed(2)} (OVER)`;
+    if (discrepancy === 0) {
+        label.className = "font-mono font-bold text-sm text-emerald-600";
+        panel.className = "p-4 rounded-xl flex justify-between items-center bg-emerald-50";
+    } else if (discrepancy < 0) {
+        label.className = "font-mono font-bold text-sm text-red-600";
+        panel.className = "p-4 rounded-xl flex justify-between items-center bg-red-50";
+        label.innerText = `₱${Math.abs(discrepancy).toFixed(2)} (SHORT)`;
+    } else {
+        label.className = "font-mono font-bold text-sm text-blue-600";
+        panel.className = "p-4 rounded-xl flex justify-between items-center bg-blue-50";
+        label.innerText = `₱${discrepancy.toFixed(2)} (OVER)`;
+    }
+}
+
+async function submitShiftReconciliation() {
+    const start = Number(document.getElementById('recon-start-cash').value) || 0;
+    const sales = Number(document.getElementById('recon-sales').value) || 0;
+    const actual = Number(document.getElementById('recon-actual').value) || 0;
+    const discrepancy = actual - (start + sales);
+
+    const payload = {
+        action: "closeShift",
+        employee: activeUser ? activeUser.name : "System",
+        startCash: start,
+        systemSales: sales,
+        actualCash: actual,
+        discrepancy: discrepancy
+    };
+
+    try {
+        const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+        const res = await response.json();
+        if (res.status === "SUCCESS") {
+            showToast("Shift logged! Clearing session terminal.");
+            logout();
         }
+    } catch (err) {
+        showToast("Verification failed. Check network link.", "error");
+    }
+}
+
+// Ledgers, Management and Graphing Admin Commands
+function renderDailyLedger() {
+    const container = document.getElementById('daily-table-body');
+    if (!container) return;
+
+    const todayStr = new Date().toDateString();
+    const todayOrders = db.orders.filter(o => new Date(o.Timestamp).toDateString() === todayStr);
+
+    if (todayOrders.length === 0) {
+        container.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">No transactions logged today.</td></tr>`;
+        return;
     }
 
-    async function submitShiftReconciliation() {
-        const start = Number(document.getElementById('recon-start-cash').value) || 0;
-        const sales = Number(document.getElementById('recon-sales').value) || 0;
-        const actual = Number(document.getElementById('recon-actual').value) || 0;
-        const discrepancy = actual - (start + sales);
+    container.innerHTML = todayOrders.map(o => `
+        <tr>
+            <td class="p-4 font-mono text-xs">${new Date(o.Timestamp).toLocaleTimeString()}</td>
+            <td class="p-4 font-bold text-slate-700">${o.OrderID}</td>
+            <td class="p-4">${o.EmployeeName}</td>
+            <td class="p-4 text-right font-mono font-bold text-slate-800">₱${Number(o.TotalAmount).toFixed(2)}</td>
+        </tr>
+    `).join('');
+}
 
-        const payload = {
-            action: "closeShift",
-            employee: activeUser ? activeUser.name : "System",
-            startCash: start,
-            systemSales: sales,
-            actualCash: actual,
-            discrepancy: discrepancy
-        };
+function renderWeeklyLedger() {
+    const container = document.getElementById('weekly-table-body');
+    if (!container) return;
 
-        try {
-            const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
-            const res = await response.json();
-            if (res.status === "SUCCESS") {
-                showToast("Shift logged! Clearing session terminal.");
-                logout();
-            }
-        } catch (err) {
-            showToast("Verification failed. Check network link.", "error");
+    let sales = db.orders.reduce((sum, o) => sum + Number(o.TotalAmount || 0), 0);
+    container.innerHTML = `
+        <tr>
+            <td class="p-4 font-semibold text-slate-700">Current Week (Rolling)</td>
+            <td class="p-4">${db.orders.length}</td>
+            <td class="p-4 text-right font-mono font-bold text-emerald-600">₱${sales.toFixed(2)}</td>
+        </tr>
+    `;
+}
+
+function renderMonthlyLedger() {
+    const container = document.getElementById('monthly-table-body');
+    if (!container) return;
+
+    let sales = db.orders.reduce((sum, o) => sum + Number(o.TotalAmount || 0), 0);
+    container.innerHTML = `
+        <tr>
+            <td class="p-4 font-semibold text-slate-700">${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</td>
+            <td class="p-4">${db.orders.length}</td>
+            <td class="p-4 text-right font-mono font-bold text-indigo-600">₱${sales.toFixed(2)}</td>
+        </tr>
+    `;
+}
+
+async function registerEmployee() {
+    const id = document.getElementById('reg-emp-id').value.trim();
+    const name = document.getElementById('reg-emp-name').value.trim();
+    const role = document.getElementById('reg-emp-role').value;
+    const password = document.getElementById('reg-emp-pass').value.trim();
+
+    if (!id || !name || !password) return showToast("Complete all inputs.", "warning");
+
+    const payload = { action: "saveEmployee", id, name, role, password };
+
+    try {
+        const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+        const res = await response.json();
+        if (res.status === "SUCCESS") {
+            showToast("Staff profile created successfully!");
+            await fetchAllData();
+            navigateView('register');
         }
-    }
+    } catch(e) { showToast("Staff creation failed.", "error"); }
+}
 
-    // Ledgers, Management and Graphing Admin Commands
-    function renderDailyLedger() {
-        const container = document.getElementById('daily-table-body');
-        if (!container) return;
+async function addInventoryItem() {
+    const id = document.getElementById('add-inv-id').value.trim();
+    const name = document.getElementById('add-inv-name').value.trim();
+    const category = document.getElementById('add-inv-cat').value.trim();
+    const price = Number(document.getElementById('add-inv-price').value);
+    const stock = Number(document.getElementById('add-inv-stock').value);
 
-        const todayStr = new Date().toDateString();
-        const todayOrders = db.orders.filter(o => new Date(o.Timestamp).toDateString() === todayStr);
+    if (!id || !name || !category) return showToast("Please fill all properties.", "warning");
 
-        if (todayOrders.length === 0) {
-            container.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">No transactions logged today.</td></tr>`;
-            return;
+    const payload = { action: "addInventory", id, name, category, price, stock };
+
+    try {
+        const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+        const res = await response.json();
+        if (res.status === "SUCCESS") {
+            showToast("Product added to live sheet!");
+            await fetchAllData();
+            renderMenu();
+            navigateView('register');
         }
+    } catch(e) { showToast("Could not submit item.", "error"); }
+}
 
-        container.innerHTML = todayOrders.map(o => `
-            <tr>
-                <td class="p-4 font-mono text-xs">${new Date(o.Timestamp).toLocaleTimeString()}</td>
-                <td class="p-4 font-bold text-slate-700">${o.OrderID}</td>
-                <td class="p-4">${o.EmployeeName}</td>
-                <td class="p-4 text-right font-mono font-bold text-slate-800">₱${Number(o.TotalAmount).toFixed(2)}</td>
-            </tr>
-        `).join('');
+function loadUpdateSelect() {
+    const select = document.getElementById('edit-select-prod');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">-- Choose Product --</option>' + 
+        db.inventory.map(i => `<option value="${i.ItemID}">${i.ItemName}</option>`).join('');
+}
+
+function populateEditForm() {
+    const id = document.getElementById('edit-select-prod').value;
+    const fields = document.getElementById('edit-form-fields');
+    
+    if (!id) {
+        if (fields) fields.classList.add('hidden');
+        return;
     }
 
-    function renderWeeklyLedger() {
-        const container = document.getElementById('weekly-table-body');
-        if (!container) return;
+    const item = db.inventory.find(i => i.ItemID == id);
+    if (!item) return;
 
-        let sales = db.orders.reduce((sum, o) => sum + Number(o.TotalAmount || 0), 0);
-        container.innerHTML = `
-            <tr>
-                <td class="p-4 font-semibold text-slate-700">Current Week (Rolling)</td>
-                <td class="p-4">${db.orders.length}</td>
-                <td class="p-4 text-right font-mono font-bold text-emerald-600">₱${sales.toFixed(2)}</td>
-            </tr>
-        `;
-    }
+    document.getElementById('edit-inv-name').value = item.ItemName || "";
+    document.getElementById('edit-inv-cat').value = item.Category || item.category || "";
+    document.getElementById('edit-inv-price').value = item.Price || 0;
+    document.getElementById('edit-inv-stock').value = item.StockQuantity !== undefined ? item.StockQuantity : (item.stock || 0);
 
-    function renderMonthlyLedger() {
-        const container = document.getElementById('monthly-table-body');
-        if (!container) return;
+    if (fields) fields.classList.remove('hidden');
+}
 
-        let sales = db.orders.reduce((sum, o) => sum + Number(o.TotalAmount || 0), 0);
-        container.innerHTML = `
-            <tr>
-                <td class="p-4 font-semibold text-slate-700">${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</td>
-                <td class="p-4">${db.orders.length}</td>
-                <td class="p-4 text-right font-mono font-bold text-indigo-600">₱${sales.toFixed(2)}</td>
-            </tr>
-        `;
-    }
+async function submitProductUpdate() {
+    const id = document.getElementById('edit-select-prod').value;
+    const name = document.getElementById('edit-inv-name').value.trim();
+    const category = document.getElementById('edit-inv-cat').value.trim();
+    const price = Number(document.getElementById('edit-inv-price').value);
+    const stock = Number(document.getElementById('edit-inv-stock').value);
 
-    async function registerEmployee() {
-        const id = document.getElementById('reg-emp-id').value.trim();
-        const name = document.getElementById('reg-emp-name').value.trim();
-        const role = document.getElementById('reg-emp-role').value;
-        const password = document.getElementById('reg-emp-pass').value.trim();
+    const payload = { action: "updateProduct", id, name, category, price, stock };
 
-        if (!id || !name || !password) return showToast("Complete all inputs.", "warning");
-
-        const payload = { action: "saveEmployee", id, name, role, password };
-
-        try {
-            const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
-            const res = await response.json();
-            if (res.status === "SUCCESS") {
-                showToast("Staff profile created successfully!");
-                await fetchAllData();
-                navigateView('register');
-            }
-        } catch(e) { showToast("Staff creation failed.", "error"); }
-    }
-
-    async function addInventoryItem() {
-        const id = document.getElementById('add-inv-id').value.trim();
-        const name = document.getElementById('add-inv-name').value.trim();
-        const category = document.getElementById('add-inv-cat').value.trim();
-        const price = Number(document.getElementById('add-inv-price').value);
-        const stock = Number(document.getElementById('add-inv-stock').value);
-
-        if (!id || !name || !category) return showToast("Please fill all properties.", "warning");
-
-        const payload = { action: "addInventory", id, name, category, price, stock };
-
-        try {
-            const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
-            const res = await response.json();
-            if (res.status === "SUCCESS") {
-                showToast("Product added to live sheet!");
-                await fetchAllData();
-                renderMenu();
-                navigateView('register');
-            }
-        } catch(e) { showToast("Could not submit item.", "error"); }
-    }
-
-    function loadUpdateSelect() {
-        const select = document.getElementById('edit-select-prod');
-        if (!select) return;
-
-        select.innerHTML = '<option value="">-- Choose Product --</option>' + 
-            db.inventory.map(i => `<option value="${i.ItemID}">${i.ItemName}</option>`).join('');
-    }
-
-    function populateEditForm() {
-        const id = document.getElementById('edit-select-prod').value;
-        const fields = document.getElementById('edit-form-fields');
-        
-        if (!id) {
-            if (fields) fields.classList.add('hidden');
-            return;
+    try {
+        const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+        const res = await response.json();
+        if (res.status === "SUCCESS") {
+            showToast("Metadata committed successfully.");
+            await fetchAllData();
+            renderMenu();
+            navigateView('register');
         }
+    } catch(e) { showToast("Product updates failed.", "error"); }
+}
 
-        const item = db.inventory.find(i => i.ItemID == id);
-        if (!item) return;
+let basketTotalSum = 0; // Tracking variable for basket totals
 
-        document.getElementById('edit-inv-name').value = item.ItemName || "";
-        document.getElementById('edit-inv-cat').value = item.Category || item.category || "";
-        document.getElementById('edit-inv-price').value = item.Price || 0;
-        document.getElementById('edit-inv-stock').value = item.StockQuantity !== undefined ? item.StockQuantity : (item.stock || 0);
-
-        if (fields) fields.classList.remove('hidden');
-    }
-
-    async function submitProductUpdate() {
-        const id = document.getElementById('edit-select-prod').value;
-        const name = document.getElementById('edit-inv-name').value.trim();
-        const category = document.getElementById('edit-inv-cat').value.trim();
-        const price = Number(document.getElementById('edit-inv-price').value);
-        const stock = Number(document.getElementById('edit-inv-stock').value);
-
-        const payload = { action: "updateProduct", id, name, category, price, stock };
-
-        try {
-            const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
-            const res = await response.json();
-            if (res.status === "SUCCESS") {
-                showToast("Metadata committed successfully.");
-                await fetchAllData();
-                renderMenu();
-                navigateView('register');
-            }
-        } catch(e) { showToast("Product updates failed.", "error"); }
-    }
-
-       let basketTotalSum = 0; // Tracking variable for basket totals
-
-   function calculateChange() {
+function calculateChange() {
     const cashInput = document.getElementById('cash-tendered');
     const changeDisplay = document.getElementById('customer-change');
     const totalDisplay = document.getElementById('basket-total');
@@ -1275,23 +1271,23 @@ function onBasketUpdated(newTotal) {
     calculateChange();
 }
 
-    function renderReprintTable() {
-        const container = document.getElementById('reprint-table-body');
-        if (!container) return;
+function renderReprintTable() {
+    const container = document.getElementById('reprint-table-body');
+    if (!container) return;
 
-        container.innerHTML = db.orders.map(o => `
-            <tr>
-                <td class="p-4 font-mono text-xs font-bold">${o.OrderID}</td>
-                <td class="p-4 text-xs">${new Date(o.Timestamp).toLocaleString()}</td>
-                <td class="p-4 font-mono font-semibold">₱${Number(o.TotalAmount).toFixed(2)}</td>
-                <td class="p-4 text-right">
-                    <button onclick="reprintOrder('${o.OrderID}')" class="bg-amber-800 text-white text-xs px-3 py-1.5 rounded hover:bg-amber-900 transition">Print Copy</button>
-                </td>
-            </tr>
-        `).join('');
-    }
+    container.innerHTML = db.orders.map(o => `
+        <tr>
+            <td class="p-4 font-mono text-xs font-bold">${o.OrderID}</td>
+            <td class="p-4 text-xs">${new Date(o.Timestamp).toLocaleString()}</td>
+            <td class="p-4 font-mono font-semibold">₱${Number(o.TotalAmount).toFixed(2)}</td>
+            <td class="p-4 text-right">
+                <button onclick="reprintOrder('${o.OrderID}')" class="bg-amber-800 text-white text-xs px-3 py-1.5 rounded hover:bg-amber-900 transition">Print Copy</button>
+            </td>
+        </tr>
+    `).join('');
+}
 
-    function reprintOrder(id) {
+function reprintOrder(id) {
     const order = db.orders.find(o => o.OrderID === id);
     if (!order) {
         showToast("Order history item not found.", "error");
@@ -1314,54 +1310,54 @@ function onBasketUpdated(newTotal) {
     showToast("Receipt copy sent to print spool.", "success");
 }
 
-    function renderCharts() {
-        const categories = {};
-        db.orders.forEach(o => {
-            const items = safeParseJSON(o.ItemsOrdered);
-            items.forEach(i => {
-                const catName = i.Category || i.category || "General";
-                categories[catName] = (categories[catName] || 0) + (Number(i.price) * Number(i.quantity));
-            });
+function renderCharts() {
+    const categories = {};
+    db.orders.forEach(o => {
+        const items = safeParseJSON(o.ItemsOrdered);
+        items.forEach(i => {
+            const catName = i.Category || i.category || "General";
+            categories[catName] = (categories[catName] || 0) + (Number(i.price) * Number(i.quantity));
         });
+    });
 
-        const pieCanvas = document.getElementById('pieChart');
-        if (pieCanvas) {
-            const pieCtx = pieCanvas.getContext('2d');
-            if (analyticsCharts.pie) analyticsCharts.pie.destroy();
-            analyticsCharts.pie = new Chart(pieCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: Object.keys(categories),
-                    datasets: [{
-                        data: Object.values(categories),
-                        backgroundColor: ['#b45309', '#f59e0b', '#3b82f6', '#10b981', '#ec4899']
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        }
-
-        const trendCanvas = document.getElementById('trendChart');
-        if (trendCanvas) {
-            const trendCtx = trendCanvas.getContext('2d');
-            if (analyticsCharts.trend) analyticsCharts.trend.destroy();
-            analyticsCharts.trend = new Chart(trendCtx, {
-                type: 'line',
-                data: {
-                    labels: db.orders.map(o => new Date(o.Timestamp).toLocaleDateString()),
-                    datasets: [{
-                        label: 'Revenue Timeline',
-                        data: db.orders.map(o => Number(o.TotalAmount)),
-                        borderColor: '#92400e',
-                        fill: false
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        }
+    const pieCanvas = document.getElementById('pieChart');
+    if (pieCanvas) {
+        const pieCtx = pieCanvas.getContext('2d');
+        if (analyticsCharts.pie) analyticsCharts.pie.destroy();
+        analyticsCharts.pie = new Chart(pieCtx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(categories),
+                datasets: [{
+                    data: Object.values(categories),
+                    backgroundColor: ['#b45309', '#f59e0b', '#3b82f6', '#10b981', '#ec4899']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
     }
 
-    window.onload = initApp;
+    const trendCanvas = document.getElementById('trendChart');
+    if (trendCanvas) {
+        const trendCtx = trendCanvas.getContext('2d');
+        if (analyticsCharts.trend) analyticsCharts.trend.destroy();
+        analyticsCharts.trend = new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: db.orders.map(o => new Date(o.Timestamp).toLocaleDateString()),
+                datasets: [{
+                    label: 'Revenue Timeline',
+                    data: db.orders.map(o => Number(o.TotalAmount)),
+                    borderColor: '#92400e',
+                    fill: false
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+}
+
+window.onload = initApp;
 </script>
 </body>
 </html>
