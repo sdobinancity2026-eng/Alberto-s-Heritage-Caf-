@@ -218,15 +218,15 @@
                     </div>
                 </div>
 
-                            <!-- VIEW: RECONCILE (Shift Close Checkouts) -->
+                      <!-- VIEW: RECONCILE (Shift Close Checkouts) -->
                 <div id="view-reconcile" class="view-block hidden max-w-md mx-auto bg-white p-6 rounded-2xl shadow-sm border">
                     <h2 class="text-lg font-bold text-slate-800 mb-2">Shift Cash Drawer Reconciliation</h2>
                     <p class="text-xs text-slate-500 mb-6">Verify your actual physical drawer coins and bills to check against system calculations.</p>
                     
                     <div class="space-y-4">
                         
-                        <!-- 1. Dynamic Employee Allocation Dropdown (Admin Only) -->
-                        <div>
+                        <!-- 1. Employee Allocation Dropdown (Visible only to Admin) -->
+                        <div id="recon-employee-select-container">
                             <label class="block text-xs font-semibold text-slate-500 mb-1">Select Employee to Allocate Cash</label>
                             <select 
                                 id="recon-employee-select" 
@@ -237,7 +237,7 @@
                             </select>
                         </div>
                 
-                        <!-- 2. Dynamic Starting Register Cash (₱) (Admin Only) -->
+                        <!-- 2. Starting Register Cash (₱) (Read-only for cashier, editable by Admin) -->
                         <div>
                             <label class="block text-xs font-semibold text-slate-500 mb-1">Starting Register Cash (₱)</label>
                             <input 
@@ -660,6 +660,7 @@ function authorizedSessionStart() {
 function evaluateStartingCashAccess() {
     const startCashInput = document.getElementById('start-cash');
     const dropdown = document.getElementById('recon-employee-select');
+    const dropdownContainer = document.getElementById('recon-employee-select-container');
     const hintMessage = document.getElementById('start-cash-hint');
     
     // First, dynamically update the dropdown options list
@@ -670,24 +671,33 @@ function evaluateStartingCashAccess() {
     const isAdmin = activeUser && activeUser.role && activeUser.role.toLowerCase() === 'admin';
 
     if (isAdmin) {
-        // Admin has full control over all employee fields
+        // --- ADMIN VIEW PANEL CONFIGURATION ---
+        if (dropdownContainer) dropdownContainer.classList.remove('hidden'); // Show employee selection to Admin
+        
         startCashInput.disabled = false;
         dropdown.disabled = false;
+        
         startCashInput.classList.remove('bg-slate-100', 'cursor-not-allowed');
         dropdown.classList.remove('bg-slate-100', 'cursor-not-allowed');
+        
         startCashInput.classList.add('bg-white');
         dropdown.classList.add('bg-white');
+        
         if (hintMessage) hintMessage.classList.add('hidden');
     } else {
-        // Cashiers are strictly locked out of selecting employees or editing start cash
+        // --- STANDARD CASHIER VIEW CONFIGURATION ---
+        if (dropdownContainer) dropdownContainer.classList.add('hidden'); // Hide employee selection from Cashier!
+        
         startCashInput.disabled = true;
         dropdown.disabled = true;
+        
         startCashInput.classList.remove('bg-white');
         dropdown.classList.remove('bg-white');
-        startCashInput.classList.add('bg-slate-100', 'cursor-not-allowed');
-        dropdown.add('bg-slate-100', 'cursor-not-allowed');
         
-        // Lock the values directly to the active logged-in cashier's profile
+        startCashInput.classList.add('bg-slate-100', 'cursor-not-allowed');
+        dropdown.classList.add('bg-slate-100', 'cursor-not-allowed'); // Fixed: ClassList.add instead of .add
+        
+        // Match user values & load custom pre-allocated cash balance
         dropdown.value = activeUser.name;
         const allocatedAmount = window.employeeStartingCashAllocations[activeUser.name] || 0.00;
         startCashInput.value = allocatedAmount;
