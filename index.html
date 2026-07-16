@@ -105,6 +105,8 @@
                     <button onclick="navigateView('admin-monthly')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-monthly">🗓️ Monthly Sales</button>
                     <button onclick="navigateView('admin-employees')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-employees">👤 Register Employee</button>
                     <button onclick="navigateView('admin-inventory')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-inventory">📥 Input Inventory</button>
+                    <!-- 📦 NEW: Consumables Button -->
+                    <button onclick="navigateView('admin-consumables')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-consumables">📦 Consumables Stock</button>
                     <button onclick="navigateView('admin-update')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-update">⚙️ Update Product</button>
                     <button onclick="navigateView('admin-reprint')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-reprint">🖨️ Reprint Receipt</button>
                     <button onclick="navigateView('admin-analytics')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-analytics">📈 Charts & Analytics</button>
@@ -333,86 +335,107 @@
                 </div>
 
                 <!-- ADMIN VIEW: IMPORT NEW CATALOG ITEM -->
-                <div id="view-admin-inventory" class="view-block hidden max-w-md mx-auto bg-white p-6 rounded-2xl shadow-sm border">
-                    <h2 class="text-lg font-bold text-slate-800 mb-2">Import New Catalog Product</h2>
-                    <p class="text-xs text-slate-500 mb-6">Add a brand new item directly into your menu category tabs.</p>
-                    
-                    <div class="space-y-4">
-                        <!-- Category Selector -->
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1">Menu Category (Sheet Tab)</label>
-                            <select 
-                                id="catalog-category-select" 
-                                class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-slate-500"
-                                onchange="autoAssignProductID()"
-                            >
-                                <option value="">-- Choose Category Tab --</option>
-                                <option value="MainCourse">MainCourse</option>
-                                <option value="Pasta">Pasta</option>
-                                <option value="Pizza">Pizza</option>
-                                <option value="Sandwiches">Sandwiches</option>
-                                <option value="Dessert">Dessert</option>
-                                <option value="Beverages">Beverages</option>
-                                <option value="FilipinoSetMeals">FilipinoSetMeals</option>
-                                <option value="AllDayBfast">AllDayBfast</option>
-                                <option value="Salad">Salad</option>
-                                <option value="Soup">Soup</option>
-                                <option value="Appetizer">Appetizer</option>
-                            </select>
-                        </div>
-                
-                        <!-- Automatically Assigned Product ID (Read-only for safety!) -->
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1">Assigned Product ID (Auto-Generated)</label>
-                            <input 
-                                type="text" 
-                                id="catalog-product-id" 
-                                readonly 
-                                class="w-full bg-slate-100 border border-slate-200 rounded-xl p-3 text-sm font-mono font-bold text-slate-500 cursor-not-allowed"
-                                placeholder="Select a category first..."
-                            />
-                        </div>
-                
-                        <!-- Product Name Input -->
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1">Product Name</label>
-                            <input 
-                                type="text" 
-                                id="catalog-product-name" 
-                                class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:ring-2 focus:ring-slate-500"
-                                placeholder="e.g., Greek Salad"
-                            />
-                        </div>
-                
-                        <!-- Product Price Input -->
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1">Price (₱)</label>
-                            <input 
-                                type="number" 
-                                id="catalog-product-price" 
-                                step="0.01"
-                                class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-mono text-slate-800 focus:ring-2 focus:ring-slate-500"
-                                placeholder="0.00"
-                            />
-                        </div>
-                
-                        <!-- Product Stock Input -->
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1">Initial Stock</label>
-                            <input 
-                                type="number" 
-                                id="catalog-product-stock" 
-                                class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-mono text-slate-800 focus:ring-2 focus:ring-slate-500"
-                                placeholder="0"
-                                value="5"
-                            />
-                        </div>
-                
-                        <button onclick="submitNewCatalogProduct()" class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-950 transition mt-2">
-                            Import Product to Sheet
-                        </button>
-                    </div>
-                </div>
+<div id="view-admin-inventory" class="view-block hidden max-w-md mx-auto bg-white p-6 rounded-2xl shadow-sm border">
+    <h2 class="text-lg font-bold text-slate-800 mb-2">Import New Catalog Product</h2>
+    <p class="text-xs text-slate-500 mb-6">Add a brand new item directly into your menu category tabs.</p>
+    
+    <div class="space-y-4">
+        <!-- Category Selector / Dynamic Tab Creator -->
+        <div>
+            <div class="flex items-center justify-between mb-1">
+                <label class="block text-xs font-semibold text-slate-500">Menu Category (Sheet Tab)</label>
+                <button 
+                    type="button" 
+                    id="toggle-new-category-btn" 
+                    onclick="toggleNewCategoryField(true)" 
+                    class="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1"
+                >
+                    ➕ New Tab
+                </button>
+            </div>
+            
+            <!-- Standard Category Dropdown -->
+            <select 
+                id="catalog-category-select" 
+                class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-slate-500"
+                onchange="autoAssignProductID()"
+            >
+                <option value="">-- Choose Category Tab --</option>
+                <option value="MainCourse">MainCourse</option>
+                <option value="Pasta">Pasta</option>
+                <option value="Pizza">Pizza</option>
+                <option value="Sandwiches">Sandwiches</option>
+                <option value="Dessert">Dessert</option>
+                <option value="Beverages">Beverages</option>
+                <option value="FilipinoSetMeals">FilipinoSetMeals</option>
+                <option value="AllDayBfast">AllDayBfast</option>
+                <option value="Salad">Salad</option>
+                <option value="Soup">Soup</option>
+                <option value="Appetizer">Appetizer</option>
+            </select>
+
+            <!-- Hidden Input for Brand New Tab Name -->
+            <input 
+                type="text" 
+                id="new-category-tab-name" 
+                class="hidden w-full bg-white border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:ring-2 focus:ring-slate-500"
+                placeholder="Enter new tab name (e.g., Ribs)"
+                oninput="autoAssignProductID()"
+            />
+        </div>
+
+        <!-- Automatically Assigned Product ID (Read-only for safety!) -->
+        <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">Assigned Product ID (Auto-Generated)</label>
+            <input 
+                type="text" 
+                id="catalog-product-id" 
+                readonly 
+                class="w-full bg-slate-100 border border-slate-200 rounded-xl p-3 text-sm font-mono font-bold text-slate-500 cursor-not-allowed"
+                placeholder="Select a category first..."
+            />
+        </div>
+
+        <!-- Product Name Input -->
+        <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">Product Name</label>
+            <input 
+                type="text" 
+                id="catalog-product-name" 
+                class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:ring-2 focus:ring-slate-500"
+                placeholder="e.g., Greek Salad"
+            />
+        </div>
+
+        <!-- Product Price Input -->
+        <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">Price (₱)</label>
+            <input 
+                type="number" 
+                id="catalog-product-price" 
+                step="0.01"
+                class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-mono text-slate-800 focus:ring-2 focus:ring-slate-500"
+                placeholder="0.00"
+            />
+        </div>
+
+        <!-- Product Stock Input -->
+        <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">Initial Stock</label>
+            <input 
+                type="number" 
+                id="catalog-product-stock" 
+                class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-mono text-slate-800 focus:ring-2 focus:ring-slate-500"
+                placeholder="0"
+                value="5"
+            />
+        </div>
+
+        <button onclick="submitNewCatalogProduct()" class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-950 transition mt-2">
+            Import Product to Sheet
+        </button>
+    </div>
+</div>
 
                 <!-- VIEW: UPDATE PRODUCT -->
                 <div id="view-admin-update" class="view-block hidden max-w-lg mx-auto bg-white p-6 rounded-2xl shadow-sm border">
@@ -464,6 +487,61 @@
                         </div>
                     </div>
                 </div>
+
+                                <!-- ADMIN VIEW: CONSUMABLES INVENTORY PANEL -->
+                <div id="view-admin-consumables" class="view-block hidden max-w-4xl mx-auto bg-white p-6 rounded-2xl shadow-sm border">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-800">Consumables Inventory</h2>
+                            <p class="text-xs text-slate-500">Track raw ingredients and storage stock quantities.</p>
+                        </div>
+                        <!-- Trigger Open Modal to Add Ingredient -->
+                        <button onclick="openConsumableModal()" class="bg-blue-600 text-white px-4 py-2 text-xs font-bold rounded-xl hover:bg-blue-700 transition">
+                            ➕ Add Consumable
+                        </button>
+                    </div>
+
+                        <!-- Storage Table -->
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr class="border-b border-slate-100 text-slate-400 font-semibold">
+                                        <th class="py-3 px-4">Item ID</th>
+                                        <th class="py-3 px-4">Consumable Name</th>
+                                        <th class="py-3 px-4">Current Stock</th>
+                                        <th class="py-3 px-4">Stock Unit</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="consumables-table-body" class="divide-y divide-slate-50 text-slate-700 font-medium">
+                                    <!-- Programmatically populated by renderConsumables() -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                        <!-- FLOATING MODAL: ADD CONSUMABLE -->
+                        <div id="consumable-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+                            <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-xl border m-4">
+                                <h3 class="text-lg font-bold text-slate-800 mb-4">Add Raw Consumable</h3>
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-500 mb-1">Item Name</label>
+                                        <input type="text" id="con-name" placeholder="e.g., Eggs, Chicken Legs, Wings" class="w-full bg-slate-50 border rounded-xl p-3 text-sm text-slate-800" />
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-500 mb-1">Stock Level (Numeric)</label>
+                                        <input type="number" id="con-stock" placeholder="e.g., 5" class="w-full bg-slate-50 border rounded-xl p-3 text-sm text-slate-800" />
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-500 mb-1">Stock Unit / Package</label>
+                                        <input type="text" id="con-unit" placeholder="e.g., Trays, pcs, kg" class="w-full bg-slate-50 border rounded-xl p-3 text-sm text-slate-800" />
+                                    </div>
+                                    <div class="flex gap-2 pt-2">
+                                        <button onclick="closeConsumableModal()" class="flex-1 bg-slate-100 text-slate-600 font-bold py-3 rounded-xl text-sm">Cancel</button>
+                                        <button onclick="submitNewConsumable()" class="flex-1 bg-blue-600 text-white font-bold py-3 rounded-xl text-sm hover:bg-blue-700">Add Stock</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
             </div>
         </main>
@@ -760,6 +838,7 @@ function evaluateStartingCashAccess() {
     }
 }
           // Standard Navigation Controller
+// Standard Navigation Controller
 function navigateView(viewName) {
     // 1. Toggle visibility of all views
     document.querySelectorAll('.view-block').forEach(el => el.classList.add('hidden'));
@@ -767,7 +846,7 @@ function navigateView(viewName) {
     if (targetView) targetView.classList.remove('hidden');
 
     // 2. Reset and highlight sidebar navigation buttons
-    document.querySelectorAll('#sidebar nav button').forEach(el => {
+    document.querySelectorAll('#sidebar nav button, #admin-nav-links button').forEach(el => {
         el.classList.remove('bg-slate-800', 'text-white');
         el.classList.add('text-slate-400');
     });
@@ -786,6 +865,7 @@ function navigateView(viewName) {
         'admin-monthly': 'Monthly Sales Auditing',
         'admin-employees': 'Register System Staff',
         'admin-inventory': 'Import New Inventory',
+        'admin-consumables': 'Consumables & Raw Storage Stock', // Added title
         'admin-update': 'Edit Product Metadata',
         'admin-reprint': 'Reprint Receipt Archive',
         'admin-analytics': 'Sales Charts & Business Analytics'
@@ -803,6 +883,8 @@ function navigateView(viewName) {
     if (viewName === 'admin-daily' && typeof renderDailyLedger === 'function') renderDailyLedger();
     if (viewName === 'admin-weekly' && typeof renderWeeklyLedger === 'function') renderWeeklyLedger();
     if (viewName === 'admin-monthly' && typeof renderMonthlyLedger === 'function') renderMonthlyLedger();
+    if (viewName === 'admin-inventory' && typeof autoAssignProductID === 'function') autoAssignProductID();
+    if (viewName === 'admin-consumables' && typeof renderConsumables === 'function') renderConsumables(); // Added trigger
     if (viewName === 'admin-update' && typeof loadUpdateSelect === 'function') loadUpdateSelect();
     if (viewName === 'admin-reprint' && typeof renderReprintTable === 'function') renderReprintTable();
     if (viewName === 'admin-analytics' && typeof renderCharts === 'function') renderCharts();
@@ -1001,6 +1083,11 @@ function logout() {
         change: cashTendered - total
     };
 
+    // ===============================================================
+    // 💡 DEDUCT LOCAL STOCK INSTANTLY (Happens for both online & offline)
+    // ===============================================================
+    deductLocalStock(activeCart);
+
     // Safe Offline Fallback Check
     if (typeof SCRIPT_URL === 'undefined' || SCRIPT_URL === "" || SCRIPT_URL.includes("YOUR_SCRIPT_URL_PLACEHOLDER")) {
         console.warn("SCRIPT_URL is not defined or configured. Running in Local POS Print Mode.");
@@ -1044,6 +1131,35 @@ function logout() {
             printThermalReceipt(payload, "OFFLINE-" + Date.now());
         }
         finalizeLocalCheckout();
+    }
+}
+
+// Helper function to safely update your frontend database array
+function deductLocalStock(itemsInCart) {
+    if (typeof db !== 'undefined' && db.menu) {
+        itemsInCart.forEach(orderedItem => {
+            // Find the item in local db.menu by matching IDs
+            const localItem = db.menu.find(item => 
+                String(item.id || item.ItemID) === String(orderedItem.id || orderedItem.ItemID)
+            );
+            
+            if (localItem) {
+                // Get current stock safely (checking potential casing variations)
+                const currentStock = parseInt(localItem.stock || localItem.Stock || 0, 10);
+                const newStock = Math.max(0, currentStock - orderedItem.quantity);
+                
+                // Save updated stock value in local database memory
+                if ('stock' in localItem) localItem.stock = newStock;
+                if ('Stock' in localItem) localItem.Stock = newStock;
+            }
+        });
+
+        // Force-refresh your UI menu catalog cards to show the updated, lower stock levels
+        if (typeof renderMenu === 'function') {
+            renderMenu();
+        } else if (typeof displayMenu === 'function') {
+            displayMenu();
+        }
     }
 }
     // Clean UI after successful printing (either online or offline)
@@ -1730,19 +1846,34 @@ async function submitNewCatalogProduct() {
     const nameEl = document.getElementById('catalog-product-name');
     const priceEl = document.getElementById('catalog-product-price');
     const stockEl = document.getElementById('catalog-product-stock');
+    
+    // Check if we are using the dynamic input instead of the dropdown selector
+    const dynamicCategoryInput = document.getElementById('new-category-tab-name');
+    const isNewCategory = dynamicCategoryInput && !dynamicCategoryInput.classList.contains('hidden');
+    const finalCategory = isNewCategory ? dynamicCategoryInput.value.trim() : categoryEl.value;
 
-    if (!categoryEl.value || !idEl.value || !nameEl.value.trim() || !priceEl.value) {
+    if (!finalCategory || !idEl.value || !nameEl.value.trim() || !priceEl.value) {
         showToast("Please fill out all product fields before saving.", "error");
         return;
     }
 
+    // Reference the button to change states
+    const submitBtn = document.querySelector('button[onclick="submitNewCatalogProduct()"]');
+    const originalText = submitBtn.textContent;
+    
+    // Change state to loading
+    submitBtn.disabled = true;
+    submitBtn.textContent = "⏳ Importing Product to Sheet...";
+    submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
     const payload = {
         action: "importCatalogProduct",
-        categoryTab: categoryEl.value, // Specifies exact sheet tab name: e.g., "Salad"
-        itemId: idEl.value,            // e.g., "SA0004"
+        categoryTab: finalCategory, 
+        itemId: idEl.value,            
         itemName: nameEl.value.trim(),
         price: parseFloat(priceEl.value),
-        stock: parseInt(stockEl.value, 10) || 0
+        stock: parseInt(stockEl.value, 10) || 0,
+        createNewTab: isNewCategory // Tells Apps Script whether it needs to construct a new tab first
     };
 
     try {
@@ -1755,14 +1886,18 @@ async function submitNewCatalogProduct() {
         const data = await response.json();
 
         if (data.status === "SUCCESS") {
-            showToast("Product successfully added to " + categoryEl.value + " sheet!", "success");
+            showToast(`Product successfully added to ${finalCategory}!`, "success");
             
-            // Clear inputs and recalculate for the next item
+            // Clear inputs
             nameEl.value = "";
             priceEl.value = "";
             stockEl.value = "5";
+            if (isNewCategory && dynamicCategoryInput) {
+                dynamicCategoryInput.value = "";
+                toggleNewCategoryField(false); // Switch back to dropdown
+            }
             
-            // Refetch the database items to refresh local tracking instantly
+            // Refresh local database
             if (typeof fetchDatabase === 'function') {
                 await fetchDatabase();
             }
@@ -1775,6 +1910,127 @@ async function submitNewCatalogProduct() {
     } catch (err) {
         console.error("Catalog import network failure:", err);
         showToast("Server connection failed. Try again.", "error");
+    } finally {
+        // Restore button state
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+        submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+}
+
+    function toggleNewCategoryField(showInput) {
+    const dropdown = document.getElementById('catalog-category-select');
+    const textInput = document.getElementById('new-category-tab-name');
+    const toggleBtn = document.getElementById('toggle-new-category-btn');
+
+    if (showInput) {
+        dropdown.classList.add('hidden');
+        textInput.classList.remove('hidden');
+        toggleBtn.textContent = "✖ Cancel";
+        toggleBtn.setAttribute('onclick', 'toggleNewCategoryField(false)');
+        dropdown.value = ""; 
+    } else {
+        dropdown.classList.remove('hidden');
+        textInput.classList.add('hidden');
+        toggleBtn.textContent = "➕ New Tab";
+        toggleBtn.setAttribute('onclick', 'toggleNewCategoryField(true)');
+        textInput.value = "";
+    }
+    autoAssignProductID();
+}
+    // Open Modal dialog
+function openConsumableModal() {
+    document.getElementById('consumable-modal').classList.remove('hidden');
+}
+
+// Close Modal dialog
+function closeConsumableModal() {
+    document.getElementById('consumable-modal').classList.add('hidden');
+    document.getElementById('con-name').value = "";
+    document.getElementById('con-stock').value = "";
+    document.getElementById('con-unit').value = "";
+}
+
+// Generates sequentially unique ID for consumables like CO0001, CO0002
+function getNextConsumableID() {
+    let maxNum = 0;
+    if (typeof db !== 'undefined' && db.consumables) {
+        db.consumables.forEach(item => {
+            const id = String(item.id || item.ItemID || "");
+            if (id.startsWith("CO")) {
+                const num = parseInt(id.substring(2), 10);
+                if (!isNaN(num) && num > maxNum) maxNum = num;
+            }
+        });
+    }
+    return "CO" + String(maxNum + 1).padStart(4, '0');
+}
+
+// Send the newly tracked raw item to Google Sheets database
+async function submitNewConsumable() {
+    const name = document.getElementById('con-name').value.trim();
+    const stock = parseInt(document.getElementById('con-stock').value, 10);
+    const unit = document.getElementById('con-unit').value.trim();
+
+    if (!name || isNaN(stock) || !unit) {
+        showToast("Please fill out all fields before saving.", "warning");
+        return;
+    }
+
+    const nextId = getNextConsumableID();
+
+    const payload = {
+        action: "addConsumable",
+        id: nextId,
+        name: name,
+        stock: stock,
+        unit: unit
+    };
+
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: "POST",
+            mode: "cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+
+        if (data.status === "SUCCESS") {
+            showToast("Consumable item added successfully!", "success");
+            closeConsumableModal();
+            // Refetch database to update the view panel list 
+            if (typeof fetchDatabase === 'function') await fetchDatabase();
+        } else {
+            showToast("Failed to save ingredient: " + data.message, "error");
+        }
+    } catch (err) {
+        console.error(err);
+        showToast("Network connection error.", "error");
+    }
+}
+
+// Render dynamic raw ingredient listing
+function renderConsumables() {
+    const tbody = document.getElementById('consumables-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = "";
+
+    if (typeof db !== 'undefined' && db.consumables && db.consumables.length > 0) {
+        db.consumables.forEach(item => {
+            const row = document.createElement('tr');
+            row.className = "border-b border-slate-50 hover:bg-slate-50/50 transition";
+            row.innerHTML = `
+                <td class="py-3 px-4 font-mono text-xs text-slate-400">${item.id || item.ItemID}</td>
+                <td class="py-3 px-4 text-slate-800">${item.name || item.ItemName}</td>
+                <td class="py-3 px-4 font-semibold text-slate-900">${item.stock || item.StockLevel}</td>
+                <td class="py-3 px-4 text-xs text-slate-500">${item.unit || item.UnitType}</td>
+            `;
+            tbody.appendChild(row);
+        });
+    } else {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-slate-400 text-xs">No consumables currently tracked.</td></tr>`;
     }
 }
 
