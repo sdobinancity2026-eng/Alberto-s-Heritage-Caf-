@@ -2077,26 +2077,7 @@ function autoAssignProductID() {
     idInput.value = `${prefix}-${tempUniqueSuffix}`;
 }
 
-// 2. Updated Submission Validation Check
-function submitNewCatalogProduct() {
-    const category = getSelectedCategory();
-    const productID = document.getElementById('catalog-product-id').value.trim();
-    const productName = document.getElementById('catalog-product-name').value.trim();
-    const price = document.getElementById('catalog-product-price').value.trim();
-    const stock = document.getElementById('catalog-product-stock').value.trim();
 
-    // STRICT VALIDATION
-    if (!category || !productID || !productName || !price || !stock) {
-        alert("⚠️ Please fill out all product fields before saving!");
-        return;
-    }
-
-    // Proceed with your existing Google Apps Script API call / submit logic...
-    console.log("Submitting:", { category, productID, productName, price, stock });
-    
-    // Example payload send logic:
-    // google.script.run.withSuccessHandler(onSuccess).importNewProduct({ category, productID, productName, price, stock });
-}
 
 </script>
 </body>
