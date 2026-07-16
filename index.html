@@ -213,6 +213,7 @@
                                 <span id="customer-change" class="text-sm font-mono font-bold text-slate-400">₱0.00</span>
                             </div>
 
+                            
                             <button onclick="placeOrder()" class="w-full bg-amber-800 text-white font-bold py-3.5 rounded-xl hover:bg-amber-900 transition-all shadow-md active:scale-[0.99]">
                                 Complete Order
                             </button>
@@ -431,9 +432,13 @@
             />
         </div>
 
-        <button onclick="submitNewCatalogProduct()" class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-950 transition mt-2">
-            Import Product to Sheet
-        </button>
+                    <!-- Locate this button at the bottom of your view-admin-inventory block and update it with the ID -->
+            <button 
+                id="submit-catalog-btn" 
+                onclick="submitNewCatalogProduct()" 
+                class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-950 transition mt-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                Import Product to Sheet
+            </button>
     </div>
 </div>
 
@@ -1852,13 +1857,16 @@ async function submitNewCatalogProduct() {
     const isNewCategory = dynamicCategoryInput && !dynamicCategoryInput.classList.contains('hidden');
     const finalCategory = isNewCategory ? dynamicCategoryInput.value.trim() : categoryEl.value;
 
-    if (!finalCategory || !idEl.value || !nameEl.value.trim() || !priceEl.value) {
+    // Safety check: verify all variables have text strings
+    if (!finalCategory || !idEl.value || !nameEl.value.trim() || !priceEl.value || !stockEl.value) {
         showToast("Please fill out all product fields before saving.", "error");
         return;
     }
 
-    // Reference the button to change states
-    const submitBtn = document.querySelector('button[onclick="submitNewCatalogProduct()"]');
+    // Safely query the active click target button
+    const submitBtn = document.getElementById('submit-catalog-btn') || document.querySelector('button[onclick*="submitNewCatalogProduct"]');
+    if (!submitBtn) return;
+    
     const originalText = submitBtn.textContent;
     
     // Change state to loading
@@ -1873,7 +1881,7 @@ async function submitNewCatalogProduct() {
         itemName: nameEl.value.trim(),
         price: parseFloat(priceEl.value),
         stock: parseInt(stockEl.value, 10) || 0,
-        createNewTab: isNewCategory // Tells Apps Script whether it needs to construct a new tab first
+        createNewTab: isNewCategory 
     };
 
     try {
@@ -1903,7 +1911,9 @@ async function submitNewCatalogProduct() {
             }
             
             // Update to next available auto ID
-            autoAssignProductID();
+            if (typeof autoAssignProductID === 'function') {
+                autoAssignProductID();
+            }
         } else {
             showToast("Failed to save product: " + data.message, "error");
         }
