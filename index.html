@@ -2033,6 +2033,60 @@ function renderConsumables() {
         tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-slate-400 text-xs">No consumables currently tracked.</td></tr>`;
     }
 }
+    // Helper to get the active category value
+function getSelectedCategory() {
+    const dropdown = document.getElementById('catalog-category-select');
+    const textInput = document.getElementById('new-category-tab-name');
+    
+    // If the text input is visible (user is creating a new tab), use its value.
+    // Otherwise, fall back to the dropdown selection.
+    if (textInput && !textInput.classList.contains('hidden')) {
+        return textInput.value.trim();
+    }
+    return dropdown ? dropdown.value : '';
+}
+
+// 1. Updated Auto-ID Generator
+function autoAssignProductID() {
+    const category = getSelectedCategory();
+    const idInput = document.getElementById('catalog-product-id');
+    
+    if (!category) {
+        idInput.value = '';
+        idInput.placeholder = "Select a category or type a new one...";
+        return;
+    }
+
+    // Clean up category string to make a prefix (e.g., "Sizzling" -> "SIZ")
+    // Takes up to the first 3 letters, uppercase, removing spaces
+    const prefix = category.replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase();
+    
+    // Generate a temporary timestamp/random ID suffix to ensure uniqueness before sending to Sheet
+    const tempUniqueSuffix = Math.floor(1000 + Math.random() * 9000); 
+    
+    idInput.value = `${prefix}-${tempUniqueSuffix}`;
+}
+
+// 2. Updated Submission Validation Check
+function submitNewCatalogProduct() {
+    const category = getSelectedCategory();
+    const productID = document.getElementById('catalog-product-id').value.trim();
+    const productName = document.getElementById('catalog-product-name').value.trim();
+    const price = document.getElementById('catalog-product-price').value.trim();
+    const stock = document.getElementById('catalog-product-stock').value.trim();
+
+    // STRICT VALIDATION
+    if (!category || !productID || !productName || !price || !stock) {
+        alert("⚠️ Please fill out all product fields before saving!");
+        return;
+    }
+
+    // Proceed with your existing Google Apps Script API call / submit logic...
+    console.log("Submitting:", { category, productID, productName, price, stock });
+    
+    // Example payload send logic:
+    // google.script.run.withSuccessHandler(onSuccess).importNewProduct({ category, productID, productName, price, stock });
+}
 
 </script>
 </body>
