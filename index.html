@@ -810,69 +810,74 @@
         document.getElementById('basket-total').innerText = `₱${total.toFixed(2)}`;
     }
 
-    function removeFromCart(id) {
-        activeCart = activeCart.filter(c => c.id !== id);
-        renderCart();
+   async function placeOrder() {
+    if (activeCart.length === 0) return showToast("Your basket is empty!", "warning");
+    
+    const total = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    
+    // Validate the cash tendered amount
+    const cashInput = document.getElementById('cash-tendered');
+    const cashTendered = parseFloat(cashInput ? cashInput.value : 0) || 0;
+    
+    if (cashTendered < total) {
+        return showToast(`Insufficient payment! Total is ₱${total.toFixed(2)} but only ₱${cashTendered.toFixed(2)} was given.`, "warning");
     }
 
-    async function placeOrder() {
-        if (activeCart.length === 0) return showToast("Your basket is empty!", "warning");
-        
-        const total = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        
-        // Validate the cash tendered amount
-        const cashInput = document.getElementById('cash-tendered');
-        const cashTendered = parseFloat(cashInput ? cashInput.value : 0) || 0;
-        
-        if (cashTendered < total) {
-            return showToast(`Insufficient payment! Total is ₱${total.toFixed(2)} but only ₱${cashTendered.toFixed(2)} was given.`, "warning");
-        }
+    const payload = {
+        action: "placeOrder", // Ensure action is bundled inside payload
+        EmployeeName: activeUser ? activeUser.name : "Employee",
+        ItemsOrdered: activeCart, 
+        TotalAmount: total,
+        PaymentMethod: "Cash",
+        cashTendered: cashTendered,
+        change: cashTendered - total
+    };
 
-        const payload = {
-            EmployeeName: activeUser ? activeUser.name : "Employee",
-            ItemsOrdered: activeCart, 
-            TotalAmount: total,
-            PaymentMethod: "Cash",
-            
-            // These are used locally by your receipt printer
-            cashTendered: cashTendered,
-            change: cashTendered - total
-        };
-
-        // Safe Offline Fallback Check
-        if (typeof SCRIPT_URL === 'undefined' || SCRIPT_URL === "" || SCRIPT_URL.includes("YOUR_SCRIPT_URL_PLACEHOLDER")) {
-            console.warn("SCRIPT_URL is not defined or configured. Running in Local POS Print Mode.");
-            showToast("Database Offline. Printing receipt locally...", "warning");
-            
+    // Safe Offline Fallback Check
+    if (typeof SCRIPT_URL === 'undefined' || SCRIPT_URL === "" || SCRIPT_URL.includes("YOUR_SCRIPT_URL_PLACEHOLDER")) {
+        console.warn("SCRIPT_URL is not defined or configured. Running in Local POS Print Mode.");
+        showToast("Database Offline. Printing receipt locally...", "warning");
+        
+        if (typeof printThermalReceipt === 'function') {
             printThermalReceipt(payload, "LOCAL-" + Date.now());
-            finalizeLocalCheckout();
-            return;
         }
-
-        // Attempt Server Sync
-        try {
-            const response = await fetch(SCRIPT_URL, {
-                method: "POST",
-                body: JSON.stringify({ action: "placeOrder", ...payload })
-            });
-            const data = await response.json();
-
-            if (data.status === "SUCCESS") {
-                printThermalReceipt(payload, data.orderId);
-                showToast("Order placed successfully!", "success");
-                finalizeLocalCheckout();
-            } else {
-                alert("Error placing order on server: " + data.message);
-            }
-        } catch (err) {
-            console.error("Database connection failed. Falling back to local printer...", err);
-            showToast("Cloud sync failed. Printing physical receipt...", "warning");
-            
-            printThermalReceipt(payload, "OFFLINE-" + Date.now());
-            finalizeLocalCheckout();
-        }
+        finalizeLocalCheckout();
+        return;
     }
 
+    // Attempt Server Sync
+    try {
+        // Send as a plain text post to bypass CORS preflight restrictions completely
+        const response = await fetch(SCRIPT_URL, {
+            method: "POST",
+            mode: "cors",
+            headers: {
+                "Content-Type": "text/plain;charset=utf-8"
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await response.json();
+
+        if (data.status === "SUCCESS") {
+            if (typeof printThermalReceipt === 'function') {
+                printThermalReceipt(payload, data.orderId);
+            }
+            showToast("Order placed successfully!", "success");
+            finalizeLocalCheckout();
+        } else {
+            alert("Error placing order on server: " + data.message);
+        }
+    } catch (err) {
+        console.error("Database connection failed. Falling back to local printer...", err);
+        showToast("Cloud sync failed. Printing physical receipt...", "warning");
+        
+        if (typeof printThermalReceipt === 'function') {
+            printThermalReceipt(payload, "OFFLINE-" + Date.now());
+        }
+        finalizeLocalCheckout();
+    }
+}
     // Clean UI after successful printing (either online or offline)
     function finalizeLocalCheckout() {
         activeCart = [];
