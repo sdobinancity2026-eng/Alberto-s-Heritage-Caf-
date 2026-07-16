@@ -606,47 +606,88 @@ function checkAutoLogin() {
         }
     }
 
-    async function handleLogin() {
+     async function handleLogin() {
+
         const userVal = document.getElementById('login-username').value.trim();
+
         const passVal = document.getElementById('login-password').value.trim();
+
         const submitBtn = document.getElementById('login-submit-btn');
 
+
+
         if (!userVal || !passVal) {
+
             showToast("Please enter both username and password.", "warning");
+
             return;
+
         }
 
+
+
         // Update UI feedback on access button
+
         submitBtn.disabled = true;
+
         submitBtn.innerText = "Verifying credentials...";
+
         submitBtn.className = "w-full bg-slate-700 text-white font-bold py-3.5 rounded-xl transition-all cursor-not-allowed";
 
+
+
         // Safety delay for smoother visual feedback
+
         await new Promise(resolve => setTimeout(resolve, 800));
 
+
+
         // Validate against local/cloud cached database
+
         const match = db.employees.find(e => {
+
             const name = e.Name || e.name || "";
+
             const password = e.Password || e.password || "";
+
             return name.toLowerCase() === userVal.toLowerCase() && password.toString() === passVal;
+
         });
 
+
+
         if (match) {
+
             submitBtn.innerText = "Access Granted!";
+
             submitBtn.className = "w-full bg-emerald-600 text-white font-bold py-3.5 rounded-xl transition-all";
+
+            
 
             await new Promise(resolve => setTimeout(resolve, 600));
 
+
+
             activeUser = { name: (match.Name || match.name), role: (match.Role || match.role) };
+
             localStorage.setItem('logged_user', JSON.stringify(activeUser));
+
             authorizedSessionStart();
+
             showToast("Login Successful!");
+
         } else {
+
             submitBtn.disabled = false;
+
             submitBtn.innerText = "Access Terminal";
+
             submitBtn.className = "w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all";
+
             showToast("Incorrect username or passkey PIN", "error");
+
         }
+
     }
 
     function authorizedSessionStart() {
