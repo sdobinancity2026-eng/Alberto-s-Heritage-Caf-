@@ -1,66 +1,89 @@
 <!DOCTYPE html>
+
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
     <title>Alberto's Heritage Café - Hybrid POS</title>
+
     <link rel="manifest" href="manifest.json">
+
     <meta name="theme-color" content="#92400e">
+
     <link rel="icon" href="albertos.jpg">
+
     <link rel="apple-touch-icon" href="albertos.jpg">
 
+
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <script src="https://cdn.tailwindcss.com"></script>
+
     <style>
+
         button { touch-action: manipulation; }
+
         @media print {
+
             body * { visibility: hidden; }
+
             #receipt-print-zone, #receipt-print-zone * { visibility: visible; }
+
             #receipt-print-zone { position: absolute; left: 0; top: 0; width: 58mm; display: block !important; }
+
         }
+
         /* Smooth backdrop styles for the background image */
+
         .login-bg {
+
             background-image: linear-gradient(to bottom, rgba(146, 64, 14, 0.75), rgba(15, 23, 42, 0.9)), url('Bg.jpg');
+
             background-size: cover;
+
             background-position: center;
+
         }
+
+
 
         /* Start both interfaces completely hidden to prevent visual flashing on load */
-        #login-screen, #app-wrapper {
-            display: none !important;
-        }
 
-        /* Let tailwind/JS classes override this once the session status is resolved */
-        #login-screen:not(.hidden), #app-wrapper:not(.hidden) {
-            display: block !important;
-        }
+#login-screen, #app-wrapper {
+
+    display: none !important;
+
+}
+
+
+
+/* Let tailwind/JS classes override this once the session status is resolved */
+
+#login-screen:not(.hidden), #app-wrapper:not(.hidden) {
+
+    display: block !important;
+
+}
+
+        
+
     </style>
+
 </head>
+
 <body class="bg-slate-50 font-sans h-screen overflow-hidden flex flex-col">
-
-    <script>
-        // INSTANT SESSION CHECK: Runs immediately before the DOM paints to prevent flashes
-        (function() {
-            try {
-                const saved = localStorage.getItem('logged_user');
-                if (saved) {
-                    // Inject a temporary inline rule to force show the App Wrapper instantly
-                    document.write('<style>#app-wrapper { display: block !important; }</style>');
-                } else {
-                    // Inject a temporary inline rule to force show the Login Screen instantly
-                    document.write('<style>#login-screen { display: block !important; }</style>');
-                }
-            } catch (e) {
-                document.write('<style>#login-screen { display: block !important; }</style>');
-            }
-        })();
-    </script>
-
+    <div id="login-screen">
+        <!-- ... -->
     <!-- ================= MODERN TOAST CONTAINER ================= -->
     <div id="toast-container" class="fixed top-5 right-5 z-[1000] flex flex-col gap-3 pointer-events-none"></div>
 
     <!-- ================= AUTHENTICATION PORTAL ================= -->
-    <div id="login-screen" class="min-h-screen w-full bg-cover bg-center flex items-center justify-center p-4" style="background-image: url('your-background-image.jpg');">
+    <div id="login-screen" class="fixed inset-0 login-bg flex items-center justify-center p-4 z-[999]">
         <div class="bg-white/95 backdrop-blur-md p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center space-y-6 border border-white/20">
             <img src="albertos.jpg" class="w-24 h-24 mx-auto rounded-full object-cover border-4 border-amber-100 shadow-md animate-pulse" alt="Cafe Logo">
             <div>
@@ -73,7 +96,6 @@
                     <label class="block text-xs font-bold text-slate-500 mb-1">Username</label>
                     <input type="text" id="login-username" placeholder="Employee Name" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-800 text-sm font-medium transition-all">
                 </div>
-
                 <div>
                     <label class="block text-xs font-bold text-slate-500 mb-1">Passkey PIN</label>
                     <div class="relative">
@@ -90,7 +112,6 @@
                         </button>
                     </div>
                 </div>
-
                 <button id="login-submit-btn" onclick="handleLogin()" class="w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3.5 rounded-xl shadow-lg hover:shadow-amber-900/20 active:scale-[0.98] transition-all flex justify-center items-center gap-2">
                     Access Terminal
                 </button>
@@ -100,7 +121,6 @@
 
     <!-- MAIN APP WRAPPER -->
     <div id="app-wrapper" class="hidden h-screen w-screen flex flex-col md:flex-row overflow-hidden">
-
         <!-- ================= SIDE NAV BAR (FIXED) ================= -->
         <aside id="sidebar" class="bg-slate-900 text-slate-100 w-full md:w-64 flex flex-col border-r border-slate-800 flex-shrink-0 h-full">
             <div class="p-4 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
@@ -111,7 +131,7 @@
                 <span id="connection-status" class="bg-emerald-600 px-2 py-0.5 rounded text-[10px] font-bold">Online</span>
             </div>
 
-            <!-- Switch tabs links -->
+            <!-- Switch tabs links (Scrollable internally if screen is tiny, but fixed container) -->
             <nav class="flex-1 p-4 space-y-1 text-sm overflow-y-auto">
                 <!-- Employee Nav Items -->
                 <div class="space-y-1" id="emp-nav-links">
@@ -141,7 +161,6 @@
 
         <!-- ================= MAIN CORE DISPLAY ZONE ================= -->
         <main class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-
             <!-- ================= TOP NAV BAR (FIXED) ================= -->
             <header class="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between flex-shrink-0">
                 <div>
@@ -158,23 +177,23 @@
                 </div>
             </header>
 
-            <!-- Dashboard Inner Content Container -->
+            <!-- Dashboard Inner Content Container (Scrollable or Layout Bound) -->
             <div class="p-6 flex-1 overflow-y-auto h-full min-h-0">
 
-                <!-- VIEW: REGISTER -->
+                <!-- VIEW: REGISTER (Adjusted Heights and Scrolling Context) -->
                 <div id="view-register" class="view-block grid grid-cols-1 lg:grid-cols-3 gap-6 h-full max-h-[calc(100vh-120px)] overflow-hidden">
 
-                    <!-- Menu Layout -->
+                    <!-- Menu Layout (Fixed box bounds) -->
                     <div class="lg:col-span-2 h-full flex flex-col min-h-0">
                         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col h-full overflow-hidden">
-                            <!-- Category Filter Panel -->
+                            <!-- Category Filter Panel (Fixed Header inside Menu Box) -->
                             <div class="p-6 pb-2 flex-shrink-0">
-                                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
+                                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4"
                                     <h2 class="text-md font-bold text-slate-800">Heritage Menu Selection</h2>
                                     <span class="text-xs text-orange-600 bg-orange-50 px-3 py-1 rounded-full font-bold self-start sm:self-auto" id="low-stock-alert">Loading Stock Monitor...</span>
                                 </div>
 
-                                <!-- Horizontal Scrollable Category Tab Bar -->
+                                <!-- Horizontal Scrollable Category Tab Bar (Fixed relative to table) -->
                                 <div class="flex gap-2 overflow-x-auto pb-3 mb-2 scrollbar-thin border-b border-slate-100 flex-shrink-0" id="category-tab-bar">
                                     <!-- Dynamic categories inject here -->
                                 </div>
@@ -200,7 +219,8 @@
                         </div>
                     </div>
 
-                    <!-- Transaction Sidebar -->
+
+                    <!-- Transaction Sidebar (Fully Fixed / Internal Scroll basket) -->
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between h-full overflow-hidden min-h-0">
                         <!-- Top Header and Basket List Section -->
                         <div class="p-6 flex flex-col flex-1 overflow-hidden min-h-0">
@@ -212,7 +232,7 @@
                             <div id="basket-list" class="flex-1 space-y-3 overflow-y-auto pr-2 min-h-0"></div>
                         </div>
 
-                        <!-- Checkout Math Controls -->
+                        <!-- Checkout Math Controls (Bottom Fixed Container) -->
                         <div class="border-t border-slate-100 p-6 bg-slate-50 flex-shrink-0 space-y-4">
                             <!-- Totals Display -->
                             <div class="flex justify-between text-md font-bold text-slate-700">
@@ -237,7 +257,6 @@
                                 <span class="text-xs font-bold text-slate-500">Change Due:</span>
                                 <span id="customer-change" class="text-sm font-mono font-bold text-slate-400">₱0.00</span>
                             </div>
-
                             <button onclick="placeOrder()" class="w-full bg-amber-800 text-white font-bold py-3.5 rounded-xl hover:bg-amber-900 transition-all shadow-md active:scale-[0.99]">
                                 Complete Order
                             </button>
@@ -262,93 +281,155 @@
                             <label class="block text-xs font-semibold text-slate-500 mb-1">Actual Physical Cash inside Drawer (₱)</label>
                             <input type="number" oninput="calculateDrawerDiscrepancy()" id="recon-actual" placeholder="Count actual cash" class="w-full p-3 rounded-lg border border-gray-200 font-mono text-lg font-bold text-slate-800">
                         </div>
-
                         <div class="p-4 rounded-xl flex justify-between items-center bg-slate-50" id="recon-discrepancy-panel">
                             <span class="text-sm font-semibold">Variance Check:</span>
                             <span id="recon-variance" class="font-mono font-bold text-sm">₱0.00</span>
                         </div>
-
                         <button onclick="submitShiftReconciliation()" class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-950 transition">Confirm End of Shift</button>
                     </div>
                 </div>
-
                 <!-- VIEW: DAILY SALES -->
                 <div id="view-admin-daily" class="view-block hidden space-y-6">
                     <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
                         <table class="w-full text-left text-sm"><thead class="bg-slate-50 text-slate-500 border-b"><tr><th class="p-4">Timestamp</th><th class="p-4">OrderID</th><th class="p-4">Employee</th><th class="p-4 text-right">Revenue</th></tr></thead><tbody id="daily-table-body" class="divide-y"></tbody></table>
                     </div>
                 </div>
-
                 <!-- VIEW: WEEKLY SALES -->
                 <div id="view-admin-weekly" class="view-block hidden space-y-6">
                     <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
                         <table class="w-full text-left text-sm"><thead class="bg-slate-50 text-slate-500 border-b"><tr><th class="p-4">Week Range</th><th class="p-4">Orders Checked Out</th><th class="p-4 text-right">Sales Volume</th></tr></thead><tbody id="weekly-table-body" class="divide-y"></tbody></table>
                     </div>
+
                 </div>
+
+
 
                 <!-- VIEW: MONTHLY SALES -->
+
                 <div id="view-admin-monthly" class="view-block hidden space-y-6">
+
                     <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+
                         <table class="w-full text-left text-sm"><thead class="bg-slate-50 text-slate-500 border-b"><tr><th class="p-4">Month</th><th class="p-4">Transactions Logged</th><th class="p-4 text-right">Total Net Earnings</th></tr></thead><tbody id="monthly-table-body" class="divide-y"></tbody></table>
+
                     </div>
+
                 </div>
+
+
 
                 <!-- VIEW: REGISTER EMPLOYEE -->
+
                 <div id="view-admin-employees" class="view-block hidden max-w-md mx-auto bg-white p-6 rounded-2xl shadow-sm border">
+
                     <h2 class="text-lg font-bold text-slate-800 mb-6">Register New System Employee</h2>
+
                     <div class="space-y-4">
+
                         <div>
+
                             <label class="block text-xs font-semibold text-slate-500 mb-1">Employee ID / Code</label>
+
                             <input type="text" id="reg-emp-id" placeholder="e.g. EMP-105" class="w-full p-3 rounded-lg border">
+
                         </div>
+
                         <div>
+
                             <label class="block text-xs font-semibold text-slate-500 mb-1">Full Name</label>
+
                             <input type="text" id="reg-emp-name" placeholder="Full name of staff" class="w-full p-3 rounded-lg border">
+
                         </div>
+
                         <div>
+
                             <label class="block text-xs font-semibold text-slate-500 mb-1">System Role</label>
+
                             <select id="reg-emp-role" class="w-full p-3 rounded-lg border">
+
                                 <option value="employee">Cashier / Staff</option>
+
                                 <option value="admin">Administrator</option>
+
                             </select>
+
                         </div>
+
                         <div>
+
                             <label class="block text-xs font-semibold text-slate-500 mb-1">Security PIN / Password</label>
+
                             <input type="password" id="reg-emp-pass" placeholder="Numeric keycode" class="w-full p-3 rounded-lg border">
+
                         </div>
+
                         <button onclick="registerEmployee()" class="w-full bg-amber-800 text-white font-bold py-3 rounded-lg hover:bg-amber-900 transition">Register & Save</button>
+
                     </div>
+
                 </div>
+
+
 
                 <!-- VIEW: INPUT INVENTORY ITEMS -->
+
                 <div id="view-admin-inventory" class="view-block hidden max-w-md mx-auto bg-white p-6 rounded-2xl shadow-sm border">
+
                     <h2 class="text-lg font-bold text-slate-800 mb-6">Import New Catalog Product</h2>
+
                     <div class="space-y-4">
+
                         <div>
+
                             <label class="block text-xs font-semibold text-slate-500 mb-1">Product ID (Numeric)</label>
+
                             <input type="number" id="add-inv-id" placeholder="Unique ID, e.g. 505" class="w-full p-3 rounded-lg border">
+
                         </div>
+
                         <div>
+
                             <label class="block text-xs font-semibold text-slate-500 mb-1">Item Name</label>
+
                             <input type="text" id="add-inv-name" placeholder="e.g. Spanish Latte" class="w-full p-3 rounded-lg border">
+
                         </div>
+
                         <div>
+
                             <label class="block text-xs font-semibold text-slate-500 mb-1">Menu Category</label>
+
                             <input type="text" id="add-inv-cat" placeholder="Espresso, Pastry, etc." class="w-full p-3 rounded-lg border">
+
                         </div>
+
                         <div>
+
                             <label class="block text-xs font-semibold text-slate-500 mb-1">Selling Price (₱)</label>
+
                             <input type="number" id="add-inv-price" class="w-full p-3 rounded-lg border font-mono">
+
                         </div>
+
                         <div>
+
                             <label class="block text-xs font-semibold text-slate-500 mb-1">Starting Stock Count</label>
+
                             <input type="number" id="add-inv-stock" class="w-full p-3 rounded-lg border font-mono">
+
                         </div>
+
                         <button onclick="addInventoryItem()" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-lg hover:bg-emerald-700 transition">Add Product to Inventory</button>
+
                     </div>
+
                 </div>
 
+
+
                 <!-- VIEW: UPDATE PRODUCT -->
+
                 <div id="view-admin-update" class="view-block hidden max-w-lg mx-auto bg-white p-6 rounded-2xl shadow-sm border">
                     <h2 class="text-lg font-bold text-slate-800 mb-4">Edit Product Inventory Data</h2>
                     <div class="space-y-4">
@@ -388,6 +469,7 @@
                 <!-- VIEW: ANALYTICS -->
                 <div id="view-admin-analytics" class="view-block hidden space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
                         <div class="bg-white p-6 rounded-2xl border shadow-sm h-96">
                             <h3 class="text-sm font-bold text-slate-700 mb-4">Earnings History</h3>
                             <canvas id="trendChart"></canvas>
@@ -398,966 +480,1936 @@
                         </div>
                     </div>
                 </div>
-
             </div>
         </main>
     </div>
 
-    <!-- Hidden Printable Node Container for Thermal Output (Keep Only One) -->
+
+
+    <!-- Hidden Printable Node Container for Thermal Output -->
+
     <div id="receipt-print-zone" class="hidden"></div>
 
- <!-- CORE LOGIC & ROUTING ENGINE -->
-<script>
+    <!-- Hidden Printable Node Container for Thermal Output -->
+
+    <div id="receipt-print-zone" class="hidden"></div>
+
+    
+
+    
+
+    <!-- CORE LOGIC & ROUTING ENGINE -->
+
+   <script> 
+
+
+
     const API_URL = "https://script.google.com/macros/s/AKfycbxulPl24lg5hJS8a_5KuXPxUH7usUHHpl-JqdASVCFHiG0PTej7GaGFZoSKNY-dOvD-Uw/exec";
+
     const SCRIPT_URL = API_URL;
-        
-    // ==========================================
-    // 1. GLOBAL STATE & CONFIG CONSTANTS
-    // ==========================================
+
+       
+
     let db = { inventory: [], employees: [], orders: [], shifts: [] };
+
     let activeUser = null;
+
     let activeCart = [];
+
     let analyticsCharts = { trend: null, pie: null };
 
-    // Tracking the active category tab (defaulting to "All" on start)
-    let activeCategoryTab = "All";
 
-    // Categories explicitly requested to match your sheets layout
-    const menuCategories = [
-        "All", "Appetizer", "Soup", "Salad", "AllDayBfast", 
-        "FilipinoSetMeals", "Beverages", "Dessert", "Sandwiches", 
-        "Pizza", "Pasta", "MainCourse", "BestSeller"
-    ];
 
-    // ==========================================
-    // 2. INITIALIZATION / BOOTSTRAP LOGIC
-    // ==========================================
     async function initApp() {
+
         updateSystemDate();
+
         await fetchAllData();
+
         checkAutoLogin();
+
     }
 
-    // Run app initialization when script executes
-    // (Or wrap in document.addEventListener("DOMContentLoaded", initApp) for maximum safety)
-    initApp();
 
-    // ==========================================
-    // 3. APPLICATION FUNCTIONS
-    // ==========================================
-    function checkAutoLogin() {
-        const saved = localStorage.getItem('logged_user');
-        if (saved) {
-            try {
-                activeUser = JSON.parse(saved);
-                
-                // Re-sync states
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('app-wrapper').classList.remove('hidden');
-                
-                // Populate Sticky Nav details
-                document.getElementById('topbar-user-name').innerText = activeUser.name;
-                document.getElementById('topbar-user-role').innerText = activeUser.role;
 
-                if (activeUser.role && activeUser.role.toLowerCase() === 'admin') {
-                    document.getElementById('admin-nav-links').classList.remove('hidden');
-                } else {
-                    document.getElementById('admin-nav-links').classList.add('hidden');
-                }
+       // Run as soon as your main JS executes
 
-                // Standard layout load tasks
-                navigateView('register');
-                calculateShiftSales();
-                renderMenu();
-                
-            } catch (e) {
-                console.error("Error parsing auto-login cache:", e);
-                logout();
-            }
-        } else {
-            // Safe fallback: No user active, clean up layout states
-            document.getElementById('login-screen').classList.remove('hidden');
-            document.getElementById('app-wrapper').classList.add('hidden');
-        }
-    }
+checkAutoLogin();
 
-    function updateSystemDate() {
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        document.getElementById('header-system-date').innerText = new Date().toLocaleDateString('en-US', options);
-    }
 
-    async function fetchAllData() {
+
+function checkAutoLogin() {
+
+    const saved = localStorage.getItem('logged_user');
+
+    if (saved) {
+
         try {
-            const response = await fetch(`${API_URL}?action=getInitialData`);
-            if (!response.ok) throw new Error("Network response was not OK");
-            db = await response.json();
-            localStorage.setItem('local_db', JSON.stringify(db));
-        } catch (err) {
-            console.warn("Using offline fallback database due to:", err);
-            db = JSON.parse(localStorage.getItem('local_db')) || db;
+
+            activeUser = JSON.parse(saved);
+
             
-            const connStatus = document.getElementById('connection-status');
-            if (connStatus) {
-                connStatus.innerText = "Offline Mode";
-                connStatus.className = "bg-red-600 px-2 py-0.5 rounded text-[10px] font-bold text-white";
-            }
-            showToast("System is currently offline. Using local backup database.", "warning");
-        }
-    }
 
-    // Safe JSON Parsing helper to protect reprint flows
-    function safeParseJSON(data) {
-        if (!data) return [];
-        if (typeof data === 'object') return data;
-        try {
-            return JSON.parse(data);
+            // Re-sync states
+
+            document.getElementById('login-screen').classList.add('hidden');
+
+            document.getElementById('app-wrapper').classList.remove('hidden');
+
+            
+
+            // Populate Sticky Nav details
+
+            document.getElementById('topbar-user-name').innerText = activeUser.name;
+
+            document.getElementById('topbar-user-role').innerText = activeUser.role;
+
+
+
+            if (activeUser.role && activeUser.role.toLowerCase() === 'admin') {
+
+                document.getElementById('admin-nav-links').classList.remove('hidden');
+
+            } else {
+
+                document.getElementById('admin-nav-links').classList.add('hidden');
+
+            }
+
+
+
+            // Standard layout load tasks
+
+            navigateView('register');
+
+            calculateShiftSales();
+
+            renderMenu();
+
+            
+
         } catch (e) {
-            console.error("JSON Parsing failed for data:", data, e);
-            return [];
-        }
-    }
 
-    // Modern UI Toast Engine
-    function showToast(message, type = "success") {
-        const container = document.getElementById('toast-container');
-        if (!container) return;
+            console.error("Error parsing auto-login cache:", e);
 
-        const toast = document.createElement('div');
-        toast.className = `p-4 rounded-xl shadow-xl flex items-center gap-3 border text-sm font-semibold pointer-events-auto transform translate-x-12 opacity-0 transition-all duration-300 ${
-            type === "success" ? "bg-emerald-50 text-emerald-800 border-emerald-200" :
-            type === "error" ? "bg-rose-50 text-rose-800 border-rose-200" :
-            "bg-amber-50 text-amber-800 border-amber-200"
-        }`;
-        
-        toast.innerHTML = `
-            <span>${type === "success" ? "✓" : type === "error" ? "✕" : "⚠"}</span>
-            <span>${message}</span>
-        `;
-        
-        container.appendChild(toast);
-        setTimeout(() => {
-            toast.classList.remove('translate-x-12', 'opacity-0');
-        }, 10);
+            logout();
 
-        setTimeout(() => {
-            toast.classList.add('translate-x-12', 'opacity-0');
-            setTimeout(() => toast.remove(), 300);
-        }, 4000);
-    }
-
-    function togglePasswordVisibility() {
-        const passInput = document.getElementById('login-password');
-        const eyeOpen = document.getElementById('eye-icon-open');
-        const eyeClosed = document.getElementById('eye-icon-closed');
-
-        if (passInput.type === "password") {
-            passInput.type = "text";
-            if (eyeOpen) eyeOpen.classList.add('hidden');
-            if (eyeClosed) eyeClosed.classList.remove('hidden');
-        } else {
-            passInput.type = "password";
-            if (eyeOpen) eyeOpen.classList.remove('hidden');
-            if (eyeClosed) eyeClosed.classList.add('hidden');
-        }
-    }
-
-    async function handleLogin() {
-        const userVal = document.getElementById('login-username').value.trim();
-        const passVal = document.getElementById('login-password').value.trim();
-        const submitBtn = document.getElementById('login-submit-btn');
-
-        if (!userVal || !passVal) {
-            showToast("Please enter both username and password.", "warning");
-            return;
         }
 
-        // Update UI feedback on access button
-        submitBtn.disabled = true;
-        submitBtn.innerText = "Verifying credentials...";
-        submitBtn.className = "w-full bg-slate-700 text-white font-bold py-3.5 rounded-xl transition-all cursor-not-allowed";
+    } else {
 
-        // Safety delay for smoother visual feedback
-        await new Promise(resolve => setTimeout(resolve, 800));
-
-        // Validate against local/cloud cached database
-        const match = db.employees.find(e => {
-            const name = e.Name || e.name || "";
-            const password = e.Password || e.password || "";
-            return name.toLowerCase() === userVal.toLowerCase() && password.toString() === passVal;
-        });
-
-        if (match) {
-            submitBtn.innerText = "Access Granted!";
-            submitBtn.className = "w-full bg-emerald-600 text-white font-bold py-3.5 rounded-xl transition-all";
-            
-            await new Promise(resolve => setTimeout(resolve, 600));
-
-            activeUser = { name: (match.Name || match.name), role: (match.Role || match.role) };
-            localStorage.setItem('logged_user', JSON.stringify(activeUser));
-            authorizedSessionStart();
-            showToast("Login Successful!");
-        } else {
-            submitBtn.disabled = false;
-            submitBtn.innerText = "Access Terminal";
-            submitBtn.className = "w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all";
-            showToast("Incorrect username or passkey PIN", "error");
-        }
-    }
-
-    function authorizedSessionStart() {
-        document.getElementById('login-screen').classList.add('hidden');
-        document.getElementById('app-wrapper').classList.remove('hidden');
-        
-        // Populate Top Sticky Dashboard Nav with details
-        document.getElementById('topbar-user-name').innerText = activeUser.name;
-        document.getElementById('topbar-user-role').innerText = activeUser.role;
-
-        if (activeUser.role && activeUser.role.toLowerCase() === 'admin') {
-            document.getElementById('admin-nav-links').classList.remove('hidden');
-        } else {
-            document.getElementById('admin-nav-links').classList.add('hidden');
-        }
-
-        navigateView('register');
-        calculateShiftSales();
-        renderMenu();
-    }
-
-    function logout() {
-        localStorage.removeItem('logged_user');
-        activeUser = null;
-        document.getElementById('login-username').value = "";
-        document.getElementById('login-password').value = "";
-        
-        // Reset Submit Button text to initial state
-        const submitBtn = document.getElementById('login-submit-btn');
-        submitBtn.disabled = false;
-        submitBtn.innerText = "Access Terminal";
-        submitBtn.className = "w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all";
+        // Safe fallback: No user active, clean up layout states
 
         document.getElementById('login-screen').classList.remove('hidden');
+
         document.getElementById('app-wrapper').classList.add('hidden');
-        showToast("Successfully logged out.");
+
     }
+
+}
+
+
+
+    function updateSystemDate() {
+
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+
+        document.getElementById('header-system-date').innerText = new Date().toLocaleDateString('en-US', options);
+
+    }
+
+
+
+    async function fetchAllData() {
+
+        try {
+
+            const response = await fetch(`${API_URL}?action=getInitialData`);
+
+            if (!response.ok) throw new Error("Network response was not OK");
+
+            db = await response.json();
+
+            localStorage.setItem('local_db', JSON.stringify(db));
+
+        } catch (err) {
+
+            console.warn("Using offline fallback database due to:", err);
+
+            db = JSON.parse(localStorage.getItem('local_db')) || db;
+
+            
+
+            const connStatus = document.getElementById('connection-status');
+
+            if (connStatus) {
+
+                connStatus.innerText = "Offline Mode";
+
+                connStatus.className = "bg-red-600 px-2 py-0.5 rounded text-[10px] font-bold text-white";
+
+            }
+
+            showToast("System is currently offline. Using local backup database.", "warning");
+
+        }
+
+    }
+
+
+
+    // Safe JSON Parsing helper to protect reprint flows
+
+    function safeParseJSON(data) {
+
+        if (!data) return [];
+
+        if (typeof data === 'object') return data;
+
+        try {
+
+            return JSON.parse(data);
+
+        } catch (e) {
+
+            console.error("JSON Parsing failed for data:", data, e);
+
+            return [];
+
+        }
+
+    }
+
+
+
+    // Modern UI Toast Engine
+
+    function showToast(message, type = "success") {
+
+        const container = document.getElementById('toast-container');
+
+        if (!container) return;
+
+
+
+        const toast = document.createElement('div');
+
+        toast.className = `p-4 rounded-xl shadow-xl flex items-center gap-3 border text-sm font-semibold pointer-events-auto transform translate-x-12 opacity-0 transition-all duration-300 ${
+
+            type === "success" ? "bg-emerald-50 text-emerald-800 border-emerald-200" :
+
+            type === "error" ? "bg-rose-50 text-rose-800 border-rose-200" :
+
+            "bg-amber-50 text-amber-800 border-amber-200"
+
+        }`;
+
+        
+
+        toast.innerHTML = `
+
+            <span>${type === "success" ? "✓" : type === "error" ? "✕" : "⚠"}</span>
+
+            <span>${message}</span>
+
+        `;
+
+        
+
+        container.appendChild(toast);
+
+        setTimeout(() => {
+
+            toast.classList.remove('translate-x-12', 'opacity-0');
+
+        }, 10);
+
+
+
+        setTimeout(() => {
+
+            toast.classList.add('translate-x-12', 'opacity-0');
+
+            setTimeout(() => toast.remove(), 300);
+
+        }, 4000);
+
+    }
+
+
+
+    function togglePasswordVisibility() {
+
+        const passInput = document.getElementById('login-password');
+
+        const eyeOpen = document.getElementById('eye-icon-open');
+
+        const eyeClosed = document.getElementById('eye-icon-closed');
+
+
+
+        if (passInput.type === "password") {
+
+            passInput.type = "text";
+
+            if (eyeOpen) eyeOpen.classList.add('hidden');
+
+            if (eyeClosed) eyeClosed.classList.remove('hidden');
+
+        } else {
+
+            passInput.type = "password";
+
+            if (eyeOpen) eyeOpen.classList.remove('hidden');
+
+            if (eyeClosed) eyeClosed.classList.add('hidden');
+
+        }
+
+    }
+
+
+
+    function checkAutoLogin() {
+
+        const saved = localStorage.getItem('logged_user');
+
+        if (saved) {
+
+            activeUser = JSON.parse(saved);
+
+            authorizedSessionStart();
+
+            showToast(`Welcome back, ${activeUser.name}!`);
+
+        }
+
+    }
+
+
+
+    async function handleLogin() {
+
+        const userVal = document.getElementById('login-username').value.trim();
+
+        const passVal = document.getElementById('login-password').value.trim();
+
+        const submitBtn = document.getElementById('login-submit-btn');
+
+
+
+        if (!userVal || !passVal) {
+
+            showToast("Please enter both username and password.", "warning");
+
+            return;
+
+        }
+
+
+
+        // Update UI feedback on access button
+
+        submitBtn.disabled = true;
+
+        submitBtn.innerText = "Verifying credentials...";
+
+        submitBtn.className = "w-full bg-slate-700 text-white font-bold py-3.5 rounded-xl transition-all cursor-not-allowed";
+
+
+
+        // Safety delay for smoother visual feedback
+
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+
+
+        // Validate against local/cloud cached database
+
+        const match = db.employees.find(e => {
+
+            const name = e.Name || e.name || "";
+
+            const password = e.Password || e.password || "";
+
+            return name.toLowerCase() === userVal.toLowerCase() && password.toString() === passVal;
+
+        });
+
+
+
+        if (match) {
+
+            submitBtn.innerText = "Access Granted!";
+
+            submitBtn.className = "w-full bg-emerald-600 text-white font-bold py-3.5 rounded-xl transition-all";
+
+            
+
+            await new Promise(resolve => setTimeout(resolve, 600));
+
+
+
+            activeUser = { name: (match.Name || match.name), role: (match.Role || match.role) };
+
+            localStorage.setItem('logged_user', JSON.stringify(activeUser));
+
+            authorizedSessionStart();
+
+            showToast("Login Successful!");
+
+        } else {
+
+            submitBtn.disabled = false;
+
+            submitBtn.innerText = "Access Terminal";
+
+            submitBtn.className = "w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all";
+
+            showToast("Incorrect username or passkey PIN", "error");
+
+        }
+
+    }
+
+
+
+    function authorizedSessionStart() {
+
+        document.getElementById('login-screen').classList.add('hidden');
+
+        document.getElementById('app-wrapper').classList.remove('hidden');
+
+        
+
+        // Populate Top Sticky Dashboard Nav with details
+
+        document.getElementById('topbar-user-name').innerText = activeUser.name;
+
+        document.getElementById('topbar-user-role').innerText = activeUser.role;
+
+
+
+        if (activeUser.role && activeUser.role.toLowerCase() === 'admin') {
+
+            document.getElementById('admin-nav-links').classList.remove('hidden');
+
+        } else {
+
+            document.getElementById('admin-nav-links').classList.add('hidden');
+
+        }
+
+
+
+        navigateView('register');
+
+        calculateShiftSales();
+
+        renderMenu();
+
+    }
+
+
+
+    function logout() {
+
+        localStorage.removeItem('logged_user');
+
+        activeUser = null;
+
+        document.getElementById('login-username').value = "";
+
+        document.getElementById('login-password').value = "";
+
+        
+
+        // Reset Submit Button text to initial state
+
+        const submitBtn = document.getElementById('login-submit-btn');
+
+        submitBtn.disabled = false;
+
+        submitBtn.innerText = "Access Terminal";
+
+        submitBtn.className = "w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all";
+
+
+
+        document.getElementById('login-screen').classList.remove('hidden');
+
+        document.getElementById('app-wrapper').classList.add('hidden');
+
+        showToast("Successfully logged out.");
+
+    }
+
+
 
     // Standard Navigation Controller
+
     function navigateView(viewName) {
+
         document.querySelectorAll('.view-block').forEach(el => el.classList.add('hidden'));
+
         document.getElementById(`view-${viewName}`).classList.remove('hidden');
 
+
+
         document.querySelectorAll('#sidebar nav button').forEach(el => {
+
             el.classList.remove('bg-slate-800', 'text-white');
+
             el.classList.add('text-slate-400');
+
         });
+
         const activeBtn = document.getElementById(`nav-btn-${viewName}`);
+
         if (activeBtn) {
+
             activeBtn.classList.remove('text-slate-400');
+
             activeBtn.classList.add('bg-slate-800', 'text-white');
+
         }
+
+
 
         // Map and format titles beautifully on Topbar Header Display
+
         const titleMap = {
+
             'register': 'Menu Register',
+
             'reconcile': 'End of Shift Drawer Reconciliation',
+
             'admin-daily': 'Daily Sales Ledger Summary',
+
             'admin-weekly': 'Weekly Performance audits',
+
             'admin-monthly': 'Monthly Sales Auditing',
+
             'admin-employees': 'Register System Staff',
+
             'admin-inventory': 'Import New Inventory',
+
             'admin-update': 'Edit Product Metadata',
+
             'admin-reprint': 'Reprint Receipt Archive',
+
             'admin-analytics': 'Sales Charts & Business Analytics'
+
         };
+
         document.getElementById('header-view-title').innerText = titleMap[viewName] || 'Dashboard';
 
+
+
         if (viewName === 'admin-daily') renderDailyLedger();
+
         if (viewName === 'admin-weekly') renderWeeklyLedger();
+
         if (viewName === 'admin-monthly') renderMonthlyLedger();
+
         if (viewName === 'admin-update') loadUpdateSelect();
+
         if (viewName === 'admin-reprint') renderReprintTable();
+
         if (viewName === 'admin-analytics') renderCharts();
+
         if (viewName === 'reconcile') calculateShiftSales();
+
     }
+
+
+
+    // Tracking the active category tab (defaulting to "All" on start)
+
+    let activeCategoryTab = "All";
+
+
+
+    // Categories explicitly requested to match your sheets layout
+
+    const menuCategories = [
+
+        "All", "Appetizer", "Soup", "Salad", "AllDayBfast", 
+
+        "FilipinoSetMeals", "Beverages", "Dessert", "Sandwiches", 
+
+        "Pizza", "Pasta", "MainCourse", "BestSeller"
+
+    ];
+
+
 
     function renderMenu() {
+
         // 1. Render Category Buttons Tab Bar
+
         const tabContainer = document.getElementById('category-tab-bar');
+
         tabContainer.innerHTML = menuCategories.map(cat => {
+
             const isActive = cat.toLowerCase() === activeCategoryTab.toLowerCase();
+
             const activeClasses = "bg-amber-800 text-white font-bold shadow-sm shadow-amber-800/10";
+
             const inactiveClasses = "bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 font-semibold border border-slate-200/60";
+
             
+
             return `
+
                 <button onclick="setCategoryFilter('${cat}')" class="px-4 py-2 rounded-xl text-xs whitespace-nowrap transition-all duration-200 ${isActive ? activeClasses : inactiveClasses}">
+
                     ${cat === 'All' ? '🌐 Show All' : cat}
+
                 </button>
+
             `;
+
         }).join('');
+
+
 
         // 2. Filter Database Inventory items by Category Selection
+
         let filteredItems = db.inventory || [];
+
         if (activeCategoryTab !== "All") {
+
             filteredItems = db.inventory.filter(item => {
+
                 const itemCat = item.Category || item.category || "";
+
                 return itemCat.toLowerCase().trim() === activeCategoryTab.toLowerCase().trim();
+
             });
+
         }
+
+
 
         // 3. Render Items into HTML Table
+
         const tableBody = document.getElementById('menu-table-body');
+
         
+
         if (filteredItems.length === 0) {
+
             tableBody.innerHTML = `
+
                 <tr>
+
                     <td colspan="5" class="py-12 text-center text-sm text-slate-400">
+
                         No active items found under "${activeCategoryTab}".
+
                     </td>
+
                 </tr>
+
             `;
+
             return;
+
         }
+
+
 
         tableBody.innerHTML = filteredItems.map(item => {
+
             const rawStock = item.StockQuantity !== undefined ? item.StockQuantity : (item.stock || 0);
+
             const stock = Number(rawStock) || 0;
+
             const isOutOfStock = stock <= 0;
+
             const price = Number(item.Price) || 0;
+
             
+
             return `
+
                 <tr class="hover:bg-slate-50/50 transition">
+
                     <td class="py-3.5 px-2 text-xs font-mono text-slate-400 font-medium">#${item.ItemID}</td>
+
                     <td class="py-3.5 px-2">
+
                         <span class="font-bold text-slate-800 text-sm block leading-tight">${item.ItemName}</span>
+
                         <span class="text-[10px] text-amber-800 font-medium bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">${item.Category || item.category}</span>
+
                     </td>
+
                     <td class="py-3.5 px-2 text-right font-mono font-bold text-slate-700 text-sm">₱${price.toFixed(2)}</td>
+
                     <td class="py-3.5 px-2 text-center">
+
                         <span class="px-2 py-0.5 rounded text-[11px] font-extrabold ${stock < 10 ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-slate-100 text-slate-600'}">
+
                             ${stock}
+
                         </span>
+
                     </td>
+
                     <td class="py-3.5 px-2 text-right">
+
                         <button 
+
                             onclick="addToCart('${item.ItemID}')" 
+
                             ${isOutOfStock ? 'disabled' : ''}
+
                             class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+
                                 isOutOfStock 
+
                                 ? 'bg-slate-100 text-slate-300 cursor-not-allowed' 
+
                                 : 'bg-amber-800 hover:bg-amber-900 text-white hover:shadow-md'
+
                             }"
+
                         >
+
                             ${isOutOfStock ? 'Sold Out' : '＋ Add'}
+
                         </button>
+
                     </td>
+
                 </tr>
+
             `;
+
         }).join('');
 
+
+
         // Update Low Stock Indicator Counter badge
+
         const lowCount = db.inventory.filter(i => {
+
             const stock = i.StockQuantity !== undefined ? i.StockQuantity : (i.stock || 0);
+
             return Number(stock) < 10;
+
         }).length;
+
         document.getElementById('low-stock-alert').innerText = `${lowCount} Low Items Flagged`;
+
     }
+
+
 
     // Tab selection click handler
+
     function setCategoryFilter(categoryName) {
+
         activeCategoryTab = categoryName;
+
         renderMenu();
+
     }
+
+
 
     function addToCart(id) {
+
         const item = db.inventory.find(i => i.ItemID == id);
+
         if (!item) return;
 
+
+
         const rawStock = item.StockQuantity !== undefined ? item.StockQuantity : (item.stock || 0);
+
         const maxStock = Number(rawStock) || 0;
+
         const exist = activeCart.find(c => c.id == id);
 
+
+
         if (exist) {
+
             if (exist.quantity >= maxStock) {
+
                 showToast(`Cannot add more. Only ${maxStock} in stock.`, "warning");
+
                 return;
+
             }
+
             exist.quantity++;
+
         } else {
+
             if (maxStock <= 0) {
+
                 showToast("Item is out of stock.", "warning");
+
                 return;
+
             }
+
             activeCart.push({ 
+
                 id: item.ItemID, 
+
                 name: item.ItemName, 
+
                 price: Number(item.Price) || 0, 
+
                 category: item.Category || item.category || "General", 
+
                 quantity: 1 
+
             });
+
         }
+
         renderCart();
+
     }
 
+
+
     function renderCart() {
+
         const container = document.getElementById('basket-list');
+
         if (!container) return;
+
+
 
         document.getElementById('basket-counter').innerText = activeCart.reduce((sum, item) => sum + item.quantity, 0);
 
+
+
         if (activeCart.length === 0) {
+
             container.innerHTML = `<p class="text-slate-400 text-center py-12 text-sm">Basket is empty.</p>`;
+
             document.getElementById('basket-total').innerText = "₱0.00";
+
             return;
+
         }
+
+
 
         let total = 0;
+
         container.innerHTML = activeCart.map(item => {
+
             total += item.price * item.quantity;
+
             return `
+
                 <div class="flex justify-between items-center bg-slate-50 p-3 rounded-lg border">
+
                     <div>
+
                         <p class="font-semibold text-xs text-slate-800">${item.name}</p>
+
                         <p class="text-[10px] text-slate-400">₱${item.price.toFixed(2)} x ${item.quantity}</p>
+
                     </div>
+
                     <div class="flex items-center gap-2">
+
                         <span class="font-mono text-xs font-semibold">₱${(item.price * item.quantity).toFixed(2)}</span>
+
                         <button onclick="removeFromCart('${item.id}')" class="text-red-500 text-xs px-1 font-bold">✕</button>
+
                     </div>
+
                 </div>
+
             `;
+
         }).join('');
+
         document.getElementById('basket-total').innerText = `₱${total.toFixed(2)}`;
+
     }
+
+
 
     function removeFromCart(id) {
+
         activeCart = activeCart.filter(c => c.id !== id);
+
         renderCart();
+
     }
 
-    async function placeOrder() {
-        if (activeCart.length === 0) return showToast("Your basket is empty!", "warning");
-        
-        const total = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        
-        // Validate the cash tendered amount
-        const cashInput = document.getElementById('cash-tendered');
-        const cashTendered = parseFloat(cashInput ? cashInput.value : 0) || 0;
-        
-        if (cashTendered < total) {
-            return showToast(`Insufficient payment! Total is ₱${total.toFixed(2)} but only ₱${cashTendered.toFixed(2)} was given.`, "warning");
-        }
 
-        const payload = {
-            EmployeeName: activeUser ? activeUser.name : "Employee",
-            ItemsOrdered: activeCart, 
-            TotalAmount: total,
-            PaymentMethod: "Cash",
-            
-            // These are used locally by your receipt printer
-            cashTendered: cashTendered,
-            change: cashTendered - total
-        };
 
-        // Safe Offline Fallback Check
-        if (typeof SCRIPT_URL === 'undefined' || SCRIPT_URL === "" || SCRIPT_URL.includes("YOUR_SCRIPT_URL_PLACEHOLDER")) {
-            console.warn("SCRIPT_URL is not defined or configured. Running in Local POS Print Mode.");
-            showToast("Database Offline. Printing receipt locally...", "warning");
-            
-            printThermalReceipt(payload, "LOCAL-" + Date.now());
-            finalizeLocalCheckout();
-            return;
-        }
+  async function placeOrder() {
 
-        // Attempt Server Sync
-        try {
-            const response = await fetch(SCRIPT_URL, {
-                method: "POST",
-                body: JSON.stringify({ action: "placeOrder", ...payload })
-            });
-            const data = await response.json();
+    if (activeCart.length === 0) return showToast("Your basket is empty!", "warning");
 
-            if (data.status === "SUCCESS") {
-                printThermalReceipt(payload, data.orderId);
-                showToast("Order placed successfully!", "success");
-                finalizeLocalCheckout();
-            } else {
-                alert("Error placing order on server: " + data.message);
-            }
-        } catch (err) {
-            console.error("Database connection failed. Falling back to local printer...", err);
-            showToast("Cloud sync failed. Printing physical receipt...", "warning");
-            
-            printThermalReceipt(payload, "OFFLINE-" + Date.now());
-            finalizeLocalCheckout();
-        }
-    }
-/// Clean UI after successful printing (either online or offline)
-function finalizeLocalCheckout() {
-    activeCart = [];
+    
+
+    const total = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+    
+
+    // Validate the cash tendered amount
+
     const cashInput = document.getElementById('cash-tendered');
+
+    const cashTendered = parseFloat(cashInput ? cashInput.value : 0) || 0;
+
+    
+
+    if (cashTendered < total) {
+
+        return showToast(`Insufficient payment! Total is ₱${total.toFixed(2)} but only ₱${cashTendered.toFixed(2)} was given.`, "warning");
+
+    }
+
+
+
+    // ✅ FIXED: Keys matched exactly to your Google Sheet columns 
+
+    // (Ensure your Google Apps Script maps these matching property keys to the columns)
+
+    const payload = {
+
+        EmployeeName: activeUser ? activeUser.name : "Employee",
+
+        ItemsOrdered: activeCart, 
+
+        TotalAmount: total,
+
+        PaymentMethod: "Cash",
+
+        
+
+        // These are used locally by your receipt printer
+
+        cashTendered: cashTendered,
+
+        change: cashTendered - total
+
+    };
+
+
+
+    // Safe Offline Fallback Check (Adjusted to allow your actual live script URL to process)
+
+    if (typeof SCRIPT_URL === 'undefined' || SCRIPT_URL === "" || SCRIPT_URL.includes("YOUR_SCRIPT_URL_PLACEHOLDER")) {
+
+        console.warn("SCRIPT_URL is not defined or configured. Running in Local POS Print Mode.");
+
+        showToast("Database Offline. Printing receipt locally...", "warning");
+
+        
+
+        // Directly print and clean cart
+
+        printThermalReceipt(payload, "LOCAL-" + Date.now());
+
+        finalizeLocalCheckout();
+
+        return;
+
+    }
+
+
+
+    // Attempt Server Sync
+
+    try {
+
+        const response = await fetch(SCRIPT_URL, {
+
+            method: "POST",
+
+            // Send the corrected payload keys
+
+            body: JSON.stringify({ action: "placeOrder", ...payload })
+
+        });
+
+        const data = await response.json();
+
+
+
+        if (data.status === "SUCCESS") {
+
+            printThermalReceipt(payload, data.orderId);
+
+            showToast("Order placed successfully!", "success");
+
+            finalizeLocalCheckout();
+
+        } else {
+
+            alert("Error placing order on server: " + data.message);
+
+        }
+
+    } catch (err) {
+
+        console.error("Database connection failed. Falling back to local printer...", err);
+
+        showToast("Cloud sync failed. Printing physical receipt...", "warning");
+
+        
+
+        // Print receipt locally even if network is dead
+
+        printThermalReceipt(payload, "OFFLINE-" + Date.now());
+
+        finalizeLocalCheckout();
+
+    }
+
+} 
+
+
+// Clean UI after successful printing (either online or offline)
+
+function finalizeLocalCheckout() {
+
+    activeCart = [];
+
+    const cashInput = document.getElementById('cash-tendered');
+
     if (cashInput) cashInput.value = ''; // Clear input
 
+
+
     renderCart();
+
     renderMenu();
+
     
+
     // Reset "Change Due" display label
+
     const changeDisplay = document.getElementById('customer-change');
+
     if (changeDisplay) {
+
         changeDisplay.innerText = "₱0.00";
+
         changeDisplay.className = "text-sm font-mono font-bold text-slate-400";
+
     }
+
 }
 
+
+
 function printThermalReceipt(payload, serverOrderId) {
+
     const receipt = document.getElementById('receipt-print-zone');
+
     if (!receipt) {
+
         console.error("Receipt rendering element (#receipt-print-zone) not found!");
+
         return;
+
     }
 
+
+
     // ✅ FIXED: Read from payload.ItemsOrdered instead of payload.items
+
     const itemsList = payload.ItemsOrdered || payload.items || [];
+
     const itemLines = itemsList.map(item => {
+
         const name = item.name.substring(0, 14).padEnd(14, ' ');
+
         const qty = item.quantity.toString().padStart(5, ' ');
+
         const price = `₱${(item.price * item.quantity).toFixed(2)}`.padStart(11, ' ');
+
         return `${name}${qty}${price}`;
+
     }).join('\n');
+
+
 
     const finalOrderId = serverOrderId || ("ORD-" + Date.now());
 
+
+
     // ✅ FIXED: Read from payload.TotalAmount instead of payload.total
+
     const totalAmount = Number(payload.TotalAmount || payload.total || 0).toFixed(2);
+
     const cashReceived = Number(payload.cashTendered || 0).toFixed(2);
+
     const changeDue = Number(payload.change || 0).toFixed(2);
 
+
+
     const formattedTotal = `₱${totalAmount}`.padStart(11, ' ');
+
     const formattedCash = `₱${cashReceived}`.padStart(11, ' ');
+
     const formattedChange = `₱${changeDue}`.padStart(11, ' ');
 
+
+
     receipt.innerHTML = `
+
 <div style="text-align: center; margin-bottom: 5px;">
+
     <img src="albertos.jpg" alt="Alberto's Logo" style="display: block; margin: 0 auto; max-width: 60px; height: auto;" />
+
 </div>
+
 <pre style="font-family: monospace; font-size: 12px; line-height: 1.3; margin-top: 0; white-space: pre-wrap;">
+
      ALBERTO'S HERITAGE CAFE
+
 ================================
+
 Staff: ${payload.EmployeeName || payload.employee || 'Staff'}
+
 Date: ${new Date().toLocaleDateString()}
+
 Order ID: ${finalOrderId}
+
 --------------------------------
+
 Items          Qty   Price
+
 --------------------------------
+
 ${itemLines}
+
 --------------------------------
+
 TOTAL:               ${formattedTotal}
+
 CASH RECEIVED:       ${formattedCash}
+
 CHANGE:              ${formattedChange}
+
 ================================
+
 National Highway 
+
 (near Cabanbanan Arch)
+
 Brgy. Cabanbanan, Pagsanjan
 
+
+
 Contact us at: 0969 299 2006
+
 ================================
 
-     Savor Heritage Today.
+
+
+    Savor Heritage Today.
+
 </pre>
+
     `;
+
     
+
     window.print();
+
 }
 
-let employeePettyCash = 0;
+       let employeePettyCash = 0;
+
+
 
 // Call this function inside your logic flow right after the staff member logs in successfully
+
 function registerEmployeeShiftAssets(user) {
+
     if (user.role.toLowerCase() === 'employee') {
+
         let entry = prompt("Shift Started. Please declare your receiving starting Petty Cash float amount (₱):", "1000.00");
+
         
+
         // Loop protection against bad values
+
         while (entry === null || isNaN(parseFloat(entry)) || parseFloat(entry) < 0) {
+
             entry = prompt("A valid numeric float amount (₱) is required to initialize your drawer:", "1000.00");
+
         }
+
         
+
         employeePettyCash = parseFloat(entry);
+
         
+
         // Apply starting cash instantly to the End Shift view input
+
         const reconStartInput = document.getElementById('recon-start-cash');
+
         if (reconStartInput) {
+
             reconStartInput.value = employeePettyCash;
+
         }
+
     } else {
+
         // Admin or non-employee defaults
+
         employeePettyCash = 2000; // or your business's default float amount
+
         const reconStartInput = document.getElementById('recon-start-cash');
+
         if (reconStartInput) {
+
             reconStartInput.value = employeePettyCash;
+
         }
+
     }
+
 }
 
-// Drawer Reconciliation Module
+
+
+    // Drawer Reconciliation Module
+
 function calculateShiftSales() {
+
     if (!activeUser) return;
+
     
+
     // Safety check: Make sure db and db.orders exist, otherwise fallback to an empty array []
+
     const ordersList = (db && db.orders) ? db.orders : [];
+
     
+
     const staffSales = ordersList
+
         .filter(o => o && o.EmployeeName === activeUser.name)
+
         .reduce((sum, o) => sum + Number(o.TotalAmount || 0), 0);
+
     
+
     const salesField = document.getElementById('recon-sales');
+
     if (salesField) {
+
         salesField.value = staffSales;
+
         calculateDrawerDiscrepancy();
+
     }
+
 }
 
-function calculateDrawerDiscrepancy() {
-    const start = Number(document.getElementById('recon-start-cash').value) || 0;
-    const sales = Number(document.getElementById('recon-sales').value) || 0;
-    const actual = Number(document.getElementById('recon-actual').value) || 0;
 
-    const expected = start + sales;
-    const discrepancy = actual - expected;
 
-    const label = document.getElementById('recon-variance');
-    const panel = document.getElementById('recon-discrepancy-panel');
+    function calculateDrawerDiscrepancy() {
 
-    if (!label || !panel) return;
+        const start = Number(document.getElementById('recon-start-cash').value) || 0;
 
-    label.innerText = `₱${discrepancy.toFixed(2)}`;
+        const sales = Number(document.getElementById('recon-sales').value) || 0;
 
-    if (discrepancy === 0) {
-        label.className = "font-mono font-bold text-sm text-emerald-600";
-        panel.className = "p-4 rounded-xl flex justify-between items-center bg-emerald-50";
-    } else if (discrepancy < 0) {
-        label.className = "font-mono font-bold text-sm text-red-600";
-        panel.className = "p-4 rounded-xl flex justify-between items-center bg-red-50";
-        label.innerText = `₱${Math.abs(discrepancy).toFixed(2)} (SHORT)`;
-    } else {
-        label.className = "font-mono font-bold text-sm text-blue-600";
-        panel.className = "p-4 rounded-xl flex justify-between items-center bg-blue-50";
-        label.innerText = `₱${discrepancy.toFixed(2)} (OVER)`;
-    }
-}
+        const actual = Number(document.getElementById('recon-actual').value) || 0;
 
-async function submitShiftReconciliation() {
-    const start = Number(document.getElementById('recon-start-cash').value) || 0;
-    const sales = Number(document.getElementById('recon-sales').value) || 0;
-    const actual = Number(document.getElementById('recon-actual').value) || 0;
-    const discrepancy = actual - (start + sales);
 
-    const payload = {
-        action: "closeShift",
-        employee: activeUser ? activeUser.name : "System",
-        startCash: start,
-        systemSales: sales,
-        actualCash: actual,
-        discrepancy: discrepancy
-    };
 
-    try {
-        const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
-        const res = await response.json();
-        if (res.status === "SUCCESS") {
-            showToast("Shift logged! Clearing session terminal.");
-            logout();
+        const expected = start + sales;
+
+        const discrepancy = actual - expected;
+
+
+
+        const label = document.getElementById('recon-variance');
+
+        const panel = document.getElementById('recon-discrepancy-panel');
+
+
+
+        if (!label || !panel) return;
+
+
+
+        label.innerText = `₱${discrepancy.toFixed(2)}`;
+
+
+
+        if (discrepancy === 0) {
+
+            label.className = "font-mono font-bold text-sm text-emerald-600";
+
+            panel.className = "p-4 rounded-xl flex justify-between items-center bg-emerald-50";
+
+        } else if (discrepancy < 0) {
+
+            label.className = "font-mono font-bold text-sm text-red-600";
+
+            panel.className = "p-4 rounded-xl flex justify-between items-center bg-red-50";
+
+            label.innerText = `₱${Math.abs(discrepancy).toFixed(2)} (SHORT)`;
+
+        } else {
+
+            label.className = "font-mono font-bold text-sm text-blue-600";
+
+            panel.className = "p-4 rounded-xl flex justify-between items-center bg-blue-50";
+
+            label.innerText = `₱${discrepancy.toFixed(2)} (OVER)`;
+
         }
-    } catch (err) {
-        showToast("Verification failed. Check network link.", "error");
-    }
-}
 
-// Ledgers, Management and Graphing Admin Commands
-function renderDailyLedger() {
-    const container = document.getElementById('daily-table-body');
-    if (!container) return;
-
-    const todayStr = new Date().toDateString();
-    const todayOrders = db.orders.filter(o => new Date(o.Timestamp).toDateString() === todayStr);
-
-    if (todayOrders.length === 0) {
-        container.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">No transactions logged today.</td></tr>`;
-        return;
     }
 
-    container.innerHTML = todayOrders.map(o => `
-        <tr>
-            <td class="p-4 font-mono text-xs">${new Date(o.Timestamp).toLocaleTimeString()}</td>
-            <td class="p-4 font-bold text-slate-700">${o.OrderID}</td>
-            <td class="p-4">${o.EmployeeName}</td>
-            <td class="p-4 text-right font-mono font-bold text-slate-800">₱${Number(o.TotalAmount).toFixed(2)}</td>
-        </tr>
-    `).join('');
-}
 
-function renderWeeklyLedger() {
-    const container = document.getElementById('weekly-table-body');
-    if (!container) return;
 
-    let sales = db.orders.reduce((sum, o) => sum + Number(o.TotalAmount || 0), 0);
-    container.innerHTML = `
-        <tr>
-            <td class="p-4 font-semibold text-slate-700">Current Week (Rolling)</td>
-            <td class="p-4">${db.orders.length}</td>
-            <td class="p-4 text-right font-mono font-bold text-emerald-600">₱${sales.toFixed(2)}</td>
-        </tr>
-    `;
-}
+    async function submitShiftReconciliation() {
 
-function renderMonthlyLedger() {
-    const container = document.getElementById('monthly-table-body');
-    if (!container) return;
+        const start = Number(document.getElementById('recon-start-cash').value) || 0;
 
-    let sales = db.orders.reduce((sum, o) => sum + Number(o.TotalAmount || 0), 0);
-    container.innerHTML = `
-        <tr>
-            <td class="p-4 font-semibold text-slate-700">${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</td>
-            <td class="p-4">${db.orders.length}</td>
-            <td class="p-4 text-right font-mono font-bold text-indigo-600">₱${sales.toFixed(2)}</td>
-        </tr>
-    `;
-}
+        const sales = Number(document.getElementById('recon-sales').value) || 0;
 
-async function registerEmployee() {
-    const id = document.getElementById('reg-emp-id').value.trim();
-    const name = document.getElementById('reg-emp-name').value.trim();
-    const role = document.getElementById('reg-emp-role').value;
-    const password = document.getElementById('reg-emp-pass').value.trim();
+        const actual = Number(document.getElementById('recon-actual').value) || 0;
 
-    if (!id || !name || !password) return showToast("Complete all inputs.", "warning");
+        const discrepancy = actual - (start + sales);
 
-    const payload = { action: "saveEmployee", id, name, role, password };
 
-    try {
-        const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
-        const res = await response.json();
-        if (res.status === "SUCCESS") {
-            showToast("Staff profile created successfully!");
-            await fetchAllData();
-            navigateView('register');
+
+        const payload = {
+
+            action: "closeShift",
+
+            employee: activeUser ? activeUser.name : "System",
+
+            startCash: start,
+
+            systemSales: sales,
+
+            actualCash: actual,
+
+            discrepancy: discrepancy
+
+        };
+
+
+
+        try {
+
+            const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+
+            const res = await response.json();
+
+            if (res.status === "SUCCESS") {
+
+                showToast("Shift logged! Clearing session terminal.");
+
+                logout();
+
+            }
+
+        } catch (err) {
+
+            showToast("Verification failed. Check network link.", "error");
+
         }
-    } catch(e) { showToast("Staff creation failed.", "error"); }
-}
 
-async function addInventoryItem() {
-    const id = document.getElementById('add-inv-id').value.trim();
-    const name = document.getElementById('add-inv-name').value.trim();
-    const category = document.getElementById('add-inv-cat').value.trim();
-    const price = Number(document.getElementById('add-inv-price').value);
-    const stock = Number(document.getElementById('add-inv-stock').value);
-
-    if (!id || !name || !category) return showToast("Please fill all properties.", "warning");
-
-    const payload = { action: "addInventory", id, name, category, price, stock };
-
-    try {
-        const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
-        const res = await response.json();
-        if (res.status === "SUCCESS") {
-            showToast("Product added to live sheet!");
-            await fetchAllData();
-            renderMenu();
-            navigateView('register');
-        }
-    } catch(e) { showToast("Could not submit item.", "error"); }
-}
-
-function loadUpdateSelect() {
-    const select = document.getElementById('edit-select-prod');
-    if (!select) return;
-
-    select.innerHTML = '<option value="">-- Choose Product --</option>' + 
-        db.inventory.map(i => `<option value="${i.ItemID}">${i.ItemName}</option>`).join('');
-}
-
-function populateEditForm() {
-    const id = document.getElementById('edit-select-prod').value;
-    const fields = document.getElementById('edit-form-fields');
-    
-    if (!id) {
-        if (fields) fields.classList.add('hidden');
-        return;
     }
 
-    const item = db.inventory.find(i => i.ItemID == id);
-    if (!item) return;
 
-    document.getElementById('edit-inv-name').value = item.ItemName || "";
-    document.getElementById('edit-inv-cat').value = item.Category || item.category || "";
-    document.getElementById('edit-inv-price').value = item.Price || 0;
-    document.getElementById('edit-inv-stock').value = item.StockQuantity !== undefined ? item.StockQuantity : (item.stock || 0);
 
-    if (fields) fields.classList.remove('hidden');
-}
+    // Ledgers, Management and Graphing Admin Commands
 
-async function submitProductUpdate() {
-    const id = document.getElementById('edit-select-prod').value;
-    const name = document.getElementById('edit-inv-name').value.trim();
-    const category = document.getElementById('edit-inv-cat').value.trim();
-    const price = Number(document.getElementById('edit-inv-price').value);
-    const stock = Number(document.getElementById('edit-inv-stock').value);
+    function renderDailyLedger() {
 
-    const payload = { action: "updateProduct", id, name, category, price, stock };
+        const container = document.getElementById('daily-table-body');
 
-    try {
-        const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
-        const res = await response.json();
-        if (res.status === "SUCCESS") {
-            showToast("Metadata committed successfully.");
-            await fetchAllData();
-            renderMenu();
-            navigateView('register');
+        if (!container) return;
+
+
+
+        const todayStr = new Date().toDateString();
+
+        const todayOrders = db.orders.filter(o => new Date(o.Timestamp).toDateString() === todayStr);
+
+
+
+        if (todayOrders.length === 0) {
+
+            container.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">No transactions logged today.</td></tr>`;
+
+            return;
+
         }
-    } catch(e) { showToast("Product updates failed.", "error"); }
-}
 
-let basketTotalSum = 0; // Tracking variable for basket totals
 
-function calculateChange() {
+
+        container.innerHTML = todayOrders.map(o => `
+
+            <tr>
+
+                <td class="p-4 font-mono text-xs">${new Date(o.Timestamp).toLocaleTimeString()}</td>
+
+                <td class="p-4 font-bold text-slate-700">${o.OrderID}</td>
+
+                <td class="p-4">${o.EmployeeName}</td>
+
+                <td class="p-4 text-right font-mono font-bold text-slate-800">₱${Number(o.TotalAmount).toFixed(2)}</td>
+
+            </tr>
+
+        `).join('');
+
+    }
+
+
+
+    function renderWeeklyLedger() {
+
+        const container = document.getElementById('weekly-table-body');
+
+        if (!container) return;
+
+
+
+        let sales = db.orders.reduce((sum, o) => sum + Number(o.TotalAmount || 0), 0);
+
+        container.innerHTML = `
+
+            <tr>
+
+                <td class="p-4 font-semibold text-slate-700">Current Week (Rolling)</td>
+
+                <td class="p-4">${db.orders.length}</td>
+
+                <td class="p-4 text-right font-mono font-bold text-emerald-600">₱${sales.toFixed(2)}</td>
+
+            </tr>
+
+        `;
+
+    }
+
+
+
+    function renderMonthlyLedger() {
+
+        const container = document.getElementById('monthly-table-body');
+
+        if (!container) return;
+
+
+
+        let sales = db.orders.reduce((sum, o) => sum + Number(o.TotalAmount || 0), 0);
+
+        container.innerHTML = `
+
+            <tr>
+
+                <td class="p-4 font-semibold text-slate-700">${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</td>
+
+                <td class="p-4">${db.orders.length}</td>
+
+                <td class="p-4 text-right font-mono font-bold text-indigo-600">₱${sales.toFixed(2)}</td>
+
+            </tr>
+
+        `;
+
+    }
+
+
+
+    async function registerEmployee() {
+
+        const id = document.getElementById('reg-emp-id').value.trim();
+
+        const name = document.getElementById('reg-emp-name').value.trim();
+
+        const role = document.getElementById('reg-emp-role').value;
+
+        const password = document.getElementById('reg-emp-pass').value.trim();
+
+
+
+        if (!id || !name || !password) return showToast("Complete all inputs.", "warning");
+
+
+
+        const payload = { action: "saveEmployee", id, name, role, password };
+
+
+
+        try {
+
+            const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+
+            const res = await response.json();
+
+            if (res.status === "SUCCESS") {
+
+                showToast("Staff profile created successfully!");
+
+                await fetchAllData();
+
+                navigateView('register');
+
+            }
+
+        } catch(e) { showToast("Staff creation failed.", "error"); }
+
+    }
+
+
+
+    async function addInventoryItem() {
+
+        const id = document.getElementById('add-inv-id').value.trim();
+
+        const name = document.getElementById('add-inv-name').value.trim();
+
+        const category = document.getElementById('add-inv-cat').value.trim();
+
+        const price = Number(document.getElementById('add-inv-price').value);
+
+        const stock = Number(document.getElementById('add-inv-stock').value);
+
+
+
+        if (!id || !name || !category) return showToast("Please fill all properties.", "warning");
+
+
+
+        const payload = { action: "addInventory", id, name, category, price, stock };
+
+
+
+        try {
+
+            const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+
+            const res = await response.json();
+
+            if (res.status === "SUCCESS") {
+
+                showToast("Product added to live sheet!");
+
+                await fetchAllData();
+
+                renderMenu();
+
+                navigateView('register');
+
+            }
+
+        } catch(e) { showToast("Could not submit item.", "error"); }
+
+    }
+
+
+
+    function loadUpdateSelect() {
+
+        const select = document.getElementById('edit-select-prod');
+
+        if (!select) return;
+
+
+
+        select.innerHTML = '<option value="">-- Choose Product --</option>' + 
+
+            db.inventory.map(i => `<option value="${i.ItemID}">${i.ItemName}</option>`).join('');
+
+    }
+
+
+
+    function populateEditForm() {
+
+        const id = document.getElementById('edit-select-prod').value;
+
+        const fields = document.getElementById('edit-form-fields');
+
+        
+
+        if (!id) {
+
+            if (fields) fields.classList.add('hidden');
+
+            return;
+
+        }
+
+
+
+        const item = db.inventory.find(i => i.ItemID == id);
+
+        if (!item) return;
+
+
+
+        document.getElementById('edit-inv-name').value = item.ItemName || "";
+
+        document.getElementById('edit-inv-cat').value = item.Category || item.category || "";
+
+        document.getElementById('edit-inv-price').value = item.Price || 0;
+
+        document.getElementById('edit-inv-stock').value = item.StockQuantity !== undefined ? item.StockQuantity : (item.stock || 0);
+
+
+
+        if (fields) fields.classList.remove('hidden');
+
+    }
+
+
+
+    async function submitProductUpdate() {
+
+        const id = document.getElementById('edit-select-prod').value;
+
+        const name = document.getElementById('edit-inv-name').value.trim();
+
+        const category = document.getElementById('edit-inv-cat').value.trim();
+
+        const price = Number(document.getElementById('edit-inv-price').value);
+
+        const stock = Number(document.getElementById('edit-inv-stock').value);
+
+
+
+        const payload = { action: "updateProduct", id, name, category, price, stock };
+
+
+
+        try {
+
+            const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+
+            const res = await response.json();
+
+            if (res.status === "SUCCESS") {
+
+                showToast("Metadata committed successfully.");
+
+                await fetchAllData();
+
+                renderMenu();
+
+                navigateView('register');
+
+            }
+
+        } catch(e) { showToast("Product updates failed.", "error"); }
+
+    }
+
+
+
+       let basketTotalSum = 0; // Tracking variable for basket totals
+
+
+
+   function calculateChange() {
+
     const cashInput = document.getElementById('cash-tendered');
+
     const changeDisplay = document.getElementById('customer-change');
+
     const totalDisplay = document.getElementById('basket-total');
+
     
+
     if (!cashInput || !changeDisplay) return;
 
+
+
     // 1. Get Cash Tendered
+
     const cashValue = parseFloat(cashInput.value);
+
     
+
     // If no cash is entered yet, reset display to ₱0.00
+
     if (isNaN(cashValue) || cashValue <= 0) {
+
         changeDisplay.innerText = "₱0.00";
+
         changeDisplay.className = "text-sm font-mono font-bold text-slate-400";
+
         return;
+
     }
+
+
 
     // 2. Get the Current Total (pull dynamically from basket variable OR the UI element)
+
     let currentTotal = 0;
+
     if (typeof activeCart !== 'undefined') {
+
         // Pull directly from your active array memory (Recommended)
+
         currentTotal = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
     } else if (totalDisplay) {
+
         // Fallback: Scraping the text on screen & removing the Currency Symbol
+
         currentTotal = parseFloat(totalDisplay.innerText.replace(/[^0-9.]/g, '')) || 0;
+
     }
+
+
 
     // 3. Compute the Difference (Cash Received - Total)
+
     const difference = cashValue - currentTotal;
+
     
+
     // 4. Update UI styling and text dynamically
+
     if (difference < 0) {
+
         // If they paid less than the total, show remaining amount in RED with a minus sign
+
         changeDisplay.innerText = `-₱${Math.abs(difference).toFixed(2)}`;
+
         changeDisplay.className = "text-sm font-mono font-bold text-red-500";
+
     } else {
+
         // If they paid enough, show the positive change in Green
+
         changeDisplay.innerText = `₱${difference.toFixed(2)}`;
+
         changeDisplay.className = "text-sm font-mono font-bold text-emerald-600";
+
     }
+
 }
+
+
 
 // Hook into your custom renderCart() / basket UI updating routine to reset math inputs
+
 function onBasketUpdated(newTotal) {
+
     basketTotalSum = newTotal;
+
     
+
     // Reset cash tendered inputs whenever items are cleared out entirely
+
     if (basketTotalSum === 0) {
+
         const cashInput = document.getElementById('cash-tendered');
+
         if (cashInput) cashInput.value = '';
+
     }
+
     
+
     calculateChange();
+
 }
 
-function renderReprintTable() {
-    const container = document.getElementById('reprint-table-body');
-    if (!container) return;
 
-    container.innerHTML = db.orders.map(o => `
-        <tr>
-            <td class="p-4 font-mono text-xs font-bold">${o.OrderID}</td>
-            <td class="p-4 text-xs">${new Date(o.Timestamp).toLocaleString()}</td>
-            <td class="p-4 font-mono font-semibold">₱${Number(o.TotalAmount).toFixed(2)}</td>
-            <td class="p-4 text-right">
-                <button onclick="reprintOrder('${o.OrderID}')" class="bg-amber-800 text-white text-xs px-3 py-1.5 rounded hover:bg-amber-900 transition">Print Copy</button>
-            </td>
-        </tr>
-    `).join('');
-}
 
-function reprintOrder(id) {
+    function renderReprintTable() {
+
+        const container = document.getElementById('reprint-table-body');
+
+        if (!container) return;
+
+
+
+        container.innerHTML = db.orders.map(o => `
+
+            <tr>
+
+                <td class="p-4 font-mono text-xs font-bold">${o.OrderID}</td>
+
+                <td class="p-4 text-xs">${new Date(o.Timestamp).toLocaleString()}</td>
+
+                <td class="p-4 font-mono font-semibold">₱${Number(o.TotalAmount).toFixed(2)}</td>
+
+                <td class="p-4 text-right">
+
+                    <button onclick="reprintOrder('${o.OrderID}')" class="bg-amber-800 text-white text-xs px-3 py-1.5 rounded hover:bg-amber-900 transition">Print Copy</button>
+
+                </td>
+
+            </tr>
+
+        `).join('');
+
+    }
+
+
+
+    function reprintOrder(id) {
+
     const order = db.orders.find(o => o.OrderID === id);
+
     if (!order) {
+
         showToast("Order history item not found.", "error");
+
         return;
+
     }
+
     
+
     const items = safeParseJSON(order.ItemsOrdered);
+
     
+
     const payload = { 
+
         employee: order.EmployeeName || "System", 
+
         items: items, 
+
         total: Number(order.TotalAmount) || 0,
+
         // Pull payment details if saved in your database, otherwise fall back to total
+
         cashTendered: Number(order.CashTendered || order.TotalAmount || 0),
+
         change: Number(order.ChangeDue || order.Change || 0)
+
     };
+
     
+
     // Pass the original order ID back to print thermal receipt
+
     printThermalReceipt(payload, order.OrderID);
+
     showToast("Receipt copy sent to print spool.", "success");
+
 }
 
-function renderCharts() {
-    const categories = {};
-    db.orders.forEach(o => {
-        const items = safeParseJSON(o.ItemsOrdered);
-        items.forEach(i => {
-            const catName = i.Category || i.category || "General";
-            categories[catName] = (categories[catName] || 0) + (Number(i.price) * Number(i.quantity));
-        });
-    });
 
-    const pieCanvas = document.getElementById('pieChart');
-    if (pieCanvas) {
-        const pieCtx = pieCanvas.getContext('2d');
-        if (analyticsCharts.pie) analyticsCharts.pie.destroy();
-        analyticsCharts.pie = new Chart(pieCtx, {
-            type: 'doughnut',
-            data: {
-                labels: Object.keys(categories),
-                datasets: [{
-                    data: Object.values(categories),
-                    backgroundColor: ['#b45309', '#f59e0b', '#3b82f6', '#10b981', '#ec4899']
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
+
+    function renderCharts() {
+
+        const categories = {};
+
+        db.orders.forEach(o => {
+
+            const items = safeParseJSON(o.ItemsOrdered);
+
+            items.forEach(i => {
+
+                const catName = i.Category || i.category || "General";
+
+                categories[catName] = (categories[catName] || 0) + (Number(i.price) * Number(i.quantity));
+
+            });
+
         });
+
+
+
+        const pieCanvas = document.getElementById('pieChart');
+
+        if (pieCanvas) {
+
+            const pieCtx = pieCanvas.getContext('2d');
+
+            if (analyticsCharts.pie) analyticsCharts.pie.destroy();
+
+            analyticsCharts.pie = new Chart(pieCtx, {
+
+                type: 'doughnut',
+
+                data: {
+
+                    labels: Object.keys(categories),
+
+                    datasets: [{
+
+                        data: Object.values(categories),
+
+                        backgroundColor: ['#b45309', '#f59e0b', '#3b82f6', '#10b981', '#ec4899']
+
+                    }]
+
+                },
+
+                options: { responsive: true, maintainAspectRatio: false }
+
+            });
+
+        }
+
+
+
+        const trendCanvas = document.getElementById('trendChart');
+
+        if (trendCanvas) {
+
+            const trendCtx = trendCanvas.getContext('2d');
+
+            if (analyticsCharts.trend) analyticsCharts.trend.destroy();
+
+            analyticsCharts.trend = new Chart(trendCtx, {
+
+                type: 'line',
+
+                data: {
+
+                    labels: db.orders.map(o => new Date(o.Timestamp).toLocaleDateString()),
+
+                    datasets: [{
+
+                        label: 'Revenue Timeline',
+
+                        data: db.orders.map(o => Number(o.TotalAmount)),
+
+                        borderColor: '#92400e',
+
+                        fill: false
+
+                    }]
+
+                },
+
+                options: { responsive: true, maintainAspectRatio: false }
+
+            });
+
+        }
+
     }
 
-    const trendCanvas = document.getElementById('trendChart');
-    if (trendCanvas) {
-        const trendCtx = trendCanvas.getContext('2d');
-        if (analyticsCharts.trend) analyticsCharts.trend.destroy();
-        analyticsCharts.trend = new Chart(trendCtx, {
-            type: 'line',
-            data: {
-                labels: db.orders.map(o => new Date(o.Timestamp).toLocaleDateString()),
-                datasets: [{
-                    label: 'Revenue Timeline',
-                    data: db.orders.map(o => Number(o.TotalAmount)),
-                    borderColor: '#92400e',
-                    fill: false
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
-    }
-}
 
-window.onload = initApp;
+
+    window.onload = initApp;
 </script>
 </body>
 </html>
