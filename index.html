@@ -24,10 +24,37 @@
             background-size: cover;
             background-position: center;
         }
-        
+
+        /* Start both interfaces completely hidden to prevent visual flashing on load */
+        #login-screen, #app-wrapper {
+            display: none !important;
+        }
+
+        /* Let tailwind/JS classes override this once the session status is resolved */
+        #login-screen:not(.hidden), #app-wrapper:not(.hidden) {
+            display: block !important;
+        }
     </style>
 </head>
 <body class="bg-slate-50 font-sans h-screen overflow-hidden flex flex-col">
+
+    <script>
+        // INSTANT SESSION CHECK: Runs immediately before the DOM paints to prevent flashes
+        (function() {
+            try {
+                const saved = localStorage.getItem('logged_user');
+                if (saved) {
+                    // Inject a temporary inline rule to force show the App Wrapper instantly
+                    document.write('<style>#app-wrapper { display: block !important; }</style>');
+                } else {
+                    // Inject a temporary inline rule to force show the Login Screen instantly
+                    document.write('<style>#login-screen { display: block !important; }</style>');
+                }
+            } catch (e) {
+                document.write('<style>#login-screen { display: block !important; }</style>');
+            }
+        })();
+    </script>
 
     <!-- ================= MODERN TOAST CONTAINER ================= -->
     <div id="toast-container" class="fixed top-5 right-5 z-[1000] flex flex-col gap-3 pointer-events-none"></div>
@@ -84,7 +111,7 @@
                 <span id="connection-status" class="bg-emerald-600 px-2 py-0.5 rounded text-[10px] font-bold">Online</span>
             </div>
 
-            <!-- Switch tabs links (Scrollable internally if screen is tiny, but fixed container) -->
+            <!-- Switch tabs links -->
             <nav class="flex-1 p-4 space-y-1 text-sm overflow-y-auto">
                 <!-- Employee Nav Items -->
                 <div class="space-y-1" id="emp-nav-links">
@@ -131,23 +158,23 @@
                 </div>
             </header>
 
-            <!-- Dashboard Inner Content Container (Scrollable or Layout Bound) -->
+            <!-- Dashboard Inner Content Container -->
             <div class="p-6 flex-1 overflow-y-auto h-full min-h-0">
                 
-                <!-- VIEW: REGISTER (Adjusted Heights and Scrolling Context) -->
+                <!-- VIEW: REGISTER -->
                 <div id="view-register" class="view-block grid grid-cols-1 lg:grid-cols-3 gap-6 h-full max-h-[calc(100vh-120px)] overflow-hidden">
                     
-                    <!-- Menu Layout (Fixed box bounds) -->
+                    <!-- Menu Layout -->
                     <div class="lg:col-span-2 h-full flex flex-col min-h-0">
                         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col h-full overflow-hidden">
-                            <!-- Category Filter Panel (Fixed Header inside Menu Box) -->
+                            <!-- Category Filter Panel -->
                             <div class="p-6 pb-2 flex-shrink-0">
                                 <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
                                     <h2 class="text-md font-bold text-slate-800">Heritage Menu Selection</h2>
                                     <span class="text-xs text-orange-600 bg-orange-50 px-3 py-1 rounded-full font-bold self-start sm:self-auto" id="low-stock-alert">Loading Stock Monitor...</span>
                                 </div>
 
-                                <!-- Horizontal Scrollable Category Tab Bar (Fixed relative to table) -->
+                                <!-- Horizontal Scrollable Category Tab Bar -->
                                 <div class="flex gap-2 overflow-x-auto pb-3 mb-2 scrollbar-thin border-b border-slate-100 flex-shrink-0" id="category-tab-bar">
                                     <!-- Dynamic categories inject here -->
                                 </div>
@@ -173,7 +200,7 @@
                         </div>
                     </div>
 
-                    <!-- Transaction Sidebar (Fully Fixed / Internal Scroll basket) -->
+                    <!-- Transaction Sidebar -->
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between h-full overflow-hidden min-h-0">
                         <!-- Top Header and Basket List Section -->
                         <div class="p-6 flex flex-col flex-1 overflow-hidden min-h-0">
@@ -185,7 +212,7 @@
                             <div id="basket-list" class="flex-1 space-y-3 overflow-y-auto pr-2 min-h-0"></div>
                         </div>
                         
-                        <!-- Checkout Math Controls (Bottom Fixed Container) -->
+                        <!-- Checkout Math Controls -->
                         <div class="border-t border-slate-100 p-6 bg-slate-50 flex-shrink-0 space-y-4">
                             <!-- Totals Display -->
                             <div class="flex justify-between text-md font-bold text-slate-700">
@@ -376,11 +403,8 @@
         </main>
     </div>
 
-    <!-- Hidden Printable Node Container for Thermal Output -->
+    <!-- Hidden Printable Node Container for Thermal Output (Keep Only One) -->
     <div id="receipt-print-zone" class="hidden"></div>
-    <!-- Hidden Printable Node Container for Thermal Output -->
-    <div id="receipt-print-zone" class="hidden"></div>
-    
     
     <!-- CORE LOGIC & ROUTING ENGINE -->
    <script>
@@ -397,6 +421,45 @@
         await fetchAllData();
         checkAutoLogin();
     }
+
+       // Run as soon as your main JS executes
+checkAutoLogin();
+
+function checkAutoLogin() {
+    const saved = localStorage.getItem('logged_user');
+    if (saved) {
+        try {
+            activeUser = JSON.parse(saved);
+            
+            // Re-sync states
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('app-wrapper').classList.remove('hidden');
+            
+            // Populate Sticky Nav details
+            document.getElementById('topbar-user-name').innerText = activeUser.name;
+            document.getElementById('topbar-user-role').innerText = activeUser.role;
+
+            if (activeUser.role && activeUser.role.toLowerCase() === 'admin') {
+                document.getElementById('admin-nav-links').classList.remove('hidden');
+            } else {
+                document.getElementById('admin-nav-links').classList.add('hidden');
+            }
+
+            // Standard layout load tasks
+            navigateView('register');
+            calculateShiftSales();
+            renderMenu();
+            
+        } catch (e) {
+            console.error("Error parsing auto-login cache:", e);
+            logout();
+        }
+    } else {
+        // Safe fallback: No user active, clean up layout states
+        document.getElementById('login-screen').classList.remove('hidden');
+        document.getElementById('app-wrapper').classList.add('hidden');
+    }
+}
 
     function updateSystemDate() {
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
