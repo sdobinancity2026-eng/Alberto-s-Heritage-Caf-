@@ -1121,29 +1121,58 @@ function calculateDrawerDiscrepancy(systemSales = null) {
 }
 
 async function submitShiftReconciliation() {
-    const start = Number(document.getElementById('recon-start-cash').value) || 0;
-    const sales = Number(document.getElementById('recon-sales').value) || 0;
-    const actual = Number(document.getElementById('recon-actual').value) || 0;
-    const discrepancy = actual - (start + sales);
+    // 1. Gather elements safely
+    const startCashEl = document.getElementById('start-cash');
+    const actualCashEl = document.getElementById('actual-cash');
+    const salesFieldEl = document.getElementById('recon-sales');
+
+    // 2. Alert you immediately if an element is completely missing from your HTML
+    if (!startCashEl || !actualCashEl || !salesFieldEl) {
+        console.error("Reconciliation Elements Missing:", {
+            'start-cash': startCashEl,
+            'actual-cash': actualCashEl,
+            'recon-sales': salesFieldEl
+        });
+        alert("System Error: One or more input fields are missing from the HTML structure. Please check the console (F12) for details.");
+        return; 
+    }
+
+    // 3. Extract values safely now that we know they exist
+    const employee = activeUser ? activeUser.name : "Employee";
+    const startCash = parseFloat(startCashEl.value) || 0;
+    const actualCash = parseFloat(actualCashEl.value) || 0;
+    const systemSales = parseFloat(salesFieldEl.value) || 0;
+    
+    const expectedDrawerCash = startCash + systemSales;
+    const discrepancy = actualCash - expectedDrawerCash;
 
     const payload = {
         action: "closeShift",
-        employee: activeUser ? activeUser.name : "System",
-        startCash: start,
-        systemSales: sales,
-        actualCash: actual,
+        employee: employee,
+        startCash: startCash,
+        systemSales: systemSales,
+        actualCash: actualCash,
         discrepancy: discrepancy
     };
 
     try {
-        const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
-        const res = await response.json();
-        if (res.status === "SUCCESS") {
-            showToast("Shift logged! Clearing session terminal.");
-            logout();
+        const response = await fetch(SCRIPT_URL, {
+            method: "POST",
+            mode: "cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+
+        if (data.status === "SUCCESS") {
+            showToast("Shift closed and reconciled successfully!", "success");
+            logout(); 
+        } else {
+            showToast("Error closing shift: " + data.message, "error");
         }
     } catch (err) {
-        showToast("Verification failed. Check network link.", "error");
+        console.error("Failed to close shift online:", err);
+        showToast("Network connection lost. Please try again.", "error");
     }
 }
 
