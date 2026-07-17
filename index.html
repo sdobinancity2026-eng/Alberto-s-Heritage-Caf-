@@ -355,25 +355,14 @@
                 </button>
             </div>
             
-            <!-- Standard Category Dropdown -->
-            <select 
-                id="catalog-category-select" 
-                class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-slate-500"
-                onchange="autoAssignProductID()"
-            >
-                <option value="">-- Choose Category Tab --</option>
-                <option value="MainCourse">MainCourse</option>
-                <option value="Pasta">Pasta</option>
-                <option value="Pizza">Pizza</option>
-                <option value="Sandwiches">Sandwiches</option>
-                <option value="Dessert">Dessert</option>
-                <option value="Beverages">Beverages</option>
-                <option value="FilipinoSetMeals">FilipinoSetMeals</option>
-                <option value="AllDayBfast">AllDayBfast</option>
-                <option value="Salad">Salad</option>
-                <option value="Soup">Soup</option>
-                <option value="Appetizer">Appetizer</option>
-            </select>
+                            <!-- Standard Category Dropdown (Now Dynamic) -->
+                <select 
+                    id="catalog-category-select" 
+                    class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-slate-500"
+                    onchange="autoAssignProductID()"
+                >
+                    <option value="">-- Choose Category Tab --</option>
+                </select>
 
             <!-- Hidden Input for Brand New Tab Name -->
             <input 
@@ -2076,7 +2065,8 @@ function autoAssignProductID() {
     idInput.value = `${prefix}-${tempUniqueSuffix}`;
 }
 // Automatically checks and restores the user session on manual page reload
-window.addEventListener('DOMContentLoaded', () => {
+// Note the addition of "async" right here before the arrow function!
+window.addEventListener('DOMContentLoaded', async () => {
     const savedUser = localStorage.getItem('logged_user');
     
     if (savedUser) {
@@ -2090,9 +2080,14 @@ window.addEventListener('DOMContentLoaded', () => {
                 // Trigger your existing initialization chain
                 authorizedSessionStart();
                 
-                // OPTIONAL: Pull fresh database values right away so the UI is up-to-date
+                // Pull fresh database values right away so the UI is up-to-date
                 if (typeof fetchDatabase === 'function') {
-                    fetchDatabase();
+                    await fetchDatabase(); // Added "await" so it finishes downloading first
+                    
+                    // Automatically builds your dynamic dropdown & category filter pills
+                    if (typeof populateDynamicCategories === 'function') {
+                        populateDynamicCategories(); 
+                    }
                 }
             }
         } catch (e) {
@@ -2101,6 +2096,90 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
+    function populateDynamicCategories() {
+    // 1. Gather all unique categories present in your loaded db
+    // This assumes your product objects have a 'category' or 'Category' field.
+    const categoriesSet = new Set();
+    
+    if (db && db.products) {
+        db.products.forEach(item => {
+            const cat = item.Category || item.category || item.categoryTab;
+            if (cat) categoriesSet.add(cat.trim());
+        });
+    }
+
+    const uniqueCategories = Array.from(categoriesSet).sort();
+
+    // 2. Dynamically Populate the Catalog Category Dropdown
+    const selectEl = document.getElementById('catalog-category-select');
+    if (selectEl) {
+        // Clear old dynamic options, saving only the default first option
+        selectEl.innerHTML = '<option value="">-- Choose Category Tab --</option>';
+        
+        uniqueCategories.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat;
+            opt.textContent = cat;
+            selectEl.appendChild(opt);
+        });
+    }
+
+    // 3. Dynamically Populate the Heritage Menu Selection Filter Pills
+    // This looks for your filter bar container (usually a flex or grid row of pills)
+    const filterContainer = document.querySelector('.heritage-filter-container') || document.getElementById('menu-category-tabs'); 
+    if (filterContainer) {
+        // Keep the "Show All" button, clear the rest
+        filterContainer.innerHTML = `
+            <button onclick="filterCategory('all')" class="bg-amber-800 text-white font-semibold px-4 py-2 rounded-full text-xs transition-all shadow-md">
+                🌐 Show All
+            </button>
+        `;
+
+        uniqueCategories.forEach(cat => {
+            const btn = document.createElement('button');
+            btn.className = "bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-full text-xs transition-all";
+            // Strip spaces for function calls if needed, or pass directly
+            btn.onclick = () => filterCategory(cat);
+            btn.textContent = cat;
+            filterContainer.appendChild(btn);
+        });
+    }
+}
+    async function deductStockFromSheet(basketItems) {
+    // Expects basketItems to be an array of objects: [{ itemId: "MA0001", quantity: 2 }, ...]
+    const payload = {
+        action: "deductStock",
+        itemsSold: basketItems.map(item => ({
+            itemId: item.itemId || item.id,
+            category: item.category || item.Category,
+            qty: parseInt(item.quantity || item.qty || 1, 10)
+        }))
+    };
+
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: "POST",
+            mode: "cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+
+        if (data.status === "SUCCESS") {
+            console.log("Stock successfully deducted from spreadsheet.");
+            // Refresh local db and re-render UI to display new stock numbers immediately
+            if (typeof fetchDatabase === 'function') {
+                await fetchDatabase();
+                populateDynamicCategories();
+                if (typeof renderMenu === 'function') renderMenu();
+            }
+        } else {
+            console.error("Stock deduction warning:", data.message);
+        }
+    } catch (err) {
+        console.error("Network error attempting to deduct stock:", err);
+    }
+}
 
 
 </script>
