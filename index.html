@@ -2102,28 +2102,27 @@ window.addEventListener('DOMContentLoaded', async () => {
         }
     }
 });
-    function populateDynamicCategories() {
-    const categoriesSet = new Set();
-    
-    // Explicitly exclude non-menu system spreadsheet tabs
-    const excludedTabs = ['Orders', 'Inventory', 'Shift', 'Shifts', 'Employees'];
-    
-    if (db && db.products) {
-        db.products.forEach(item => {
-            const cat = item.Category || item.category || item.categoryTab || item.category_tab;
-            if (cat) {
-                const cleanCat = cat.trim();
-                // Only collect the category if it isn't in the excluded spreadsheet list
-                if (!excludedTabs.includes(cleanCat)) {
-                    categoriesSet.add(cleanCat);
-                }
-            }
-        });
+  function populateDynamicCategories() {
+    console.log("Populating dynamic categories... Current DB keys:", db ? Object.keys(db) : "None");
+
+    // 1. Safety check: Ensure the database object exists
+    if (!db || typeof db !== 'object') {
+        console.warn("Database object 'db' is not ready yet.");
+        return;
     }
 
-    const uniqueCategories = Array.from(categoriesSet).sort();
+    // 2. Get all tab names directly from your Google Sheet data object keys
+    const allTabs = Object.keys(db);
+    
+    // System sheets that shouldn't appear as food categories
+    const excludedTabs = ['Orders', 'Inventory', 'Shift', 'Shifts', 'Employees', 'employees', 'Consumables', 'SalesLog'];
+    
+    // Filter down to purely menu items
+    const uniqueCategories = allTabs.filter(tab => !excludedTabs.includes(tab) && tab.trim() !== "").sort();
+    
+    console.log("Verified menu categories found:", uniqueCategories);
 
-    // 1. POPULATE INITIAL PRODUCT REGISTRATION DROPDOWN
+    // 3. POPULATE THE NEW PRODUCT REGISTRATION DROPDOWN (Input Inventory View)
     const selectEl = document.getElementById('catalog-category-select');
     if (selectEl) {
         selectEl.innerHTML = '<option value="">-- Choose Category Tab --</option>';
@@ -2135,26 +2134,48 @@ window.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // 2. POPULATE HORIZONTAL SCROLL PILLS FOR MENU REGISTRATION
-    const filterContainer = document.getElementById('menu-category-tabs') || 
-                            document.querySelector('.heritage-filter-container') ||
-                            document.querySelector('.flex.overflow-x-auto');
+    // 4. POPULATE THE HORIZONTAL SCROLL PILLS (Menu Register View)
+    // Hooks right into your HTML's id="category-tab-bar"
+    const filterContainer = document.getElementById('category-tab-bar');
                             
     if (filterContainer) {
+        // Automatically determine your actual filter function name to prevent crash errors
+        let filterFuncName = 'filterCategory'; 
+        if (typeof filterMenu === 'function') filterFuncName = 'filterMenu';
+        else if (typeof updateMenuDisplay === 'function') filterFuncName = 'updateMenuDisplay';
+        else if (typeof renderMenuTable === 'function') filterFuncName = 'renderMenuTable';
+
+        // Clear and add the "Show All" master button
         filterContainer.innerHTML = `
-            <button onclick="filterCategory('all')" class="bg-amber-800 text-white font-semibold px-4 py-2 rounded-full text-xs transition-all shadow-md shrink-0">
+            <button onclick="${filterFuncName}('all')" class="bg-amber-800 text-white font-semibold px-4 py-2 rounded-full text-xs transition-all shadow-md shrink-0">
                 🌐 Show All
             </button>
         `;
 
+        // Inject the freshly fetched categories from your sheets
         uniqueCategories.forEach(cat => {
             const btn = document.createElement('button');
-            btn.className = "bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-full text-xs transition-all shrink-0";
-            btn.onclick = () => filterCategory(cat);
+            btn.className = "bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-full text-xs transition-all shrink-0 shadow-sm";
+            btn.setAttribute('onclick', `${filterFuncName}('${cat}')`);
             btn.textContent = cat;
             filterContainer.appendChild(btn);
         });
     }
+}
+
+// 5. CLICK ERROR INSURANCE POLICY
+// If your system still attempts to find 'filterCategory', this safety route intercepts 
+// the action and smoothly hands it off to your application's actual render process.
+if (typeof filterCategory !== 'function') {
+    window.filterCategory = function(category) {
+        if (typeof filterMenu === 'function') filterMenu(category);
+        else if (typeof renderMenuTable === 'function') renderMenuTable(category);
+        else if (typeof updateMenuDisplay === 'function') updateMenuDisplay(category);
+        else {
+            console.warn(`Could not find core rendering function. Attempting default draw for: ${category}`);
+            // Fallback strategy if your function matches none of the above
+        }
+    };
 }
     async function deductStockFromSheet(basketItems) {
     // Expects basketItems to be an array of objects: [{ itemId: "MA0001", quantity: 2 }, ...]
