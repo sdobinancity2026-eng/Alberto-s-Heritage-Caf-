@@ -1893,32 +1893,29 @@ async function submitNewCatalogProduct() {
         const data = await response.json();
 
         if (data.status === "SUCCESS") {
-    showToast(`Product successfully added to ${finalCategory}!`, "success");
-    
-    // 1. Clear input forms
-    nameEl.value = "";
-    priceEl.value = "";
-    stockEl.value = "5";
-    if (isNewCategory && dynamicCategoryInput) {
-        dynamicCategoryInput.value = "";
-        toggleNewCategoryField(false); 
-    }
-    
-    // 2. TRIGGER REAL-TIME REFRESH
-    // This pulls fresh data from your Apps Script and updates the UI instantly
-    if (typeof fetchDatabase === 'function') {
-        await fetchDatabase(); 
-    } else if (typeof loadDashboardData === 'function') {
-        // If your loader function has a different name, call it here instead
-        await loadDashboardData();
-    }
-    
-    // 3. Keep the auto-ID engine moving
-    autoAssignProductID();
-}
+            showToast(`Product successfully added to ${finalCategory}!`, "success");
+            
+            // 1. Clear input forms
+            nameEl.value = "";
+            priceEl.value = "";
+            stockEl.value = "5";
+            if (isNewCategory && dynamicCategoryInput) {
+                dynamicCategoryInput.value = "";
+                toggleNewCategoryField(false); 
+            }
+            
+            // 2. TRIGGER REAL-TIME REFRESH
+            if (typeof fetchDatabase === 'function') {
+                await fetchDatabase(); 
+            } else if (typeof loadDashboardData === 'function') {
+                await loadDashboardData();
+            }
+            
+            // 3. Keep the auto-ID engine moving
+            autoAssignProductID();
         } else {
             showToast("Failed to save product: " + data.message, "error");
-        }
+        } // <-- The outer duplicate bracket was removed here!
     } catch (err) {
         console.error("Catalog import network failure:", err);
         showToast("Server connection failed. Try again.", "error");
