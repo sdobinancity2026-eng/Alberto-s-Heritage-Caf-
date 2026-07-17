@@ -2102,27 +2102,37 @@ window.addEventListener('DOMContentLoaded', async () => {
         }
     }
 });
-  function populateDynamicCategories() {
+ function populateDynamicCategories() {
     console.log("Populating dynamic categories... Current DB keys:", db ? Object.keys(db) : "None");
 
-    // 1. Safety check: Ensure the database object exists
     if (!db || typeof db !== 'object') {
         console.warn("Database object 'db' is not ready yet.");
         return;
     }
 
-    // 2. Get all tab names directly from your Google Sheet data object keys
-    const allTabs = Object.keys(db);
+    // 1. Collect all tab categories from the database keys or active inventory
+    let allTabs = [];
+    if (Array.isArray(db.inventory)) {
+        // If your database structure stores categories inside the inventory objects:
+        allTabs = [...new Set(db.inventory.map(item => item.Category || item.category))];
+    } else {
+        // Fallback to general database keys
+        allTabs = Object.keys(db);
+    }
     
-    // System sheets that shouldn't appear as food categories
-    const excludedTabs = ['Orders', 'Inventory', 'Shift', 'Shifts', 'Employees', 'employees', 'Consumables', 'SalesLog'];
+    // 2. Define the administrative blocklist (all lowercase)
+    const excludedTabs = ['orders', 'inventory', 'employees', 'shift', 'shifts', 'consumables', 'saleslog', 'settings'];
     
-    // Filter down to purely menu items
-    const uniqueCategories = allTabs.filter(tab => !excludedTabs.includes(tab) && tab.trim() !== "").sort();
+    // Filter out empty rows and anything matching our admin list
+    const uniqueCategories = allTabs.filter(tab => {
+        if (!tab) return false;
+        const lowerTab = tab.toLowerCase().trim();
+        return lowerTab !== "" && !excludedTabs.includes(lowerTab);
+    }).sort();
     
-    console.log("Verified menu categories found:", uniqueCategories);
+    console.log("Verified food categories to display:", uniqueCategories);
 
-    // 3. POPULATE THE NEW PRODUCT REGISTRATION DROPDOWN (Input Inventory View)
+    // 3. POPULATE DROPDOWN (Input Inventory View)
     const selectEl = document.getElementById('catalog-category-select');
     if (selectEl) {
         selectEl.innerHTML = '<option value="">-- Choose Category Tab --</option>';
@@ -2134,25 +2144,20 @@ window.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // 4. POPULATE THE HORIZONTAL SCROLL PILLS (Menu Register View)
-    // Hooks right into your HTML's id="category-tab-bar"
+    // 4. POPULATE HORIZONTAL PILLS (Menu Register View)
     const filterContainer = document.getElementById('category-tab-bar');
-                            
     if (filterContainer) {
-        // Automatically determine your actual filter function name to prevent crash errors
         let filterFuncName = 'filterCategory'; 
         if (typeof filterMenu === 'function') filterFuncName = 'filterMenu';
         else if (typeof updateMenuDisplay === 'function') filterFuncName = 'updateMenuDisplay';
         else if (typeof renderMenuTable === 'function') filterFuncName = 'renderMenuTable';
 
-        // Clear and add the "Show All" master button
         filterContainer.innerHTML = `
             <button onclick="${filterFuncName}('all')" class="bg-amber-800 text-white font-semibold px-4 py-2 rounded-full text-xs transition-all shadow-md shrink-0">
                 🌐 Show All
             </button>
         `;
 
-        // Inject the freshly fetched categories from your sheets
         uniqueCategories.forEach(cat => {
             const btn = document.createElement('button');
             btn.className = "bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-full text-xs transition-all shrink-0 shadow-sm";
@@ -2161,21 +2166,6 @@ window.addEventListener('DOMContentLoaded', async () => {
             filterContainer.appendChild(btn);
         });
     }
-}
-
-// 5. CLICK ERROR INSURANCE POLICY
-// If your system still attempts to find 'filterCategory', this safety route intercepts 
-// the action and smoothly hands it off to your application's actual render process.
-if (typeof filterCategory !== 'function') {
-    window.filterCategory = function(category) {
-        if (typeof filterMenu === 'function') filterMenu(category);
-        else if (typeof renderMenuTable === 'function') renderMenuTable(category);
-        else if (typeof updateMenuDisplay === 'function') updateMenuDisplay(category);
-        else {
-            console.warn(`Could not find core rendering function. Attempting default draw for: ${category}`);
-            // Fallback strategy if your function matches none of the above
-        }
-    };
 }
     async function deductStockFromSheet(basketItems) {
     // Expects basketItems to be an array of objects: [{ itemId: "MA0001", quantity: 2 }, ...]
