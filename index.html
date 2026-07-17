@@ -830,7 +830,8 @@ function evaluateStartingCashAccess() {
         if (hintMessage) hintMessage.classList.remove('hidden');
     }
 }
-          // Standard Navigation Controller
+
+// Standard Navigation Controller
 // Standard Navigation Controller
 function navigateView(viewName) {
     // 1. Toggle visibility of all views
@@ -858,7 +859,7 @@ function navigateView(viewName) {
         'admin-monthly': 'Monthly Sales Auditing',
         'admin-employees': 'Register System Staff',
         'admin-inventory': 'Import New Inventory',
-        'admin-consumables': 'Consumables & Raw Storage Stock', // Added title
+        'admin-consumables': 'Consumables & Raw Storage Stock', 
         'admin-update': 'Edit Product Metadata',
         'admin-reprint': 'Reprint Receipt Archive',
         'admin-analytics': 'Sales Charts & Business Analytics'
@@ -866,6 +867,11 @@ function navigateView(viewName) {
     const titleEl = document.getElementById('header-view-title');
     if (titleEl) {
         titleEl.innerText = titleMap[viewName] || 'Dashboard';
+    }
+
+    // 🌟 New: Dynamically rebuild category elements whenever visiting key views
+    if ((viewName === 'register' || viewName === 'admin-inventory') && typeof populateDynamicCategories === 'function') {
+        populateDynamicCategories();
     }
 
     // 4. Trigger specific actions depending on which view is being loaded
@@ -877,7 +883,7 @@ function navigateView(viewName) {
     if (viewName === 'admin-weekly' && typeof renderWeeklyLedger === 'function') renderWeeklyLedger();
     if (viewName === 'admin-monthly' && typeof renderMonthlyLedger === 'function') renderMonthlyLedger();
     if (viewName === 'admin-inventory' && typeof autoAssignProductID === 'function') autoAssignProductID();
-    if (viewName === 'admin-consumables' && typeof renderConsumables === 'function') renderConsumables(); // Added trigger
+    if (viewName === 'admin-consumables' && typeof renderConsumables === 'function') renderConsumables(); 
     if (viewName === 'admin-update' && typeof loadUpdateSelect === 'function') loadUpdateSelect();
     if (viewName === 'admin-reprint' && typeof renderReprintTable === 'function') renderReprintTable();
     if (viewName === 'admin-analytics' && typeof renderCharts === 'function') renderCharts();
@@ -2097,25 +2103,30 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 });
     function populateDynamicCategories() {
-    // 1. Gather all unique categories present in your loaded db
-    // This assumes your product objects have a 'category' or 'Category' field.
     const categoriesSet = new Set();
+    
+    // Explicitly exclude non-menu system spreadsheet tabs
+    const excludedTabs = ['Orders', 'Inventory', 'Shift', 'Shifts', 'Employees'];
     
     if (db && db.products) {
         db.products.forEach(item => {
-            const cat = item.Category || item.category || item.categoryTab;
-            if (cat) categoriesSet.add(cat.trim());
+            const cat = item.Category || item.category || item.categoryTab || item.category_tab;
+            if (cat) {
+                const cleanCat = cat.trim();
+                // Only collect the category if it isn't in the excluded spreadsheet list
+                if (!excludedTabs.includes(cleanCat)) {
+                    categoriesSet.add(cleanCat);
+                }
+            }
         });
     }
 
     const uniqueCategories = Array.from(categoriesSet).sort();
 
-    // 2. Dynamically Populate the Catalog Category Dropdown
+    // 1. POPULATE INITIAL PRODUCT REGISTRATION DROPDOWN
     const selectEl = document.getElementById('catalog-category-select');
     if (selectEl) {
-        // Clear old dynamic options, saving only the default first option
         selectEl.innerHTML = '<option value="">-- Choose Category Tab --</option>';
-        
         uniqueCategories.forEach(cat => {
             const opt = document.createElement('option');
             opt.value = cat;
@@ -2124,21 +2135,21 @@ window.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // 3. Dynamically Populate the Heritage Menu Selection Filter Pills
-    // This looks for your filter bar container (usually a flex or grid row of pills)
-    const filterContainer = document.querySelector('.heritage-filter-container') || document.getElementById('menu-category-tabs'); 
+    // 2. POPULATE HORIZONTAL SCROLL PILLS FOR MENU REGISTRATION
+    const filterContainer = document.getElementById('menu-category-tabs') || 
+                            document.querySelector('.heritage-filter-container') ||
+                            document.querySelector('.flex.overflow-x-auto');
+                            
     if (filterContainer) {
-        // Keep the "Show All" button, clear the rest
         filterContainer.innerHTML = `
-            <button onclick="filterCategory('all')" class="bg-amber-800 text-white font-semibold px-4 py-2 rounded-full text-xs transition-all shadow-md">
+            <button onclick="filterCategory('all')" class="bg-amber-800 text-white font-semibold px-4 py-2 rounded-full text-xs transition-all shadow-md shrink-0">
                 🌐 Show All
             </button>
         `;
 
         uniqueCategories.forEach(cat => {
             const btn = document.createElement('button');
-            btn.className = "bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-full text-xs transition-all";
-            // Strip spaces for function calls if needed, or pass directly
+            btn.className = "bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-full text-xs transition-all shrink-0";
             btn.onclick = () => filterCategory(cat);
             btn.textContent = cat;
             filterContainer.appendChild(btn);
