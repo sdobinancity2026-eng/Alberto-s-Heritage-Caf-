@@ -564,7 +564,7 @@
     
     const API_URL = "https://script.google.com/macros/s/AKfycbxulPl24lg5hJS8a_5KuXPxUH7usUHHpl-JqdASVCFHiG0PTej7GaGFZoSKNY-dOvD-Uw/exec";
     const SCRIPT_URL = API_URL;
-        
+    let activeUser = null; // Make sure this is globally accessible in your script
     // ==========================================
     // 1. GLOBAL STATE & CONFIG CONSTANTS
     // ==========================================
@@ -1894,26 +1894,29 @@ async function submitNewCatalogProduct() {
         const data = await response.json();
 
         if (data.status === "SUCCESS") {
-            showToast(`Product successfully added to ${finalCategory}!`, "success");
-            
-            // Clear inputs
-            nameEl.value = "";
-            priceEl.value = "";
-            stockEl.value = "5";
-            if (isNewCategory && dynamicCategoryInput) {
-                dynamicCategoryInput.value = "";
-                toggleNewCategoryField(false); // Switch back to dropdown
-            }
-            
-            // Refresh local database
-            if (typeof fetchDatabase === 'function') {
-                await fetchDatabase();
-            }
-            
-            // Update to next available auto ID
-            if (typeof autoAssignProductID === 'function') {
-                autoAssignProductID();
-            }
+    showToast(`Product successfully added to ${finalCategory}!`, "success");
+    
+    // 1. Clear input forms
+    nameEl.value = "";
+    priceEl.value = "";
+    stockEl.value = "5";
+    if (isNewCategory && dynamicCategoryInput) {
+        dynamicCategoryInput.value = "";
+        toggleNewCategoryField(false); 
+    }
+    
+    // 2. TRIGGER REAL-TIME REFRESH
+    // This pulls fresh data from your Apps Script and updates the UI instantly
+    if (typeof fetchDatabase === 'function') {
+        await fetchDatabase(); 
+    } else if (typeof loadDashboardData === 'function') {
+        // If your loader function has a different name, call it here instead
+        await loadDashboardData();
+    }
+    
+    // 3. Keep the auto-ID engine moving
+    autoAssignProductID();
+}
         } else {
             showToast("Failed to save product: " + data.message, "error");
         }
@@ -2076,7 +2079,32 @@ function autoAssignProductID() {
     
     idInput.value = `${prefix}-${tempUniqueSuffix}`;
 }
-
+// Automatically checks and restores the user session on manual page reload
+window.addEventListener('DOMContentLoaded', () => {
+    const savedUser = localStorage.getItem('logged_user');
+    
+    if (savedUser) {
+        try {
+            // Parse the stored object back into memory
+            activeUser = JSON.parse(savedUser);
+            
+            if (activeUser && activeUser.name) {
+                console.log(`Session restored for: ${activeUser.name} (${activeUser.role})`);
+                
+                // Trigger your existing initialization chain
+                authorizedSessionStart();
+                
+                // OPTIONAL: Pull fresh database values right away so the UI is up-to-date
+                if (typeof fetchDatabase === 'function') {
+                    fetchDatabase();
+                }
+            }
+        } catch (e) {
+            console.error("Failed to parse restored user session:", e);
+            localStorage.removeItem('logged_user'); // Clean up corrupt data
+        }
+    }
+});
 
 
 </script>
