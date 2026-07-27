@@ -2561,30 +2561,60 @@ function saveAdminPettyCashAllocation() {
 
 // 4. Auto-update Cashier Reconciliation screen based on logged-in user
 function updateCashierReconciliationDisplay() {
+    // 1. Get currently logged-in employee name
     const currentStaffElement = document.getElementById('topbar-user-name');
     const currentStaffName = currentStaffElement ? currentStaffElement.innerText.trim() : "";
 
-    // Find petty cash assigned to logged-in user
-    const startingCash = window.employeeStartingCashAllocations[currentStaffName] || 0;
+    let startingCash = 0;
 
-    // Update starting cash display
+    // Check 1: Check if current shift session object has start cash
+    if (typeof currentShiftSession !== 'undefined' && currentShiftSession && currentShiftSession.startCash) {
+        startingCash = parseFloat(currentShiftSession.startCash) || 0;
+    }
+
+    // Check 2: Find active shift record in db.shifts matching this employee
+    if (startingCash === 0 && typeof db !== 'undefined' && Array.isArray(db.shifts)) {
+        const userShift = db.shifts.find(s => {
+            const empName = s.EmployeeName || s.employeeName || s.Name || "";
+            const status = String(s.Status || s.status || "").toLowerCase();
+            return empName.toLowerCase() === currentStaffName.toLowerCase() && status !== "closed";
+        });
+
+        if (userShift) {
+            startingCash = parseFloat(userShift.StartCash || userShift.startCash || userShift.StartingCash || 0);
+        }
+    }
+
+    // Check 3: Check local admin allocations memory
+    if (startingCash === 0 && window.employeeStartingCashAllocations) {
+        startingCash = parseFloat(window.employeeStartingCashAllocations[currentStaffName] || 0);
+    }
+
+    // Update starting cash display on screen
     const startDisplay = document.getElementById('recon-starting-cash-display');
-    if (startDisplay) startDisplay.innerText = `₱${startingCash.toFixed(2)}`;
+    if (startDisplay) {
+        startDisplay.innerText = `₱${startingCash.toFixed(2)}`;
+    }
 
-    // Get shift sales
+    // Update logged shift sales
     const currentShiftSales = typeof calculateShiftSales === 'function' ? calculateShiftSales() : 0;
-    
     const salesInput = document.getElementById('recon-sales');
-    if (salesInput) salesInput.value = currentShiftSales.toFixed(2);
+    if (salesInput) {
+        salesInput.value = currentShiftSales.toFixed(2);
+    }
 
-    // Calculate Expected Total = Petty Cash + Shift Sales
+    // Calculate Expected Total = Assigned Petty Cash + Current Shift Sales
     const expectedTotal = startingCash + currentShiftSales;
     const expectedEl = document.getElementById('recon-expected-total');
-    if (expectedEl) expectedEl.innerText = `₱${expectedTotal.toFixed(2)}`;
+    if (expectedEl) {
+        expectedEl.innerText = `₱${expectedTotal.toFixed(2)}`;
+    }
 
-    calculateDrawerDiscrepancy();
+    // Recalculate over/short discrepancy
+    if (typeof calculateDrawerDiscrepancy === 'function') {
+        calculateDrawerDiscrepancy();
+    }
 }
-
 // 5. Calculate Over/Short Discrepancy
 function calculateDrawerDiscrepancy() {
     const currentStaffElement = document.getElementById('topbar-user-name');
