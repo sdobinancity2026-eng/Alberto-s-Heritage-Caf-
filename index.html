@@ -639,23 +639,31 @@
     }
 
     async function fetchAllData() {
-        try {
-            const response = await fetch(`${API_URL}?action=getInitialData`);
-            if (!response.ok) throw new Error("Network response was not OK");
-            db = await response.json();
-            localStorage.setItem('local_db', JSON.stringify(db));
-        } catch (err) {
-            console.warn("Using offline fallback database due to:", err);
-            db = JSON.parse(localStorage.getItem('local_db')) || db;
-            
-            const connStatus = document.getElementById('connection-status');
-            if (connStatus) {
-                connStatus.innerText = "Offline Mode";
-                connStatus.className = "bg-red-600 px-2 py-0.5 rounded text-[10px] font-bold text-white";
-            }
-            showToast("System is currently offline. Using local backup database.", "warning");
+    try {
+        const response = await fetch(`${API_URL}?action=getInitialData`);
+        if (!response.ok) throw new Error("Network response was not OK");
+        db = await response.json();
+        localStorage.setItem('local_db', JSON.stringify(db));
+    } catch (err) {
+        console.warn("Using offline fallback database due to:", err);
+        db = JSON.parse(localStorage.getItem('local_db')) || db;
+        
+        const connStatus = document.getElementById('connection-status');
+        if (connStatus) {
+            connStatus.innerText = "Offline Mode";
+            connStatus.className = "bg-red-600 px-2 py-0.5 rounded text-[10px] font-bold text-white";
         }
+        showToast("System is currently offline. Using local backup database.", "warning");
     }
+
+    // 🌟 REFRESH UI COMPONENTS NOW THAT DB IS LOADED
+    if (typeof populateEmployeeAllocationDropdown === 'function') {
+        populateEmployeeAllocationDropdown();
+    }
+    if (typeof renderMenu === 'function') renderMenu();
+    if (typeof renderConsumables === 'function') renderConsumables();
+    if (typeof calculateShiftSales === 'function') calculateShiftSales();
+}
 
     // Safe JSON Parsing helper to protect reprint flows
     function safeParseJSON(data) {
@@ -889,7 +897,12 @@ function navigateView(viewName) {
 
     // 4. Trigger specific actions depending on which view is being loaded
     if (viewName === 'reconcile') {
-        evaluateStartingCashAccess(); // Lock/unlock rules run dynamically
+        if (typeof evaluateStartingCashAccess === 'function') evaluateStartingCashAccess(); // Lock/unlock rules run dynamically
+        
+        // 👥 Populate the staff allocation dropdown every time the reconciliation view is opened
+        if (typeof populateEmployeeAllocationDropdown === 'function') {
+            populateEmployeeAllocationDropdown();
+        }
     }
     if (viewName === 'admin-daily' && typeof renderDailyLedger === 'function') renderDailyLedger();
     if (viewName === 'admin-weekly' && typeof renderWeeklyLedger === 'function') renderWeeklyLedger();
@@ -1783,32 +1796,41 @@ function populateEmployeeAllocationDropdown() {
 
     let staffList = [];
 
-    // Check if local db has the employees list loaded
-    if (typeof db !== 'undefined' && db.employees && Array.isArray(db.employees)) {
+    // Check if db.employees exists and has data
+    if (typeof db !== 'undefined' && Array.isArray(db.employees) && db.employees.length > 0) {
         staffList = db.employees
             .map(emp => {
                 if (!emp) return null;
-                
-                // 1. Get employee name (checks all potential property variations)
-                const name = emp.name || emp.Name || emp.EmployeeName || emp["Employee Name"] || emp.FullName || "";
-                
-                // 2. Get employee role (checks all potential property variations)
-                const role = (emp.role || emp.Role || emp.RoleType || emp.Position || "").toString().toLowerCase().trim();
 
-                // Optional: Exclude super-admins if needed, or return all names
-                // If you want to show ALL employees from the sheet, simply return the name:
-                return name ? name.trim() : null;
+                // Case A: Object format (e.g., { Name: "Kevin Fuentes", Role: "Admin" })
+                if (typeof emp === 'object' && !Array.isArray(emp)) {
+                    const name = emp.Name || emp.name || emp.EmployeeName || emp["Employee Name"] || emp.FullName;
+                    return name ? String(name).trim() : null;
+                }
+
+                // Case B: 2D Array format (e.g., ["A0001", "Kevin Fuentes", "Admin"])
+                if (Array.isArray(emp) && emp.length > 1) {
+                    // Skip header row if present
+                    if (String(emp[0]).toLowerCase().includes('id') || String(emp[1]).toLowerCase().includes('name')) {
+                        return null;
+                    }
+                    return String(emp[1]).trim(); // Column B is Name
+                }
+
+                return null;
             })
-            .filter(Boolean); // Removes null / empty values
-    } else if (window.employeeStartingCashAllocations) {
-        // Fallback: Use local allocations if db is not ready
+            .filter(Boolean); // Remove empty/null items
+    } 
+    
+    // Fallback: Check local memory allocations if db is empty
+    if (staffList.length === 0 && window.employeeStartingCashAllocations) {
         staffList = Object.keys(window.employeeStartingCashAllocations);
     }
 
-    // Clean up: Remove duplicates
+    // Remove duplicate names
     staffList = [...new Set(staffList)];
 
-    // Populate dropdown options
+    // Build the dropdown options
     staffList.forEach(name => {
         const option = document.createElement('option');
         option.value = name;
@@ -1816,7 +1838,7 @@ function populateEmployeeAllocationDropdown() {
         dropdown.appendChild(option);
     });
 
-    // Re-select previously selected employee if applicable
+    // Restore selected value
     if (selectedValue && staffList.includes(selectedValue)) {
         dropdown.value = selectedValue;
     }
