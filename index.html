@@ -699,7 +699,7 @@
         showToast("System is currently offline. Using local backup database.", "warning");
     }
 
-    // 🌟 REFRESH UI COMPONENTS NOW THAT DATA IS IN MEMORY
+    // Refresh UI components now that data is in memory
     if (typeof populateAdminPettyCashDropdown === 'function') {
         populateAdminPettyCashDropdown();
     }
@@ -712,15 +712,6 @@
     if (typeof calculateShiftSales === 'function') {
         calculateShiftSales();
     }
-}
-
-    // 🌟 REFRESH UI COMPONENTS NOW THAT DB IS LOADED
-    if (typeof populateEmployeeAllocationDropdown === 'function') {
-        populateEmployeeAllocationDropdown();
-    }
-    if (typeof renderMenu === 'function') renderMenu();
-    if (typeof renderConsumables === 'function') renderConsumables();
-    if (typeof calculateShiftSales === 'function') calculateShiftSales();
 }
 
     // Safe JSON Parsing helper to protect reprint flows
@@ -2476,7 +2467,7 @@ function populateAdminPettyCashDropdown() {
     const panel = document.getElementById('admin-petty-cash-panel');
     const dropdown = document.getElementById('admin-petty-employee-select');
 
-    // 1. Get user role safely (handles "Admin", "ADMIN", "admin")
+    // 1. Get user role safely
     const currentUserRole = (typeof activeUser !== 'undefined' && activeUser && activeUser.role) 
         ? String(activeUser.role).toLowerCase().trim() 
         : "";
@@ -2501,16 +2492,14 @@ function populateAdminPettyCashDropdown() {
             .map(emp => {
                 if (!emp) return null;
 
-                // Handle Object format: { Name: "Kevin Fuentes", Role: "Admin" }
                 if (typeof emp === 'object' && !Array.isArray(emp)) {
                     const name = emp.Name || emp.name || emp.EmployeeName || emp["Employee Name"] || emp.FullName;
                     return name ? String(name).trim() : null;
                 }
 
-                // Handle 2D Array format: ["A0001", "Kevin Fuentes", "Admin"]
                 if (Array.isArray(emp) && emp.length > 1) {
                     if (String(emp[0]).toLowerCase().includes('id') || String(emp[1]).toLowerCase().includes('name')) {
-                        return null; // Skip header row
+                        return null;
                     }
                     return String(emp[1]).trim();
                 }
@@ -2519,14 +2508,11 @@ function populateAdminPettyCashDropdown() {
             })
             .filter(Boolean);
     } else if (window.employeeStartingCashAllocations) {
-        // Fallback to local memory keys
         staffList = Object.keys(window.employeeStartingCashAllocations);
     }
 
-    // Clean up duplicates
     staffList = [...new Set(staffList)];
 
-    // 5. Populate dropdown options
     staffList.forEach(name => {
         const option = document.createElement('option');
         option.value = name;
@@ -2534,7 +2520,6 @@ function populateAdminPettyCashDropdown() {
         dropdown.appendChild(option);
     });
 }
-
 // 2. Load amount when selecting an employee in Admin Panel
 function loadAssignedPettyCashForSelected() {
     const dropdown = document.getElementById('admin-petty-employee-select');
