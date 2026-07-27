@@ -2042,6 +2042,7 @@ async function submitNewConsumable() {
 }
 
 // Render dynamic raw ingredient listing
+// Render dynamic raw ingredient listing
 function renderConsumables() {
     const tbody = document.getElementById('consumables-table-body');
     if (!tbody) return;
@@ -2050,13 +2051,21 @@ function renderConsumables() {
 
     if (typeof db !== 'undefined' && db.consumables && db.consumables.length > 0) {
         db.consumables.forEach(item => {
+            // Safe property checks for all field variations
+            const itemId = item.id || item.ItemID || item.Item_ID || item["Item ID"] || "-";
+            const itemName = item.name || item.ItemName || item["Consumable Name"] || item.ConsumableName || "-";
+            const stockLevel = item.stock ?? item.StockLevel ?? item.Stock ?? item["Current Stock"] ?? 0;
+            
+            // Check all common variations for the Stock Unit column
+            const unitType = item.unit || item.UnitType || item.Unit || item.StockUnit || item["Stock Unit"] || "pcs";
+
             const row = document.createElement('tr');
             row.className = "border-b border-slate-50 hover:bg-slate-50/50 transition";
             row.innerHTML = `
-                <td class="py-3 px-4 font-mono text-xs text-slate-400">${item.id || item.ItemID}</td>
-                <td class="py-3 px-4 text-slate-800">${item.name || item.ItemName}</td>
-                <td class="py-3 px-4 font-semibold text-slate-900">${item.stock || item.StockLevel}</td>
-                <td class="py-3 px-4 text-xs text-slate-500">${item.unit || item.UnitType}</td>
+                <td class="py-3 px-4 font-mono text-xs text-slate-400">${itemId}</td>
+                <td class="py-3 px-4 text-slate-800">${itemName}</td>
+                <td class="py-3 px-4 font-semibold text-slate-900">${stockLevel}</td>
+                <td class="py-3 px-4 text-xs text-slate-500">${unitType}</td>
             `;
             tbody.appendChild(row);
         });
