@@ -2666,7 +2666,7 @@ function calculateDrawerDiscrepancy() {
     }
 }
 
-    async function confirmEndShift() {
+   async function confirmEndShift() {
     const actualInput = document.getElementById('recon-actual');
     const actualCash = parseFloat(actualInput ? actualInput.value : 0);
 
@@ -2689,18 +2689,19 @@ function calculateDrawerDiscrepancy() {
     const expectedTotal = startCash + currentSales;
     const discrepancy = actualCash - expectedTotal;
 
-    // 4. UI Feedback: Disable button and show loading notification
+    // 4. UI Feedback
     const btn = document.getElementById('btn-confirm-end-shift');
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = `<span class="animate-spin">⏳</span> Processing End of Shift...`;
+        btn.innerHTML = `<span class="animate-spin">⏳</span> Closing Shift...`;
     }
 
-    showToast("Submitting shift reconciliation to server...", "info");
+    showToast("Reconciling and closing shift in Google Sheets...", "info");
 
     const payload = {
         action: "closeShift",
         employee: employeeName,
+        date: new Date().toISOString(), // Passed for date matching
         startCash: startCash,
         systemSales: currentSales,
         actualCash: actualCash,
@@ -2720,14 +2721,12 @@ function calculateDrawerDiscrepancy() {
         if (result && (result.status === "SUCCESS" || result.status === "success")) {
             showToast("Shift closed and reconciled successfully!", "success");
             
-            // Clear inputs
             if (actualInput) actualInput.value = "";
             
-            // Sync database and return to main register
             if (typeof fetchAllData === 'function') await fetchAllData();
             if (typeof navigateView === 'function') navigateView('register');
         } else {
-            showToast("Shift saved locally, but server returned an issue.", "warning");
+            showToast("Saved locally, but server returned an issue.", "warning");
         }
     } catch (err) {
         console.error("Shift reconciliation error:", err);
@@ -2739,7 +2738,6 @@ function calculateDrawerDiscrepancy() {
         }
     }
 }
-
 </script>
 </body>
 </html>
