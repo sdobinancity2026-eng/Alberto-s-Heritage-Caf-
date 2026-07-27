@@ -1040,6 +1040,25 @@ function logout() {
         renderCart();
     }
 
+    // Remove a specific item index from the active order basket
+function removeFromCart(index) {
+    if (typeof activeCart !== 'undefined' && activeCart.length > index) {
+        // Remove 1 item at the specified index
+        activeCart.splice(index, 1);
+        
+        // Re-render the cart UI and update totals
+        if (typeof renderCart === 'function') {
+            renderCart();
+        } else if (typeof updateCartUI === 'function') {
+            updateCartUI();
+        }
+        
+        if (typeof showToast === 'function') {
+            showToast("Item removed from basket", "info");
+        }
+    }
+}
+
     function renderCart() {
         const container = document.getElementById('basket-list');
         if (!container) return;
