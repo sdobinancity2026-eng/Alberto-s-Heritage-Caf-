@@ -940,13 +940,19 @@ function navigateView(viewName) {
 
     // 4. Trigger specific actions depending on which view is being loaded
     if (viewName === 'reconcile') {
-        if (typeof evaluateStartingCashAccess === 'function') evaluateStartingCashAccess(); // Lock/unlock rules run dynamically
-        
-        // 👥 Populate the staff allocation dropdown every time the reconciliation view is opened
-        if (typeof populateEmployeeAllocationDropdown === 'function') {
-            populateEmployeeAllocationDropdown();
+        // 💰 Auto-calculate Petty Cash + Shift Sales for the logged-in Cashier
+        if (typeof updateCashierReconciliationDisplay === 'function') {
+            updateCashierReconciliationDisplay();
         }
     }
+
+    if (viewName === 'admin-employees') {
+        // 👥 Populate Admin Petty Cash Allocation employee dropdown
+        if (typeof populateAdminPettyCashDropdown === 'function') {
+            populateAdminPettyCashDropdown();
+        }
+    }
+
     if (viewName === 'admin-daily' && typeof renderDailyLedger === 'function') renderDailyLedger();
     if (viewName === 'admin-weekly' && typeof renderWeeklyLedger === 'function') renderWeeklyLedger();
     if (viewName === 'admin-monthly' && typeof renderMonthlyLedger === 'function') renderMonthlyLedger();
