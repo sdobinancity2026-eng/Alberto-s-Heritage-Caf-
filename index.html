@@ -2532,10 +2532,10 @@ function loadAssignedPettyCashForSelected() {
 }
 
 // 3. Admin saves petty cash for selected staff member
-function saveAdminPettyCashAllocation() {
-    // Admin role safeguard
+async function saveAdminPettyCashAllocation() {
+    // 1. Role verification
     const currentUserRole = (typeof activeUser !== 'undefined' && activeUser && activeUser.role) 
-        ? activeUser.role.toLowerCase() 
+        ? String(activeUser.role).toLowerCase().trim() 
         : "";
 
     if (currentUserRole !== 'admin') {
@@ -2552,111 +2552,102 @@ function saveAdminPettyCashAllocation() {
     const empName = dropdown.value;
     const amount = parseFloat(amountInput.value) || 0;
 
-    // Save allocation
+    // Show immediate local confirmation UI
+    window.employeeStartingCashAllocations = window.employeeStartingCashAllocations || {};
     window.employeeStartingCashAllocations[empName] = amount;
     localStorage.setItem('pettyCashAllocations', JSON.stringify(window.employeeStartingCashAllocations));
 
-    showToast(`Assigned ₱${amount.toFixed(2)} petty cash to ${empName}`, "success");
-}
+    // Disable button while sending request to Google Sheets
+    const saveBtn = document.activeElement;
+    if (saveBtn) saveBtn.disabled = true;
 
+    showToast(`Saving petty cash for ${empName}...`, "info");
+
+    try {
+        const payload = {
+            action: 'assignPettyCash',
+            employeeName: empName,
+            startCash: amount,
+            date: new Date().toLocaleString()
+        };
+
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (result && (result.status === 'success' || result.success)) {
+            showToast(`Assigned ₱${amount.toFixed(2)} petty cash to ${empName}`, "success");
+            
+            // Re-fetch database from Google Sheets to ensure db.shifts is fresh
+            if (typeof fetchAllData === 'function') {
+                await fetchAllData();
+            }
+        } else {
+            showToast("Saved locally, but failed to sync to Google Sheets.", "warning");
+        }
+    } catch (err) {
+        console.error("Error saving petty cash to sheet:", err);
+        showToast("Network error: Saved to local backup only.", "warning");
+    } finally {
+        if (saveBtn) saveBtn.disabled = false;
+    }
+}
 // 4. Auto-update Cashier Reconciliation screen based on logged-in user
 function updateCashierReconciliationDisplay() {
-    // 1. Get logged-in employee name
     const currentStaffElement = document.getElementById('topbar-user-name');
     const currentStaffName = currentStaffElement ? currentStaffElement.innerText.trim() : "";
 
     let startingCash = 0;
 
-    // Check 1: Active session memory
-    if (typeof currentShiftSession !== 'undefined' && currentShiftSession && currentShiftSession.startCash) {
-        startingCash = parseFloat(currentShiftSession.startCash) || 0;
-    }
-
-    // Check 2: Parse db.shifts from Google Sheets
-    if (startingCash === 0 && typeof db !== 'undefined' && Array.isArray(db.shifts) && db.shifts.length > 0) {
-        
-        // Find matching shifts for the current logged-in user or get the latest shift entry
+    // 1. Read from db.shifts (Matches active open shift for logged-in employee)
+    if (typeof db !== 'undefined' && Array.isArray(db.shifts)) {
         const userShifts = db.shifts.filter(s => {
             if (!s) return false;
+            let emp = "";
+            let status = "";
 
-            // Handle Object format { EmployeeName: "Kristine Reyes", StartCash: 2000 }
             if (typeof s === 'object' && !Array.isArray(s)) {
-                const emp = s.EmployeeName || s.employeeName || s.Name || s.employee || "";
-                return emp.toString().toLowerCase().trim() === currentStaffName.toLowerCase().trim();
+                emp = s.EmployeeName || s.employeeName || s.Name || "";
+                status = String(s.Status || s.status || "").toLowerCase();
+            } else if (Array.isArray(s) && s.length > 1) {
+                emp = String(s[1] || "");
+                status = String(s[7] || "").toLowerCase();
             }
 
-            // Handle Raw Array format ["SHFT-123", "Kristine Reyes", "7/27/2026", 2000, ...]
-            if (Array.isArray(s) && s.length > 3) {
-                const emp = String(s[1] || "");
-                return emp.toLowerCase().trim() === currentStaffName.toLowerCase().trim();
-            }
-
-            return false;
+            return emp.toLowerCase().trim() === currentStaffName.toLowerCase().trim() && status !== "closed";
         });
 
         if (userShifts.length > 0) {
-            // Get the last shift record for this user
-            const latestShift = userShifts[userShifts.length - 1];
-
-            if (typeof latestShift === 'object' && !Array.isArray(latestShift)) {
-                startingCash = parseFloat(
-                    latestShift.StartCash ?? 
-                    latestShift.startCash ?? 
-                    latestShift.StartingCash ?? 
-                    latestShift["Start Cash"] ?? 
-                    0
-                ) || 0;
-            } else if (Array.isArray(latestShift)) {
-                // Column D (index 3) is StartCash
-                startingCash = parseFloat(latestShift[3]) || 0;
-            }
-        } else {
-            // Check 2B: Fallback — if no specific employee match, check the latest global shift row in the sheet
-            const lastGlobalShift = db.shifts[db.shifts.length - 1];
-            if (lastGlobalShift) {
-                if (typeof lastGlobalShift === 'object' && !Array.isArray(lastGlobalShift)) {
-                    startingCash = parseFloat(
-                        lastGlobalShift.StartCash ?? lastGlobalShift.startCash ?? 0
-                    ) || 0;
-                } else if (Array.isArray(lastGlobalShift) && lastGlobalShift.length > 3) {
-                    // Skip header row if selected
-                    if (!String(lastGlobalShift[0]).toLowerCase().includes("shiftid")) {
-                        startingCash = parseFloat(lastGlobalShift[3]) || 0;
-                    }
-                }
+            const activeShift = userShifts[userShifts.length - 1];
+            if (typeof activeShift === 'object' && !Array.isArray(activeShift)) {
+                startingCash = parseFloat(activeShift.StartCash ?? activeShift.startCash ?? 0) || 0;
+            } else if (Array.isArray(activeShift)) {
+                startingCash = parseFloat(activeShift[3]) || 0;
             }
         }
     }
 
-    // Check 3: Check local Admin memory allocations
+    // 2. Fallback to local memory if shift row is not present yet
     if (startingCash === 0 && window.employeeStartingCashAllocations) {
         startingCash = parseFloat(window.employeeStartingCashAllocations[currentStaffName] || 0);
     }
 
-    // Update starting cash display
+    // Render on screen
     const startDisplay = document.getElementById('recon-starting-cash-display');
-    if (startDisplay) {
-        startDisplay.innerText = `₱${startingCash.toFixed(2)}`;
-    }
+    if (startDisplay) startDisplay.innerText = `₱${startingCash.toFixed(2)}`;
 
-    // Update current shift logged sales
     const currentShiftSales = typeof calculateShiftSales === 'function' ? calculateShiftSales() : 0;
     const salesInput = document.getElementById('recon-sales');
-    if (salesInput) {
-        salesInput.value = currentShiftSales.toFixed(2);
-    }
+    if (salesInput) salesInput.value = currentShiftSales.toFixed(2);
 
-    // Calculate Expected Total = Starting Cash + Shift Sales
     const expectedTotal = startingCash + currentShiftSales;
     const expectedEl = document.getElementById('recon-expected-total');
-    if (expectedEl) {
-        expectedEl.innerText = `₱${expectedTotal.toFixed(2)}`;
-    }
+    if (expectedEl) expectedEl.innerText = `₱${expectedTotal.toFixed(2)}`;
 
-    // Recalculate Variance
-    if (typeof calculateDrawerDiscrepancy === 'function') {
-        calculateDrawerDiscrepancy();
-    }
+    if (typeof calculateDrawerDiscrepancy === 'function') calculateDrawerDiscrepancy();
 }
 // 5. Calculate Over/Short Discrepancy
 function calculateDrawerDiscrepancy() {
