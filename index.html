@@ -587,6 +587,34 @@
         </main>
     </div>
 
+    <!-- SET MEAL SELECTION MODAL -->
+<div id="set-meal-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 relative flex flex-col max-h-[90vh]">
+        <!-- Modal Header -->
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+            <div>
+                <h3 id="set-meal-title" class="text-lg font-bold text-slate-800">Customize Set Meal</h3>
+                <p id="set-meal-subtitle" class="text-xs text-slate-500">Select your required dishes</p>
+            </div>
+            <button onclick="closeSetMealModal()" class="text-slate-400 hover:text-slate-600 font-bold text-lg px-2">&times;</button>
+        </div>
+
+        <!-- Modal Dynamic Content -->
+        <div id="set-meal-options-container" class="space-y-6 overflow-y-auto pr-1 flex-1">
+            <!-- Options injected dynamically by JS -->
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="border-t pt-4 mt-4 flex justify-between items-center">
+            <span id="set-meal-price-display" class="font-mono font-bold text-slate-800 text-lg">₱0.00</span>
+            <div class="flex gap-2">
+                <button onclick="closeSetMealModal()" class="px-4 py-2 rounded-xl border text-slate-600 font-semibold text-xs hover:bg-slate-50">Cancel</button>
+                <button onclick="confirmSetMealSelection()" class="px-5 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition">Add Set to Order</button>
+            </div>
+        </div>
+    </div>
+</div>
+
     <!-- Hidden Printable Node Container for Thermal Output -->
     <div id="receipt-print-zone" class="hidden"></div>
     <!-- Hidden Printable Node Container for Thermal Output -->
@@ -988,88 +1016,112 @@ function logout() {
         document.getElementById('app-wrapper').classList.add('hidden');
         showToast("Successfully logged out.");
     }
-    function renderMenu() {
-        // 1. Render Category Buttons Tab Bar
-        const tabContainer = document.getElementById('category-tab-bar');
-        tabContainer.innerHTML = menuCategories.map(cat => {
-            const isActive = cat.toLowerCase() === activeCategoryTab.toLowerCase();
-            const activeClasses = "bg-amber-800 text-white font-bold shadow-sm shadow-amber-800/10";
-            const inactiveClasses = "bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 font-semibold border border-slate-200/60";
-            
-            return `
-                <button onclick="setCategoryFilter('${cat}')" class="px-4 py-2 rounded-xl text-xs whitespace-nowrap transition-all duration-200 ${isActive ? activeClasses : inactiveClasses}">
-                    ${cat === 'All' ? '🌐 Show All' : cat}
-                </button>
-            `;
-        }).join('');
-
-        // 2. Filter Database Inventory items by Category Selection
-        let filteredItems = db.inventory || [];
-        if (activeCategoryTab !== "All") {
-            filteredItems = db.inventory.filter(item => {
-                const itemCat = item.Category || item.category || "";
-                return itemCat.toLowerCase().trim() === activeCategoryTab.toLowerCase().trim();
-            });
-        }
-
-        // 3. Render Items into HTML Table
-        const tableBody = document.getElementById('menu-table-body');
+   function renderMenu() {
+    // 1. Render Category Buttons Tab Bar
+    const tabContainer = document.getElementById('category-tab-bar');
+    tabContainer.innerHTML = menuCategories.map(cat => {
+        const isActive = cat.toLowerCase() === activeCategoryTab.toLowerCase();
+        const activeClasses = "bg-amber-800 text-white font-bold shadow-sm shadow-amber-800/10";
+        const inactiveClasses = "bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 font-semibold border border-slate-200/60";
         
-        if (filteredItems.length === 0) {
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="5" class="py-12 text-center text-sm text-slate-400">
-                        No active items found under "${activeCategoryTab}".
-                    </td>
-                </tr>
-            `;
-            return;
-        }
+        return `
+            <button onclick="setCategoryFilter('${cat}')" class="px-4 py-2 rounded-xl text-xs whitespace-nowrap transition-all duration-200 ${isActive ? activeClasses : inactiveClasses}">
+                ${cat === 'All' ? '🌐 Show All' : cat}
+            </button>
+        `;
+    }).join('');
 
-        tableBody.innerHTML = filteredItems.map(item => {
-            const rawStock = item.StockQuantity !== undefined ? item.StockQuantity : (item.stock || 0);
-            const stock = Number(rawStock) || 0;
-            const isOutOfStock = stock <= 0;
-            const price = Number(item.Price) || 0;
-            
-            return `
-                <tr class="hover:bg-slate-50/50 transition">
-                    <td class="py-3.5 px-2 text-xs font-mono text-slate-400 font-medium">#${item.ItemID}</td>
-                    <td class="py-3.5 px-2">
-                        <span class="font-bold text-slate-800 text-sm block leading-tight">${item.ItemName}</span>
-                        <span class="text-[10px] text-amber-800 font-medium bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">${item.Category || item.category}</span>
-                    </td>
-                    <td class="py-3.5 px-2 text-right font-mono font-bold text-slate-700 text-sm">₱${price.toFixed(2)}</td>
-                    <td class="py-3.5 px-2 text-center">
-                        <span class="px-2 py-0.5 rounded text-[11px] font-extrabold ${stock < 10 ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-slate-100 text-slate-600'}">
-                            ${stock}
-                        </span>
-                    </td>
-                    <td class="py-3.5 px-2 text-right">
-                        <button 
-                            onclick="addToCart('${item.ItemID}')" 
-                            ${isOutOfStock ? 'disabled' : ''}
-                            class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                                isOutOfStock 
-                                ? 'bg-slate-100 text-slate-300 cursor-not-allowed' 
-                                : 'bg-amber-800 hover:bg-amber-900 text-white hover:shadow-md'
-                            }"
-                        >
-                            ${isOutOfStock ? 'Sold Out' : '＋ Add'}
-                        </button>
-                    </td>
-                </tr>
-            `;
-        }).join('');
-
-        // Update Low Stock Indicator Counter badge
-        const lowCount = db.inventory.filter(i => {
-            const stock = i.StockQuantity !== undefined ? i.StockQuantity : (i.stock || 0);
-            return Number(stock) < 10;
-        }).length;
-        document.getElementById('low-stock-alert').innerText = `${lowCount} Low Items Flagged`;
+    // 2. Filter Database Inventory items by Category Selection
+    let filteredItems = db.inventory || [];
+    if (activeCategoryTab !== "All") {
+        filteredItems = db.inventory.filter(item => {
+            const itemCat = item.Category || item.category || "";
+            return itemCat.toLowerCase().trim() === activeCategoryTab.toLowerCase().trim();
+        });
     }
 
+    // 3. Render Items into HTML Table
+    const tableBody = document.getElementById('menu-table-body');
+    
+    if (filteredItems.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="5" class="py-12 text-center text-sm text-slate-400">
+                    No active items found under "${activeCategoryTab}".
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tableBody.innerHTML = filteredItems.map(item => {
+        const rawStock = item.StockQuantity !== undefined ? item.StockQuantity : (item.stock || 0);
+        const stock = Number(rawStock) || 0;
+        const isOutOfStock = stock <= 0;
+        const price = Number(item.Price) || Number(item.price) || 0;
+        const itemCat = String(item.Category || item.category || "").toLowerCase().trim();
+        const itemName = String(item.ItemName || item.name || "").toLowerCase().trim();
+        
+        // Check if item is a Set Meal
+        const isSetMeal = itemCat.includes('filipinosetmeals') || 
+                          itemName.includes('set a') || 
+                          itemName.includes('set b') || 
+                          itemName.includes('set c');
+
+        // Create normalized object to pass into modal
+        const itemObj = JSON.stringify({
+            id: item.ItemID || item.id,
+            name: item.ItemName || item.name,
+            price: price,
+            category: item.Category || item.category
+        }).replace(/'/g, "&apos;"); // Escape single quotes for HTML attribute safety
+
+        // Choose dynamic click action
+        const clickAction = isSetMeal 
+            ? `openSetMealModal(${itemObj})` 
+            : `addToCart('${item.ItemID}')`;
+
+        return `
+            <tr class="hover:bg-slate-50/50 transition">
+                <td class="py-3.5 px-2 text-xs font-mono text-slate-400 font-medium">#${item.ItemID}</td>
+                <td class="py-3.5 px-2">
+                    <span class="font-bold text-slate-800 text-sm block leading-tight">${item.ItemName}</span>
+                    <span class="text-[10px] text-amber-800 font-medium bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">${item.Category || item.category}</span>
+                </td>
+                <td class="py-3.5 px-2 text-right font-mono font-bold text-slate-700 text-sm">₱${price.toFixed(2)}</td>
+                <td class="py-3.5 px-2 text-center">
+                    <span class="px-2 py-0.5 rounded text-[11px] font-extrabold ${stock < 10 ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-slate-100 text-slate-600'}">
+                        ${stock}
+                    </span>
+                </td>
+                <td class="py-3.5 px-2 text-right">
+                    <button 
+                        onclick="${clickAction}" 
+                        ${isOutOfStock ? 'disabled' : ''}
+                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                            isOutOfStock 
+                            ? 'bg-slate-100 text-slate-300 cursor-not-allowed' 
+                            : 'bg-amber-800 hover:bg-amber-900 text-white hover:shadow-md'
+                        }"
+                    >
+                        ${isOutOfStock ? 'Sold Out' : '＋ Add'}
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    // Update Low Stock Indicator Counter badge
+    const lowCount = db.inventory.filter(i => {
+        const stock = i.StockQuantity !== undefined ? i.StockQuantity : (i.stock || 0);
+        return Number(stock) < 10;
+    }).length;
+    
+    const lowAlertEl = document.getElementById('low-stock-alert');
+    if (lowAlertEl) {
+        lowAlertEl.innerText = `${lowCount} Low Items Flagged`;
+    }
+}
     // Tab selection click handler
     function setCategoryFilter(categoryName) {
         activeCategoryTab = categoryName;
@@ -2737,6 +2789,221 @@ function calculateDrawerDiscrepancy() {
             btn.innerHTML = `Confirm End of Shift`;
         }
     }
+}
+    // Data configurations for the set meals
+const SET_MEAL_CONFIGS = {
+    'set a': {
+        name: 'Set A (Good for 4-6 pax)',
+        groups: [
+            {
+                title: 'CHOOSE 1 NOODLE OR VEGGIE/SOUP DISH',
+                limit: 1,
+                options: [
+                    { name: 'Pancit Ulam or Pancit Canton', extra: 0 },
+                    { name: 'Tortang Talong', extra: 0 },
+                    { name: 'Lumpiang Shanghai', extra: 0 },
+                    { name: 'Chicken/Seafood Chopsuey', extra: 0 },
+                    { name: 'Pineapple Sinigang (Pork)', extra: 0 }
+                ]
+            },
+            {
+                title: 'CHOOSE 3 MAIN DISHES',
+                limit: 3,
+                options: [
+                    { name: 'Soy Garlic/Sweet & Spicy Chicken', extra: 0 },
+                    { name: 'Sizzling Korean Tofu', extra: 0 },
+                    { name: 'Bagnet Kare-Kare', extra: 0 },
+                    { name: 'Crispy Sizzling Sisig (Chicken/Pork)', extra: 0 }
+                ]
+            }
+        ]
+    },
+    'set b': {
+        name: 'Set B (Good for 6-8 pax)',
+        groups: [
+            {
+                title: 'CHOOSE ANY 5 DISHES',
+                limit: 5,
+                options: [
+                    { name: 'Pancit Ulam or Pancit Canton', extra: 0 },
+                    { name: 'Tortang Talong', extra: 0 },
+                    { name: 'Chicken/Seafood Chopsuey', extra: 0 },
+                    { name: 'Pineapple Sinigang (Pork)', extra: 0 },
+                    { name: 'Soy Garlic/Sweet & Spicy Chicken', extra: 0 },
+                    { name: 'Sizzling Korean Tofu', extra: 0 },
+                    { name: 'Bagnet Kare-Kare', extra: 0 },
+                    { name: 'Crispy Sizzling Sisig (Chicken/Pork)', extra: 0 }
+                ]
+            }
+        ]
+    },
+    'set c': {
+        name: 'Set C (Good for 8-10 pax)',
+        groups: [
+            {
+                title: 'CHOOSE 5 DISHES',
+                limit: 5,
+                options: [
+                    { name: 'Pancit Ulam or Pancit Canton', extra: 0 },
+                    { name: 'Lumpiang Shanghai', extra: 0 },
+                    { name: 'Chicken/Seafood Chopsuey', extra: 0 },
+                    { name: 'Pineapple Sinigang (Pork)', extra: 0 },
+                    { name: 'Soy Garlic/Sweet & Spicy Chicken', extra: 0 },
+                    { name: 'Sizzling Korean Tofu', extra: 0 },
+                    { name: 'Bagnet Kare-Kare', extra: 0 },
+                    { name: 'Crispy Sizzling Sisig (Chicken/Pork)', extra: 0 }
+                ]
+            },
+            {
+                title: 'CHOOSE 1 SIGNATURE MAIN',
+                limit: 1,
+                options: [
+                    { name: 'Pork/Beef Caldereta', extra: 0 },
+                    { name: 'Whole Fried Chicken', extra: 0 },
+                    { name: 'Crispy Pata', extra: 199 }
+                ]
+            }
+        ]
+    }
+};
+
+let activeSetMealItem = null; // Stores product object being customized
+
+/**
+ * Triggers when clicking "+ Add" on a Filipino Set Meal
+ */
+function openSetMealModal(item) {
+    const key = Object.keys(SET_MEAL_CONFIGS).find(k => item.name.toLowerCase().includes(k));
+    if (!key) {
+        // Fallback for non-configurable items
+        if (typeof addToCart === 'function') addToCart(item);
+        return;
+    }
+
+    activeSetMealItem = { ...item, config: SET_MEAL_CONFIGS[key] };
+    
+    document.getElementById('set-meal-title').innerText = activeSetMealItem.config.name;
+    document.getElementById('set-meal-price-display').innerText = `₱${parseFloat(item.price).toFixed(2)}`;
+    
+    const container = document.getElementById('set-meal-options-container');
+    container.innerHTML = '';
+
+    activeSetMealItem.config.groups.forEach((group, gIdx) => {
+        const groupEl = document.createElement('div');
+        groupEl.className = 'space-y-2';
+        
+        const isSingleSelect = group.limit === 1;
+        const inputType = isSingleSelect ? 'radio' : 'checkbox';
+
+        groupEl.innerHTML = `
+            <div class="flex justify-between items-center bg-slate-100 p-2 rounded-lg">
+                <h4 class="text-xs font-bold text-slate-700">${group.title}</h4>
+                <span class="text-[10px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded border" id="group-counter-${gIdx}">
+                    Selected 0 of ${group.limit}
+                </span>
+            </div>
+            <div class="grid grid-cols-1 gap-2 pt-1">
+                ${group.options.map((opt, oIdx) => `
+                    <label class="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer text-xs transition">
+                        <div class="flex items-center gap-2">
+                            <input 
+                                type="${inputType}" 
+                                name="set-group-${gIdx}" 
+                                value="${opt.name}"
+                                data-extra="${opt.extra}"
+                                onchange="updateSetMealSelections(${gIdx}, ${group.limit})"
+                                class="rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                            >
+                            <span class="font-medium text-slate-800">${opt.name}</span>
+                        </div>
+                        ${opt.extra > 0 ? `<span class="text-xs font-bold text-blue-600">+₱${opt.extra.toFixed(2)}</span>` : ''}
+                    </label>
+                `).join('')}
+            </div>
+        `;
+        container.appendChild(groupEl);
+    });
+
+    document.getElementById('set-meal-modal').classList.remove('hidden');
+}
+
+/**
+ * Validates check limits per group and updates the price total dynamically
+ */
+function updateSetMealSelections(gIdx, limit) {
+    const inputs = Array.from(document.querySelectorAll(`input[name="set-group-${gIdx}"]`));
+    const checked = inputs.filter(i => i.checked);
+
+    // Enforce max selections for multi-select checkboxes
+    if (checked.length > limit) {
+        event.target.checked = false;
+        if (typeof showToast === 'function') showToast(`You can only choose up to ${limit} items in this group.`, "warning");
+        return;
+    }
+
+    // Update group counter text
+    const counterEl = document.getElementById(`group-counter-${gIdx}`);
+    if (counterEl) counterEl.innerText = `Selected ${checked.length} of ${limit}`;
+
+    // Calculate dynamic base price + extras (e.g. +₱199 for Crispy Pata)
+    let totalExtra = 0;
+    document.querySelectorAll('#set-meal-options-container input:checked').forEach(inp => {
+        totalExtra += parseFloat(inp.getAttribute('data-extra') || 0);
+    });
+
+    const finalPrice = parseFloat(activeSetMealItem.price) + totalExtra;
+    document.getElementById('set-meal-price-display').innerText = `₱${finalPrice.toFixed(2)}`;
+}
+
+/**
+ * Validates completion and appends customized set meal to shopping cart
+ */
+function confirmSetMealSelection() {
+    const selectedDishes = [];
+    let isValid = true;
+
+    activeSetMealItem.config.groups.forEach((group, gIdx) => {
+        const checked = Array.from(document.querySelectorAll(`input[name="set-group-${gIdx}"]:checked`));
+        if (checked.length < group.limit) {
+            isValid = false;
+            if (typeof showToast === 'function') {
+                showToast(`Please complete selection for: "${group.title}"`, "warning");
+            }
+        }
+        checked.forEach(c => selectedDishes.push(c.value));
+    });
+
+    if (!isValid) return;
+
+    // Calculate final price with extras
+    let totalExtra = 0;
+    document.querySelectorAll('#set-meal-options-container input:checked').forEach(inp => {
+        totalExtra += parseFloat(inp.getAttribute('data-extra') || 0);
+    });
+
+    const finalItem = {
+        id: activeSetMealItem.id || ("SET-" + Date.now()),
+        name: `${activeSetMealItem.config.name}`,
+        price: parseFloat(activeSetMealItem.price) + totalExtra,
+        quantity: 1,
+        category: 'FilipinoSetMeals',
+        modifiers: selectedDishes // List of selected choices
+    };
+
+    // Add item to cart
+    if (typeof addToCart === 'function') {
+        addToCart(finalItem);
+    } else if (window.cart) {
+        window.cart.push(finalItem);
+        if (typeof updateCartUI === 'function') updateCartUI();
+    }
+
+    closeSetMealModal();
+}
+
+function closeSetMealModal() {
+    document.getElementById('set-meal-modal').classList.add('hidden');
+    activeSetMealItem = null;
 }
 </script>
 </body>
