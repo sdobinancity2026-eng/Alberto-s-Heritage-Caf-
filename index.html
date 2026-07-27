@@ -2972,6 +2972,7 @@ function confirmSetMealSelection() {
     const selectedDishes = [];
     let isValid = true;
 
+    // 1. Check if all required selections are made
     activeSetMealItem.config.groups.forEach((group, gIdx) => {
         const checked = Array.from(document.querySelectorAll(`input[name="set-group-${gIdx}"]:checked`));
         if (checked.length < group.limit) {
@@ -2985,29 +2986,48 @@ function confirmSetMealSelection() {
 
     if (!isValid) return;
 
-    // Calculate final price with extras
+    // 2. Calculate dynamic price add-ons (e.g., +₱199 for Crispy Pata)
     let totalExtra = 0;
     document.querySelectorAll('#set-meal-options-container input:checked').forEach(inp => {
         totalExtra += parseFloat(inp.getAttribute('data-extra') || 0);
     });
 
-    const finalItem = {
-        id: activeSetMealItem.id || ("SET-" + Date.now()),
-        name: `${activeSetMealItem.config.name}`,
-        price: parseFloat(activeSetMealItem.price) + totalExtra,
+    const finalPrice = parseFloat(activeSetMealItem.price) + totalExtra;
+
+    // 3. Construct Item Object with modifiers formatted for Basket display
+    const cartItem = {
+        ItemID: activeSetMealItem.id,
+        id: activeSetMealItem.id,
+        ItemName: `${activeSetMealItem.name} (${selectedDishes.join(', ')})`,
+        name: `${activeSetMealItem.name} (${selectedDishes.join(', ')})`,
+        Price: finalPrice,
+        price: finalPrice,
+        Quantity: 1,
         quantity: 1,
-        category: 'FilipinoSetMeals',
-        modifiers: selectedDishes // List of selected choices
+        Category: activeSetMealItem.category || 'FilipinoSetMeals',
+        category: activeSetMealItem.category || 'FilipinoSetMeals',
+        modifiers: selectedDishes
     };
 
-    // Add item to cart
+    // 4. Send to Basket/Cart
     if (typeof addToCart === 'function') {
-        addToCart(finalItem);
-    } else if (window.cart) {
-        window.cart.push(finalItem);
-        if (typeof updateCartUI === 'function') updateCartUI();
+        // Try passing the item object directly
+        addToCart(cartItem);
+    } else if (typeof addToBasket === 'function') {
+        addToBasket(cartItem);
+    } else if (window.cart && Array.isArray(window.cart)) {
+        window.cart.push(cartItem);
+    } else if (window.currentOrder && Array.isArray(window.currentOrder)) {
+        window.currentOrder.push(cartItem);
     }
 
+    // 5. Trigger Cart UI Refresh (calls common UI rendering functions if they exist)
+    if (typeof renderCart === 'function') renderCart();
+    if (typeof updateCartUI === 'function') updateCartUI();
+    if (typeof renderBasket === 'function') renderBasket();
+    if (typeof updateBasket === 'function') updateBasket();
+
+    // 6. Close Modal
     closeSetMealModal();
 }
 
