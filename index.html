@@ -1380,45 +1380,93 @@ function deductLocalStock(itemsInCart) {
 
 
     // process printing of thermal receipt
-    function printThermalReceipt(payload, serverOrderId) {
+   function printThermalReceipt(payload, serverOrderId) {
     const receipt = document.getElementById('receipt-print-zone');
     if (!receipt) {
         console.error("Receipt rendering element (#receipt-print-zone) not found!");
         return;
     }
 
-    // ✅ FIXED: Read from payload.ItemsOrdered instead of payload.items
     const itemsList = payload.ItemsOrdered || payload.items || [];
+    
+    // Process items and extract nested selections
     const itemLines = itemsList.map(item => {
-        const name = item.name.substring(0, 14).padEnd(14, ' ');
+        const rawName = item.name || item.ItemName || "";
+        let mainTitle = rawName;
+        let selections = item.modifiers || [];
+
+        // Parse title and parenthesized selections: e.g., "Set A (...) (Pancit Canton, Sisig)"
+        if (rawName.includes('(') && rawName.includes(')')) {
+            const firstParenIndex = rawName.indexOf('(');
+            const lastParenIndex = rawName.lastIndexOf(')');
+            
+            // Extract base title (e.g., "Set A")
+            mainTitle = rawName.substring(0, firstParenIndex).trim();
+            if (!mainTitle) mainTitle = "Set Meal";
+
+            // If modifiers array isn't populated, extract choices inside parentheses
+            if (!selections || selections.length === 0) {
+                const innerText = rawName.substring(firstParenIndex + 1, lastParenIndex);
+                // Check if innerText contains comma-separated selections
+                if (innerText.includes(',')) {
+                    selections = innerText.split(',').map(s => s.trim());
+                } else {
+                    selections = [innerText.trim()];
+                }
+            }
+        }
+
+        // Format main item row
+        const formattedTitle = mainTitle.padEnd(14, ' ').substring(0, 14);
         const qty = item.quantity.toString().padStart(5, ' ');
-        const price = `₱${(item.price * item.quantity).toFixed(2)}`.padStart(11, ' ');
-        return `${name}${qty}${price}`;
+        const priceVal = Number(item.price || item.Price || 0) * Number(item.quantity);
+        const formattedPrice = `₱${priceVal.toFixed(2)}`.padStart(11, ' ');
+        
+        let line = `${formattedTitle}${qty}${formattedPrice}`;
+
+        // Append each selected dish as a bulleted indented sub-line
+        if (selections && selections.length > 0) {
+            const dishLines = selections.map(dish => `   - ${dish}`).join('\n');
+            line += `\n${dishLines}`;
+        }
+
+        return line;
     }).join('\n');
 
     const finalOrderId = serverOrderId || ("ORD-" + Date.now());
-
-    // ✅ FIXED: Read from payload.TotalAmount instead of payload.total
     const totalAmount = Number(payload.TotalAmount || payload.total || 0).toFixed(2);
-    const cashReceived = Number(payload.cashTendered || 0).toFixed(2);
-    const changeDue = Number(payload.change || 0).toFixed(2);
+    const cashReceived = Number(payload.cashTendered || payload.cashReceived || 0).toFixed(2);
+    const changeDue = Number(payload.change || payload.changeDue || 0).toFixed(2);
 
     const formattedTotal = `₱${totalAmount}`.padStart(11, ' ');
     const formattedCash = `₱${cashReceived}`.padStart(11, ' ');
     const formattedChange = `₱${changeDue}`.padStart(11, ' ');
 
     receipt.innerHTML = `
-<div style="text-align: center; margin-bottom: 5px;">
-    <img src="albertos.jpg" alt="Alberto's Logo" style="display: block; margin: 0 auto; max-width: 60px; height: auto;" />
+<style>
+  @media print {
+    #receipt-print-zone img {
+      display: block !important;
+      visibility: visible !important;
+      margin: 0 auto 8px auto !important;
+      max-width: 80px !important;
+      height: auto !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+  }
+</style>
+<div style="text-align: center; margin-bottom: 8px;">
+    <img id="receipt-logo-element" src="albertos.jpg" alt="Alberto's Logo" style="display: block; margin: 0 auto; max-width: 80px; height: auto;" />
 </div>
-<pre style="font-family: monospace; font-size: 12px; line-height: 1.3; margin-top: 0; white-space: pre-wrap;">
+<pre style="font-family: monospace; font-size: 11px; line-height: 1.3; margin: 0; white-space: pre-wrap;">
      ALBERTO'S HERITAGE CAFE
 ================================
 Staff: ${payload.EmployeeName || payload.employee || 'Staff'}
 Date: ${new Date().toLocaleDateString()}
 Order ID: ${finalOrderId}
 --------------------------------
-Items          Qty   Price
+Items          Qty       Price
 --------------------------------
 ${itemLines}
 --------------------------------
@@ -1436,10 +1484,16 @@ Contact us at: 0969 299 2006
      Savor Heritage Today.
 </pre>
     `;
-    
-    window.print();
-}
 
+    // Ensure the logo image is fully buffered before calling print dialog
+    const img = document.getElementById('receipt-logo-element');
+    if (img && !img.complete) {
+        img.onload = () => setTimeout(() => window.print(), 100);
+        img.onerror = () => window.print();
+    } else {
+        setTimeout(() => window.print(), 100);
+    }
+}
     let employeePettyCash = 0;
 
 // Call this function inside your logic flow right after the staff member logs in successfully
