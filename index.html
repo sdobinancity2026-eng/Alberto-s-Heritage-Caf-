@@ -32,6 +32,9 @@
     <!-- ================= MODERN TOAST CONTAINER ================= -->
     <div id="toast-container" class="fixed top-5 right-5 z-[1000] flex flex-col gap-3 pointer-events-none"></div>
 
+    <!-- ================= MOBILE OVERLAY BACKDROP ================= -->
+    <div id="sidebar-backdrop" onclick="toggleMobileSidebar(false)" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 hidden md:hidden transition-opacity"></div>
+
     <!-- ================= AUTHENTICATION PORTAL ================= -->
     <div id="login-screen" class="fixed inset-0 login-bg flex items-center justify-center p-4 z-[999]">
         <div class="bg-white/95 backdrop-blur-md p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center space-y-6 border border-white/20">
@@ -72,19 +75,23 @@
     </div>
 
     <!-- MAIN APP WRAPPER -->
-    <div id="app-wrapper" class="hidden h-screen w-screen flex flex-col md:flex-row overflow-hidden">
+    <div id="app-wrapper" class="hidden h-screen w-screen flex flex-col md:flex-row overflow-hidden relative">
 
-        <!-- ================= SIDE NAV BAR (FIXED) ================= -->
-        <aside id="sidebar" class="bg-slate-900 text-slate-100 w-full md:w-64 flex flex-col border-r border-slate-800 flex-shrink-0 h-full">
+        <!-- ================= SIDE NAV BAR (RESPONSIVE OVERLAY ON MOBILE) ================= -->
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out bg-slate-900 text-slate-100 w-64 flex flex-col border-r border-slate-800 flex-shrink-0 h-full">
             <div class="p-4 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
                 <div class="flex items-center gap-2">
                     <img src="albertos.jpg" class="w-8 h-8 rounded-full object-cover">
                     <span class="font-black text-sm tracking-wider">ALBERTO'S</span>
                 </div>
-                <span id="connection-status" class="bg-emerald-600 px-2 py-0.5 rounded text-[10px] font-bold">Online</span>
+                <div class="flex items-center gap-2">
+                    <span id="connection-status" class="bg-emerald-600 px-2 py-0.5 rounded text-[10px] font-bold">Online</span>
+                    <!-- Close button for mobile -->
+                    <button onclick="toggleMobileSidebar(false)" class="md:hidden text-slate-400 hover:text-white text-lg p-1">✕</button>
+                </div>
             </div>
 
-            <!-- Switch tabs links (Scrollable internally if screen is tiny, but fixed container) -->
+            <!-- Switch tabs links -->
             <nav class="flex-1 p-4 space-y-1 text-sm overflow-y-auto">
                 <!-- Employee Nav Items -->
                 <div class="space-y-1" id="emp-nav-links">
@@ -105,7 +112,6 @@
                     <button onclick="navigateView('admin-monthly')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-monthly">🗓️ Monthly Sales</button>
                     <button onclick="navigateView('admin-employees')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-employees">👤 Register Employee</button>
                     <button onclick="navigateView('admin-inventory')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-inventory">📥 Input Inventory</button>
-                    <!-- 📦 NEW: Consumables Button -->
                     <button onclick="navigateView('admin-consumables')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-consumables">📦 Consumables Stock</button>
                     <button onclick="navigateView('admin-update')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-update">⚙️ Update Product</button>
                     <button onclick="navigateView('admin-reprint')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-reprint">🖨️ Reprint Receipt</button>
@@ -117,96 +123,100 @@
         <!-- ================= MAIN CORE DISPLAY ZONE ================= -->
         <main class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
 
-            <!-- ================= TOP NAV BAR (FIXED) ================= -->
-           <header class="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between flex-shrink-0">
-                <!-- Left: Page Title & Date -->
-                <div>
-                    <h1 class="text-lg font-black text-slate-800" id="header-view-title">Menu Register</h1>
-                    <p class="text-xs text-slate-400" id="header-system-date">Loading date details...</p>
+            <!-- ================= TOP NAV BAR ================= -->
+            <header class="bg-white border-b border-slate-100 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between flex-shrink-0 gap-2">
+                <!-- Left: Mobile Menu Toggle & Title -->
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleMobileSidebar(true)" class="md:hidden bg-slate-100 p-2 rounded-xl text-slate-700 hover:bg-slate-200">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                    <div>
+                        <h1 class="text-base md:text-lg font-black text-slate-800" id="header-view-title">Menu Register</h1>
+                        <p class="text-[10px] md:text-xs text-slate-400" id="header-system-date">Loading date details...</p>
+                    </div>
                 </div>
-            
-                <!-- Center: 💰 Live Shift Total Sales Badge -->
-                <div class="bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl flex items-center gap-2 shadow-sm">
-                    <span class="text-emerald-600 font-semibold text-xs">Shift Sales:</span>
-                    <span id="header-shift-income" class="font-mono font-black text-emerald-700 text-base">₱0.00</span>
+
+                <!-- Center: Live Shift Total Sales Badge -->
+                <div class="bg-emerald-50 border border-emerald-200 px-3 py-1.5 md:px-4 md:py-2 rounded-xl flex items-center gap-1.5 md:gap-2 shadow-sm">
+                    <span class="text-emerald-600 font-semibold text-[10px] md:text-xs hidden sm:inline">Shift Sales:</span>
+                    <span id="header-shift-income" class="font-mono font-black text-emerald-700 text-sm md:text-base">₱0.00</span>
                 </div>
-            
+
                 <!-- Right: Active Staff Profile & Logout -->
-                <div class="flex items-center gap-4">
-                    <div class="text-right">
+                <div class="flex items-center gap-2 md:gap-4">
+                    <div class="text-right hidden sm:block">
                         <p class="text-sm font-bold text-slate-800" id="topbar-user-name">Staff Name</p>
                         <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200" id="topbar-user-role">Role</span>
                     </div>
-                    <div class="h-8 w-px bg-slate-100"></div>
+                    <div class="h-8 w-px bg-slate-100 hidden sm:block"></div>
                     <button onclick="logout()" class="text-xs font-bold text-slate-500 hover:text-red-600 bg-slate-50 hover:bg-red-50 px-3 py-2 rounded-xl transition-all border border-slate-100">Logout</button>
                 </div>
             </header>
 
-            <!-- Dashboard Inner Content Container (Scrollable or Layout Bound) -->
-            <div class="p-6 flex-1 overflow-y-auto h-full min-h-0">
+            <!-- Dashboard Inner Content Container -->
+            <div class="p-3 md:p-6 flex-1 overflow-y-auto h-full min-h-0">
 
-                <!-- VIEW: REGISTER (Adjusted Heights and Scrolling Context) -->
-                <div id="view-register" class="view-block grid grid-cols-1 lg:grid-cols-3 gap-6 h-full max-h-[calc(100vh-120px)] overflow-hidden">
+                <!-- VIEW: REGISTER -->
+                <div id="view-register" class="view-block grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 lg:h-full lg:max-h-[calc(100vh-120px)] lg:overflow-hidden">
 
-                    <!-- Menu Layout (Fixed box bounds) -->
-                    <div class="lg:col-span-2 h-full flex flex-col min-h-0">
+                    <!-- Menu Layout -->
+                    <div class="lg:col-span-2 flex flex-col min-h-0 h-[450px] lg:h-full">
                         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col h-full overflow-hidden">
-                            <!-- Category Filter Panel (Fixed Header inside Menu Box) -->
-                            <div class="p-6 pb-2 flex-shrink-0">
-                                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
-                                    <h2 class="text-md font-bold text-slate-800">Heritage Menu Selection</h2>
-                                    <span class="text-xs text-orange-600 bg-orange-50 px-3 py-1 rounded-full font-bold self-start sm:self-auto" id="low-stock-alert">Loading Stock Monitor...</span>
+                            <!-- Category Filter Panel -->
+                            <div class="p-4 md:p-6 pb-2 flex-shrink-0">
+                                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-3 md:mb-4">
+                                    <h2 class="text-sm md:text-md font-bold text-slate-800">Heritage Menu Selection</h2>
+                                    <span class="text-[10px] md:text-xs text-orange-600 bg-orange-50 px-3 py-1 rounded-full font-bold self-start sm:self-auto" id="low-stock-alert">Loading Stock Monitor...</span>
                                 </div>
 
-                                <!-- Horizontal Scrollable Category Tab Bar (Fixed relative to table) -->
+                                <!-- Horizontal Scrollable Category Tab Bar -->
                                 <div class="flex gap-2 overflow-x-auto pb-3 mb-2 scrollbar-thin border-b border-slate-100 flex-shrink-0" id="category-tab-bar">
                                     <!-- Dynamic categories inject here -->
                                 </div>
                             </div>
 
                             <!-- Scrollable Menu Table Body -->
-                            <div class="flex-1 overflow-y-auto px-6 pb-6 min-h-0">
-                                <table class="w-full text-left border-collapse">
+                            <div class="flex-1 overflow-y-auto px-4 md:px-6 pb-4 md:pb-6 min-h-0">
+                                <table class="w-full text-left border-collapse text-xs md:text-sm">
                                     <thead class="sticky top-0 bg-white z-10 border-b border-slate-200">
-                                        <tr class="text-slate-400 text-xs font-bold uppercase tracking-wider">
-                                            <th class="py-3 px-2">ID</th>
-                                            <th class="py-3 px-2">Item Name</th>
-                                            <th class="py-3 px-2 text-right">Price</th>
-                                            <th class="py-3 px-2 text-center">Stock</th>
-                                            <th class="py-3 px-2 text-right">Action</th>
+                                        <tr class="text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-wider">
+                                            <th class="py-3 px-1 md:px-2">ID</th>
+                                            <th class="py-3 px-1 md:px-2">Item Name</th>
+                                            <th class="py-3 px-1 md:px-2 text-right">Price</th>
+                                            <th class="py-3 px-1 md:px-2 text-center">Stock</th>
+                                            <th class="py-3 px-1 md:px-2 text-right">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody id="menu-table-body" class="divide-y divide-slate-100">
-                                        <!-- Filtered items will inject here as table rows -->
+                                        <!-- Filtered items inject here -->
                                     </tbody>
                                 </table>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Transaction Sidebar (Fully Fixed / Internal Scroll basket) -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between h-full overflow-hidden min-h-0">
+                    <!-- Transaction Sidebar (Basket) -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between h-[500px] lg:h-full overflow-hidden min-h-0">
                         <!-- Top Header and Basket List Section -->
-                        <div class="p-6 flex flex-col flex-1 overflow-hidden min-h-0">
-                            <h3 class="text-md font-bold text-slate-800 mb-4 flex justify-between flex-shrink-0">
+                        <div class="p-4 md:p-6 flex flex-col flex-1 overflow-hidden min-h-0">
+                            <h3 class="text-sm md:text-md font-bold text-slate-800 mb-3 md:mb-4 flex justify-between flex-shrink-0">
                                 <span>Basket</span>
                                 <span id="basket-counter" class="text-xs bg-slate-100 px-2 py-0.5 rounded-full text-slate-600">0</span>
                             </h3>
-                            <!-- Only the items inside this div scroll! -->
-                            <div id="basket-list" class="flex-1 space-y-3 overflow-y-auto pr-2 min-h-0"></div>
+                            <div id="basket-list" class="flex-1 space-y-3 overflow-y-auto pr-1 min-h-0"></div>
                         </div>
 
-                        <!-- Checkout Math Controls (Bottom Fixed Container) -->
-                        <div class="border-t border-slate-100 p-6 bg-slate-50 flex-shrink-0 space-y-4">
-                            <!-- Totals Display -->
-                            <div class="flex justify-between text-md font-bold text-slate-700">
+                        <!-- Checkout Controls -->
+                        <div class="border-t border-slate-100 p-4 md:p-6 bg-slate-50 flex-shrink-0 space-y-3 md:space-y-4">
+                            <div class="flex justify-between text-sm md:text-md font-bold text-slate-700">
                                 <span>Total Amount:</span>
                                 <span id="basket-total" class="font-mono text-amber-950">₱0.00</span>
                             </div>
 
-                            <!-- Cash Payment Input Form -->
                             <div class="space-y-1">
-                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Cash Received</label>
+                                <label class="block text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wider">Cash Received</label>
                                 <div class="relative rounded-xl shadow-sm">
                                     <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                                         <span class="text-slate-400 font-bold text-sm">₱</span>
@@ -216,13 +226,11 @@
                                 </div>
                             </div>
 
-                            <!-- Change calculation indicator -->
                             <div class="flex justify-between items-center py-2 px-3 bg-white rounded-xl border border-dashed border-slate-200">
                                 <span class="text-xs font-bold text-slate-500">Change Due:</span>
                                 <span id="customer-change" class="text-sm font-mono font-bold text-slate-400">₱0.00</span>
                             </div>
 
-                            
                             <button onclick="placeOrder()" class="w-full bg-amber-800 text-white font-bold py-3.5 rounded-xl hover:bg-amber-900 transition-all shadow-md active:scale-[0.99]">
                                 Complete Order
                             </button>
@@ -230,127 +238,135 @@
                     </div>
                 </div>
 
-                     <!-- ADMIN ONLY: ASSIGN EMPLOYEE PETTY CASH -->
-                    <div id="admin-petty-cash-panel" class="hidden bg-white p-6 rounded-2xl shadow-sm border max-w-md mx-auto mb-6">
-                        <div class="flex items-center gap-2 mb-4">
-                            <span class="text-xl">💰</span>
-                            <div>
-                                <h3 class="text-base font-bold text-slate-800">Assign Employee Petty Cash</h3>
-                                <p class="text-xs text-slate-500">Set starting register cash amounts for each employee.</p>
-                            </div>
-                        </div>
-                    
-                        <div class="space-y-4">
-                            <!-- Employee Selector -->
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-500 mb-1">Select Employee</label>
-                                <select 
-                                    id="admin-petty-employee-select" 
-                                    class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                    onchange="loadAssignedPettyCashForSelected()"
-                                >
-                                    <option value="">-- Choose Employee --</option>
-                                </select>
-                            </div>
-                    
-                            <!-- Petty Cash Amount Input -->
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-500 mb-1">Starting Petty Cash (₱)</label>
-                                <input 
-                                    type="number" 
-                                    id="admin-petty-amount" 
-                                    class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-mono font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                    placeholder="0.00"
-                                    step="0.01"
-                                />
-                            </div>
-                    
-                            <button onclick="saveAdminPettyCashAllocation()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl text-xs hover:bg-blue-700 transition">
-                                💾 Save Petty Cash Allocation
-                            </button>
+                <!-- ADMIN ONLY: ASSIGN EMPLOYEE PETTY CASH -->
+                <div id="admin-petty-cash-panel" class="hidden bg-white p-6 rounded-2xl shadow-sm border max-w-md mx-auto mb-6">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="text-xl">💰</span>
+                        <div>
+                            <h3 class="text-base font-bold text-slate-800">Assign Employee Petty Cash</h3>
+                            <p class="text-xs text-slate-500">Set starting register cash amounts for each employee.</p>
                         </div>
                     </div>
+                
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Select Employee</label>
+                            <select 
+                                id="admin-petty-employee-select" 
+                                class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                onchange="loadAssignedPettyCashForSelected()"
+                            >
+                                <option value="">-- Choose Employee --</option>
+                            </select>
+                        </div>
+                    
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Starting Petty Cash (₱)</label>
+                            <input 
+                                type="number" 
+                                id="admin-petty-amount" 
+                                class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-mono font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                placeholder="0.00"
+                                step="0.01"
+                            />
+                        </div>
+                    
+                        <button onclick="saveAdminPettyCashAllocation()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl text-xs hover:bg-blue-700 transition">
+                            💾 Save Petty Cash Allocation
+                        </button>
+                    </div>
+                </div>
 
-                           <!-- CASHIER VIEW: SHIFT CASH DRAWER RECONCILIATION -->
-<div id="view-reconcile" class="view-block hidden max-w-md mx-auto bg-white p-6 rounded-2xl shadow-sm border">
-    <h2 class="text-lg font-bold text-slate-800 mb-1">Shift Cash Drawer Reconciliation</h2>
-    <p class="text-xs text-slate-500 mb-6">Verify your actual physical drawer coins and bills against system calculations.</p>
+                <!-- CASHIER VIEW: SHIFT CASH DRAWER RECONCILIATION -->
+                <div id="view-reconcile" class="view-block hidden max-w-md mx-auto bg-white p-6 rounded-2xl shadow-sm border">
+                    <h2 class="text-lg font-bold text-slate-800 mb-1">Shift Cash Drawer Reconciliation</h2>
+                    <p class="text-xs text-slate-500 mb-6">Verify your actual physical drawer coins and bills against system calculations.</p>
 
-    <div class="space-y-4">
-        <!-- 1. Assigned Starting / Petty Cash Display -->
-        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
-            <div>
-                <p class="text-xs font-semibold text-slate-500">Assigned Petty / Starting Cash</p>
-                <p class="text-xs text-slate-400">Allocated by Admin for this shift</p>
-            </div>
-            <span id="recon-starting-cash-display" class="font-mono font-bold text-slate-800 text-sm">₱0.00</span>
-        </div>
+                    <div class="space-y-4">
+                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
+                            <div>
+                                <p class="text-xs font-semibold text-slate-500">Assigned Petty / Starting Cash</p>
+                                <p class="text-xs text-slate-400">Allocated by Admin for this shift</p>
+                            </div>
+                            <span id="recon-starting-cash-display" class="font-mono font-bold text-slate-800 text-sm">₱0.00</span>
+                        </div>
 
-        <!-- 2. Current Logged Sales (₱) -->
-        <div>
-            <label class="block text-xs font-semibold text-slate-500 mb-1">Current Logged Sales (₱)</label>
-            <input 
-                type="number" 
-                id="recon-sales" 
-                readonly 
-                class="w-full p-3 rounded-xl border border-slate-100 font-mono bg-slate-50 text-slate-600 text-sm font-semibold"
-                placeholder="₱0.00"
-            />
-        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Current Logged Sales (₱)</label>
+                            <input 
+                                type="number" 
+                                id="recon-sales" 
+                                readonly 
+                                class="w-full p-3 rounded-xl border border-slate-100 font-mono bg-slate-50 text-slate-600 text-sm font-semibold"
+                                placeholder="₱0.00"
+                            />
+                        </div>
 
-        <!-- 3. Expected Total Cash inside Drawer -->
-        <div class="bg-blue-50/50 p-3 rounded-xl border border-blue-100 flex justify-between items-center">
-            <span class="text-xs font-bold text-blue-900">Expected Total Cash</span>
-            <span id="recon-expected-total" class="font-mono font-bold text-blue-900 text-base">₱0.00</span>
-        </div>
+                        <div class="bg-blue-50/50 p-3 rounded-xl border border-blue-100 flex justify-between items-center">
+                            <span class="text-xs font-bold text-blue-900">Expected Total Cash</span>
+                            <span id="recon-expected-total" class="font-mono font-bold text-blue-900 text-base">₱0.00</span>
+                        </div>
 
-        <!-- 4. Actual Physical Cash inside Drawer (₱) -->
-        <div>
-            <label class="block text-xs font-semibold text-slate-500 mb-1">Actual Physical Cash inside Drawer (₱)</label>
-            <input 
-                type="number" 
-                id="recon-actual" 
-                oninput="calculateDrawerDiscrepancy()" 
-                placeholder="Count physical cash" 
-                class="w-full p-3 rounded-xl border border-slate-200 font-mono text-base font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                step="0.01"
-            />
-        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Actual Physical Cash inside Drawer (₱)</label>
+                            <input 
+                                type="number" 
+                                id="recon-actual" 
+                                oninput="calculateDrawerDiscrepancy()" 
+                                placeholder="Count physical cash" 
+                                class="w-full p-3 rounded-xl border border-slate-200 font-mono text-base font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                step="0.01"
+                            />
+                        </div>
 
-        <!-- 5. Variance / Discrepancy Check -->
-        <div class="p-3 rounded-xl bg-slate-50 border flex justify-between items-center">
-            <span class="text-xs font-bold text-slate-600">Variance / Over-Short:</span>
-            <span id="recon-variance-display" class="font-mono font-bold text-sm text-slate-800">₱0.00</span>
-        </div>
+                        <div class="p-3 rounded-xl bg-slate-50 border flex justify-between items-center">
+                            <span class="text-xs font-bold text-slate-600">Variance / Over-Short:</span>
+                            <span id="recon-variance-display" class="font-mono font-bold text-sm text-slate-800">₱0.00</span>
+                        </div>
 
-        <!-- 6. Single Confirm End of Shift Button -->
-        <button 
-            id="btn-confirm-end-shift"
-            onclick="confirmEndShift()" 
-            class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl text-xs hover:bg-slate-800 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-        >
-            <span>Confirm End of Shift</span>
-        </button>
-    </div>
-</div>
+                        <button 
+                            id="btn-confirm-end-shift"
+                            onclick="confirmEndShift()" 
+                            class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl text-xs hover:bg-slate-800 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            <span>Confirm End of Shift</span>
+                        </button>
+                    </div>
+                </div>
+
                 <!-- VIEW: DAILY SALES -->
                 <div id="view-admin-daily" class="view-block hidden space-y-6">
-                    <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
-                        <table class="w-full text-left text-sm"><thead class="bg-slate-50 text-slate-500 border-b"><tr><th class="p-4">Timestamp</th><th class="p-4">OrderID</th><th class="p-4">Employee</th><th class="p-4 text-right">Revenue</th></tr></thead><tbody id="daily-table-body" class="divide-y"></tbody></table>
+                    <div class="bg-white rounded-xl shadow-sm border overflow-x-auto">
+                        <table class="w-full text-left text-sm min-w-[500px]">
+                            <thead class="bg-slate-50 text-slate-500 border-b">
+                                <tr><th class="p-4">Timestamp</th><th class="p-4">OrderID</th><th class="p-4">Employee</th><th class="p-4 text-right">Revenue</th></tr>
+                            </thead>
+                            <tbody id="daily-table-body" class="divide-y"></tbody>
+                        </table>
                     </div>
                 </div>
 
                 <!-- VIEW: WEEKLY SALES -->
                 <div id="view-admin-weekly" class="view-block hidden space-y-6">
-                    <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
-                        <table class="w-full text-left text-sm"><thead class="bg-slate-50 text-slate-500 border-b"><tr><th class="p-4">Week Range</th><th class="p-4">Orders Checked Out</th><th class="p-4 text-right">Sales Volume</th></tr></thead><tbody id="weekly-table-body" class="divide-y"></tbody></table>
+                    <div class="bg-white rounded-xl shadow-sm border overflow-x-auto">
+                        <table class="w-full text-left text-sm min-w-[500px]">
+                            <thead class="bg-slate-50 text-slate-500 border-b">
+                                <tr><th class="p-4">Week Range</th><th class="p-4">Orders Checked Out</th><th class="p-4 text-right">Sales Volume</th></tr>
+                            </thead>
+                            <tbody id="weekly-table-body" class="divide-y"></tbody>
+                        </table>
                     </div>
                 </div>
 
                 <!-- VIEW: MONTHLY SALES -->
                 <div id="view-admin-monthly" class="view-block hidden space-y-6">
-                    <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
-                        <table class="w-full text-left text-sm"><thead class="bg-slate-50 text-slate-500 border-b"><tr><th class="p-4">Month</th><th class="p-4">Transactions Logged</th><th class="p-4 text-right">Total Net Earnings</th></tr></thead><tbody id="monthly-table-body" class="divide-y"></tbody></table>
+                    <div class="bg-white rounded-xl shadow-sm border overflow-x-auto">
+                        <table class="w-full text-left text-sm min-w-[500px]">
+                            <thead class="bg-slate-50 text-slate-500 border-b">
+                                <tr><th class="p-4">Month</th><th class="p-4">Transactions Logged</th><th class="p-4 text-right">Total Net Earnings</th></tr>
+                            </thead>
+                            <tbody id="monthly-table-body" class="divide-y"></tbody>
+                        </table>
                     </div>
                 </div>
 
@@ -382,100 +398,92 @@
                 </div>
 
                 <!-- ADMIN VIEW: IMPORT NEW CATALOG ITEM -->
-<div id="view-admin-inventory" class="view-block hidden max-w-md mx-auto bg-white p-6 rounded-2xl shadow-sm border">
-    <h2 class="text-lg font-bold text-slate-800 mb-2">Import New Catalog Product</h2>
-    <p class="text-xs text-slate-500 mb-6">Add a brand new item directly into your menu category tabs.</p>
-    
-    <div class="space-y-4">
-        <!-- Category Selector / Dynamic Tab Creator -->
-        <div>
-            <div class="flex items-center justify-between mb-1">
-                <label class="block text-xs font-semibold text-slate-500">Menu Category (Sheet Tab)</label>
-                <button 
-                    type="button" 
-                    id="toggle-new-category-btn" 
-                    onclick="toggleNewCategoryField(true)" 
-                    class="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1"
-                >
-                    ➕ New Tab
-                </button>
-            </div>
-            
-                            <!-- Standard Category Dropdown (Now Dynamic) -->
-                <select 
-                    id="catalog-category-select" 
-                    class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-slate-500"
-                    onchange="autoAssignProductID()"
-                >
-                    <option value="">-- Choose Category Tab --</option>
-                </select>
+                <div id="view-admin-inventory" class="view-block hidden max-w-md mx-auto bg-white p-6 rounded-2xl shadow-sm border">
+                    <h2 class="text-lg font-bold text-slate-800 mb-2">Import New Catalog Product</h2>
+                    <p class="text-xs text-slate-500 mb-6">Add a brand new item directly into your menu category tabs.</p>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-xs font-semibold text-slate-500">Menu Category (Sheet Tab)</label>
+                                <button 
+                                    type="button" 
+                                    id="toggle-new-category-btn" 
+                                    onclick="toggleNewCategoryField(true)" 
+                                    class="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1"
+                                >
+                                    ➕ New Tab
+                                </button>
+                            </div>
+                            
+                            <select 
+                                id="catalog-category-select" 
+                                class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-slate-500"
+                                onchange="autoAssignProductID()"
+                            >
+                                <option value="">-- Choose Category Tab --</option>
+                            </select>
 
-            <!-- Hidden Input for Brand New Tab Name -->
-            <input 
-                type="text" 
-                id="new-category-tab-name" 
-                class="hidden w-full bg-white border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:ring-2 focus:ring-slate-500"
-                placeholder="Enter new tab name (e.g., Ribs)"
-                oninput="autoAssignProductID()"
-            />
-        </div>
+                            <input 
+                                type="text" 
+                                id="new-category-tab-name" 
+                                class="hidden w-full bg-white border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:ring-2 focus:ring-slate-500 mt-2"
+                                placeholder="Enter new tab name (e.g., Ribs)"
+                                oninput="autoAssignProductID()"
+                            />
+                        </div>
 
-        <!-- Automatically Assigned Product ID (Read-only for safety!) -->
-        <div>
-            <label class="block text-xs font-semibold text-slate-500 mb-1">Assigned Product ID (Auto-Generated)</label>
-            <input 
-                type="text" 
-                id="catalog-product-id" 
-                readonly 
-                class="w-full bg-slate-100 border border-slate-200 rounded-xl p-3 text-sm font-mono font-bold text-slate-500 cursor-not-allowed"
-                placeholder="Select a category first..."
-            />
-        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Assigned Product ID (Auto-Generated)</label>
+                            <input 
+                                type="text" 
+                                id="catalog-product-id" 
+                                readonly 
+                                class="w-full bg-slate-100 border border-slate-200 rounded-xl p-3 text-sm font-mono font-bold text-slate-500 cursor-not-allowed"
+                                placeholder="Select a category first..."
+                            />
+                        </div>
 
-        <!-- Product Name Input -->
-        <div>
-            <label class="block text-xs font-semibold text-slate-500 mb-1">Product Name</label>
-            <input 
-                type="text" 
-                id="catalog-product-name" 
-                class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:ring-2 focus:ring-slate-500"
-                placeholder="e.g., Greek Salad"
-            />
-        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Product Name</label>
+                            <input 
+                                type="text" 
+                                id="catalog-product-name" 
+                                class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:ring-2 focus:ring-slate-500"
+                                placeholder="e.g., Greek Salad"
+                            />
+                        </div>
 
-        <!-- Product Price Input -->
-        <div>
-            <label class="block text-xs font-semibold text-slate-500 mb-1">Price (₱)</label>
-            <input 
-                type="number" 
-                id="catalog-product-price" 
-                step="0.01"
-                class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-mono text-slate-800 focus:ring-2 focus:ring-slate-500"
-                placeholder="0.00"
-            />
-        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Price (₱)</label>
+                            <input 
+                                type="number" 
+                                id="catalog-product-price" 
+                                step="0.01"
+                                class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-mono text-slate-800 focus:ring-2 focus:ring-slate-500"
+                                placeholder="0.00"
+                            />
+                        </div>
 
-        <!-- Product Stock Input -->
-        <div>
-            <label class="block text-xs font-semibold text-slate-500 mb-1">Initial Stock</label>
-            <input 
-                type="number" 
-                id="catalog-product-stock" 
-                class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-mono text-slate-800 focus:ring-2 focus:ring-slate-500"
-                placeholder="0"
-                value="5"
-            />
-        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Initial Stock</label>
+                            <input 
+                                type="number" 
+                                id="catalog-product-stock" 
+                                class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-mono text-slate-800 focus:ring-2 focus:ring-slate-500"
+                                placeholder="0"
+                                value="5"
+                            />
+                        </div>
 
-                    <!-- Locate this button at the bottom of your view-admin-inventory block and update it with the ID -->
-            <button 
-                id="submit-catalog-btn" 
-                onclick="submitNewCatalogProduct()" 
-                class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-950 transition mt-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                Import Product to Sheet
-            </button>
-    </div>
-</div>
+                        <button 
+                            id="submit-catalog-btn" 
+                            onclick="submitNewCatalogProduct()" 
+                            class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-950 transition mt-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                            Import Product to Sheet
+                        </button>
+                    </div>
+                </div>
 
                 <!-- VIEW: UPDATE PRODUCT -->
                 <div id="view-admin-update" class="view-block hidden max-w-lg mx-auto bg-white p-6 rounded-2xl shadow-sm border">
@@ -3118,6 +3126,30 @@ function closeSetMealModal() {
     document.getElementById('set-meal-modal').classList.add('hidden');
     activeSetMealItem = null;
 }
+
+    function toggleMobileSidebar(open) {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            
+            if (open) {
+                sidebar.classList.remove('-translate-x-full');
+                backdrop.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                backdrop.classList.add('hidden');
+            }
+        }
+
+        // Auto-close sidebar on mobile when navigating views
+        const originalNavigateView = window.navigateView;
+        window.navigateView = function(viewId) {
+            if (typeof originalNavigateView === 'function') {
+                originalNavigateView(viewId);
+            }
+            if (window.innerWidth < 768) {
+                toggleMobileSidebar(false);
+            }
+        };
 </script>
 </body>
 </html>
