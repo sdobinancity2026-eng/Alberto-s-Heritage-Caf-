@@ -1060,36 +1060,37 @@ function removeFromCart(index) {
 }
 
     function renderCart() {
-        const container = document.getElementById('basket-list');
-        if (!container) return;
+    const container = document.getElementById('basket-list');
+    if (!container) return;
 
-        document.getElementById('basket-counter').innerText = activeCart.reduce((sum, item) => sum + item.quantity, 0);
+    document.getElementById('basket-counter').innerText = activeCart.reduce((sum, item) => sum + item.quantity, 0);
 
-        if (activeCart.length === 0) {
-            container.innerHTML = `<p class="text-slate-400 text-center py-12 text-sm">Basket is empty.</p>`;
-            document.getElementById('basket-total').innerText = "₱0.00";
-            return;
-        }
-
-        let total = 0;
-        container.innerHTML = activeCart.map(item => {
-            total += item.price * item.quantity;
-            return `
-                <div class="flex justify-between items-center bg-slate-50 p-3 rounded-lg border">
-                    <div>
-                        <p class="font-semibold text-xs text-slate-800">${item.name}</p>
-                        <p class="text-[10px] text-slate-400">₱${item.price.toFixed(2)} x ${item.quantity}</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="font-mono text-xs font-semibold">₱${(item.price * item.quantity).toFixed(2)}</span>
-                        <button onclick="removeFromCart('${item.id}')" class="text-red-500 text-xs px-1 font-bold">✕</button>
-                    </div>
-                </div>
-            `;
-        }).join('');
-        document.getElementById('basket-total').innerText = `₱${total.toFixed(2)}`;
+    if (activeCart.length === 0) {
+        container.innerHTML = `<p class="text-slate-400 text-center py-12 text-sm">Basket is empty.</p>`;
+        document.getElementById('basket-total').innerText = "₱0.00";
+        return;
     }
 
+    let total = 0;
+    // 🌟 Added 'i' as second parameter in .map((item, i) => ...)
+    container.innerHTML = activeCart.map((item, i) => {
+        total += item.price * item.quantity;
+        return `
+            <div class="flex justify-between items-center bg-slate-50 p-3 rounded-lg border">
+                <div>
+                    <p class="font-semibold text-xs text-slate-800">${item.name}</p>
+                    <p class="text-[10px] text-slate-400">₱${item.price.toFixed(2)} x ${item.quantity}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="font-mono text-xs font-semibold">₱${(item.price * item.quantity).toFixed(2)}</span>
+                    <!-- 🌟 Passes index 'i' directly -->
+                    <button onclick="removeFromCart(${i})" class="text-red-500 text-xs px-1 font-bold hover:text-red-700 transition">✕</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+    document.getElementById('basket-total').innerText = `₱${total.toFixed(2)}`;
+}
  async function placeOrder() {
     if (activeCart.length === 0) return showToast("Your basket is empty!", "warning");
     
