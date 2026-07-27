@@ -118,27 +118,20 @@
         <main class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
 
             <!-- ================= TOP NAV BAR (FIXED) ================= -->
-            <header class="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between flex-shrink-0">
+           <header class="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between flex-shrink-0">
+                <!-- Left: Page Title & Date -->
                 <div>
                     <h1 class="text-lg font-black text-slate-800" id="header-view-title">Menu Register</h1>
                     <p class="text-xs text-slate-400" id="header-system-date">Loading date details...</p>
                 </div>
-                    <!-- Total Income -->
-                    <div class="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200">
-                        <div class="flex items-center gap-3">
-                            <h1 id="header-view-title" class="text-xl font-bold text-slate-800">Dashboard</h1>
-                        </div>
-                    
-                        <!-- Right Side User Info & Shift Income -->
-                        <div class="flex items-center gap-4">
-                            <!-- 💰 Live Shift Income Badge -->
-                            <div class="bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-xl flex items-center gap-2 text-xs shadow-sm">
-                                <span class="text-emerald-600 font-medium">Shift Total:</span>
-                                <span id="header-shift-income" class="font-mono font-bold text-emerald-700 text-sm">₱0.00</span>
-                            </div>
-                        </div>
-                    </div>
-                
+            
+                <!-- Center: 💰 Live Shift Total Sales Badge -->
+                <div class="bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl flex items-center gap-2 shadow-sm">
+                    <span class="text-emerald-600 font-semibold text-xs">Shift Sales:</span>
+                    <span id="header-shift-income" class="font-mono font-black text-emerald-700 text-base">₱0.00</span>
+                </div>
+            
+                <!-- Right: Active Staff Profile & Logout -->
                 <div class="flex items-center gap-4">
                     <div class="text-right">
                         <p class="text-sm font-bold text-slate-800" id="topbar-user-name">Staff Name</p>
@@ -147,7 +140,6 @@
                     <div class="h-8 w-px bg-slate-100"></div>
                     <button onclick="logout()" class="text-xs font-bold text-slate-500 hover:text-red-600 bg-slate-50 hover:bg-red-50 px-3 py-2 rounded-xl transition-all border border-slate-100">Logout</button>
                 </div>
-            
             </header>
 
             <!-- Dashboard Inner Content Container (Scrollable or Layout Bound) -->
@@ -1079,7 +1071,7 @@ function logout() {
         document.getElementById('basket-total').innerText = `₱${total.toFixed(2)}`;
     }
 
-  async function placeOrder() {
+ async function placeOrder() {
     if (activeCart.length === 0) return showToast("Your basket is empty!", "warning");
     
     const total = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -1099,7 +1091,18 @@ function logout() {
         TotalAmount: total,
         PaymentMethod: "Cash",
         cashTendered: cashTendered,
-        change: cashTendered - total
+        change: cashTendered - total,
+        Date: new Date().toISOString() // 🌟 Added so shift date checks pass instantly!
+    };
+
+    // Helper to safely store local order & trigger shift sales recalculation
+    const storeAndRecalculateLocally = () => {
+        if (typeof db !== 'undefined') {
+            if (!db.orders) db.orders = [];
+            db.orders.push(payload);
+        }
+        finalizeLocalCheckout();
+        if (typeof calculateShiftSales === 'function') calculateShiftSales();
     };
 
     // ===============================================================
@@ -1116,15 +1119,7 @@ function logout() {
             printThermalReceipt(payload, "LOCAL-" + Date.now());
         }
 
-        // Push order to local memory if offline so shift calculator counts it
-        if (db && db.orders) {
-            db.orders.push(payload);
-        }
-        
-        finalizeLocalCheckout();
-        
-        // 💰 Live Navbar Shift Income Update
-        if (typeof calculateShiftSales === 'function') calculateShiftSales();
+        storeAndRecalculateLocally();
         return;
     }
 
@@ -1148,15 +1143,7 @@ function logout() {
             }
             showToast("Order placed successfully!", "success");
 
-            // Push completed order into local DB scope
-            if (db && db.orders) {
-                db.orders.push(payload);
-            }
-
-            finalizeLocalCheckout();
-
-            // 💰 Live Navbar Shift Income Update
-            if (typeof calculateShiftSales === 'function') calculateShiftSales();
+            storeAndRecalculateLocally();
         } else {
             alert("Error placing order on server: " + data.message);
         }
@@ -1168,15 +1155,7 @@ function logout() {
             printThermalReceipt(payload, "OFFLINE-" + Date.now());
         }
 
-        // Push order to local memory on fallback
-        if (db && db.orders) {
-            db.orders.push(payload);
-        }
-
-        finalizeLocalCheckout();
-
-        // 💰 Live Navbar Shift Income Update
-        if (typeof calculateShiftSales === 'function') calculateShiftSales();
+        storeAndRecalculateLocally();
     }
 }
 
@@ -2250,33 +2229,44 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 }
 
-    function calculateShiftSales() {
+   function calculateShiftSales() {
     const shiftIncomeEl = document.getElementById('header-shift-income');
     if (!shiftIncomeEl) return;
 
-    // Get active employee name (e.g. "Kevin Fuentes")
-    const currentUser = document.getElementById('current-user-name')?.innerText.trim() || "";
+    // 1. Get the current logged-in employee name from topbar HTML ID
+    const currentStaffElement = document.getElementById('topbar-user-name');
+    const currentStaffName = currentStaffElement ? currentStaffElement.innerText.trim() : "";
 
-    let shiftTotal = 0;
-
-    // 1. Check orders array inside db or global orders scope
-    const ordersList = (db && db.orders) ? db.orders : (window.ordersArchive || []);
-
-    if (Array.isArray(ordersList)) {
-        ordersList.forEach(order => {
-            // Match order employee name with active session user
-            const orderEmp = order.EmployeeName || order.employee || order.Employee || "";
-            
-            // Check if order belongs to current user
-            if (orderEmp.toLowerCase() === currentUser.toLowerCase()) {
-                const amount = parseFloat(order.TotalAmount || order.total || order.Total || 0);
-                shiftTotal += amount;
-            }
-        });
+    if (!currentStaffName || currentStaffName === "Staff Name") {
+        shiftIncomeEl.innerText = "₱0.00";
+        return;
     }
 
-    // 2. Format as PHP Currency (₱0.00)
-    shiftIncomeEl.innerText = `₱${shiftTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    let currentShiftSales = 0;
+
+    // 2. Fetch all orders from system database (db.orders)
+    const ordersList = (db && Array.isArray(db.orders)) ? db.orders : [];
+
+    // Get today's date string (YYYY-MM-DD or standard locale string) to filter orders from today's shift
+    const todayDate = new Date().toDateString();
+
+    ordersList.forEach(order => {
+        const orderEmployee = order.EmployeeName || order.employee || order.Employee || "";
+        const orderDateRaw = order.Date || order.timestamp || order.date || new Date();
+        const orderDate = new Date(orderDateRaw).toDateString();
+
+        // Match order to the active employee AND ensure it belongs to today's shift date
+        if (orderEmployee.toLowerCase() === currentStaffName.toLowerCase() && orderDate === todayDate) {
+            const amount = parseFloat(order.TotalAmount || order.total || order.Total || 0);
+            currentShiftSales += amount;
+        }
+    });
+
+    // 3. Render updated shift income formatted in PHP currency
+    shiftIncomeEl.innerText = `₱${currentShiftSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    // 4. Return value so End-of-Shift Reconciliation (Shifts sheet SystemSales column) can use it directly
+    return currentShiftSales;
 }
 
 
