@@ -1783,25 +1783,32 @@ function populateEmployeeAllocationDropdown() {
 
     let staffList = [];
 
-    // Check if your local db has the employees list loaded
-    if (typeof db !== 'undefined' && db.employees) {
-        // Filter: Keep only users whose role is "employee" or "cashier"
+    // Check if local db has the employees list loaded
+    if (typeof db !== 'undefined' && db.employees && Array.isArray(db.employees)) {
         staffList = db.employees
-            .filter(emp => {
-                if (!emp || !emp.role) return false;
-                const role = emp.role.toLowerCase();
-                return role === 'employee' || role === 'cashier';
+            .map(emp => {
+                if (!emp) return null;
+                
+                // 1. Get employee name (checks all potential property variations)
+                const name = emp.name || emp.Name || emp.EmployeeName || emp["Employee Name"] || emp.FullName || "";
+                
+                // 2. Get employee role (checks all potential property variations)
+                const role = (emp.role || emp.Role || emp.RoleType || emp.Position || "").toString().toLowerCase().trim();
+
+                // Optional: Exclude super-admins if needed, or return all names
+                // If you want to show ALL employees from the sheet, simply return the name:
+                return name ? name.trim() : null;
             })
-            .map(emp => emp.name);
-    } else {
-        // Fallback: If db is not loaded yet, use the keys from your local allocations
+            .filter(Boolean); // Removes null / empty values
+    } else if (window.employeeStartingCashAllocations) {
+        // Fallback: Use local allocations if db is not ready
         staffList = Object.keys(window.employeeStartingCashAllocations);
     }
 
-    // Clean up: Remove any duplicate names or empty values
-    staffList = [...new Set(staffList)].filter(Boolean);
+    // Clean up: Remove duplicates
+    staffList = [...new Set(staffList)];
 
-    // Append options to the select element
+    // Populate dropdown options
     staffList.forEach(name => {
         const option = document.createElement('option');
         option.value = name;
@@ -1809,7 +1816,7 @@ function populateEmployeeAllocationDropdown() {
         dropdown.appendChild(option);
     });
 
-    // Keep the previously selected user highlighted if they are still in the list
+    // Re-select previously selected employee if applicable
     if (selectedValue && staffList.includes(selectedValue)) {
         dropdown.value = selectedValue;
     }
