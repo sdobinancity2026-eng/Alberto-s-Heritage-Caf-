@@ -1085,14 +1085,15 @@ function logout() {
     }
 
     const payload = {
-        action: "placeOrder", // Ensure action is bundled inside payload
+        action: "placeOrder",
         EmployeeName: activeUser ? activeUser.name : "Employee",
+        ShiftID: currentShiftSession.shiftId || "", // 👈 Associates order directly with this shift
         ItemsOrdered: activeCart, 
         TotalAmount: total,
         PaymentMethod: "Cash",
         cashTendered: cashTendered,
         change: cashTendered - total,
-        Date: new Date().toISOString() // 🌟 Added so shift date checks pass instantly!
+        Date: new Date().toISOString()
     };
 
     // Helper to safely store local order & trigger shift sales recalculation
@@ -2229,46 +2230,97 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 }
 
+    // Global variable to hold active shift session info
+let currentShiftSession = {
+    employeeName: "",
+    startTime: null, // e.g., new Date() when shift was opened
+    shiftId: null
+};
+
+// Call this when starting a shift or on successful employee login
+function startEmployeeShift(employeeName, shiftId = null) {
+    currentShiftSession = {
+        employeeName: employeeName,
+        startTime: new Date(), // Marks the exact start of THIS shift session
+        shiftId: shiftId || "SHIFT-" + Date.now()
+    };
+    
+    // Save to localStorage so refreshing the page doesn't reset the shift session
+    localStorage.setItem('activeShift', JSON.stringify(currentShiftSession));
+    
+    // Immediately calculate and show ₱0.00 or existing shift sales
+    calculateShiftSales();
+}
+
+// Restore shift session on page reload
+function restoreActiveShift() {
+    const saved = localStorage.getItem('activeShift');
+    if (saved) {
+        currentShiftSession = JSON.parse(saved);
+        if (currentShiftSession.startTime) {
+            currentShiftSession.startTime = new Date(currentShiftSession.startTime);
+        }
+    }
+}
+
    function calculateShiftSales() {
     const shiftIncomeEl = document.getElementById('header-shift-income');
-    if (!shiftIncomeEl) return;
+    if (!shiftIncomeEl) return 0;
 
-    // 1. Get the current logged-in employee name from topbar HTML ID
+    // 1. Get current logged-in employee name
     const currentStaffElement = document.getElementById('topbar-user-name');
     const currentStaffName = currentStaffElement ? currentStaffElement.innerText.trim() : "";
 
     if (!currentStaffName || currentStaffName === "Staff Name") {
         shiftIncomeEl.innerText = "₱0.00";
-        return;
+        return 0;
     }
 
-    let currentShiftSales = 0;
+    // 2. Ensure shift session details are loaded
+    if (!currentShiftSession.startTime) {
+        restoreActiveShift();
+    }
 
-    // 2. Fetch all orders from system database (db.orders)
+    let activeShiftTotal = 0;
     const ordersList = (db && Array.isArray(db.orders)) ? db.orders : [];
 
-    // Get today's date string (YYYY-MM-DD or standard locale string) to filter orders from today's shift
-    const todayDate = new Date().toDateString();
-
     ordersList.forEach(order => {
-        const orderEmployee = order.EmployeeName || order.employee || order.Employee || "";
-        const orderDateRaw = order.Date || order.timestamp || order.date || new Date();
-        const orderDate = new Date(orderDateRaw).toDateString();
+        const orderEmployee = order.EmployeeName || order.employee || "";
+        const orderTime = new Date(order.Date || order.timestamp || Date.now());
 
-        // Match order to the active employee AND ensure it belongs to today's shift date
-        if (orderEmployee.toLowerCase() === currentStaffName.toLowerCase() && orderDate === todayDate) {
-            const amount = parseFloat(order.TotalAmount || order.total || order.Total || 0);
-            currentShiftSales += amount;
+        // MUST MATCH: 
+        // 1. Employee Name
+        // 2. Order placed AFTER shift start time (or matching ShiftID)
+        const isSameEmployee = orderEmployee.toLowerCase() === currentStaffName.toLowerCase();
+        
+        let isWithinCurrentShift = false;
+        if (currentShiftSession.shiftId && order.ShiftID) {
+            isWithinCurrentShift = (order.ShiftID === currentShiftSession.shiftId);
+        } else if (currentShiftSession.startTime) {
+            isWithinCurrentShift = orderTime >= new Date(currentShiftSession.startTime);
+        } else {
+            // Fallback: If no shift start time recorded, match orders from today
+            isWithinCurrentShift = orderTime.toDateString() === new Date().toDateString();
+        }
+
+        if (isSameEmployee && isWithinCurrentShift) {
+            const amount = parseFloat(order.TotalAmount || order.total || 0);
+            activeShiftTotal += amount;
         }
     });
 
-    // 3. Render updated shift income formatted in PHP currency
-    shiftIncomeEl.innerText = `₱${currentShiftSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    // 3. Update navbar display in real time
+    shiftIncomeEl.innerText = `₱${activeShiftTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-    // 4. Return value so End-of-Shift Reconciliation (Shifts sheet SystemSales column) can use it directly
-    return currentShiftSales;
+    return activeShiftTotal;
 }
-
+    function endShiftSession() {
+    localStorage.removeItem('activeShift');
+    currentShiftSession = { employeeName: "", startTime: null, shiftId: null };
+    
+    const shiftIncomeEl = document.getElementById('header-shift-income');
+    if (shiftIncomeEl) shiftIncomeEl.innerText = "₱0.00";
+}
 
 </script>
 </body>
