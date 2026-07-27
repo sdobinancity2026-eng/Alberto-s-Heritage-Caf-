@@ -2972,7 +2972,7 @@ function confirmSetMealSelection() {
     const selectedDishes = [];
     let isValid = true;
 
-    // 1. Check if all required selections are made
+    // 1. Check if all required selections are made per group
     activeSetMealItem.config.groups.forEach((group, gIdx) => {
         const checked = Array.from(document.querySelectorAll(`input[name="set-group-${gIdx}"]:checked`));
         if (checked.length < group.limit) {
@@ -2986,51 +2986,58 @@ function confirmSetMealSelection() {
 
     if (!isValid) return;
 
-    // 2. Calculate dynamic price add-ons (e.g., +₱199 for Crispy Pata)
+    // 2. Calculate price add-ons (e.g. +₱199 for Crispy Pata)
     let totalExtra = 0;
     document.querySelectorAll('#set-meal-options-container input:checked').forEach(inp => {
         totalExtra += parseFloat(inp.getAttribute('data-extra') || 0);
     });
 
     const finalPrice = parseFloat(activeSetMealItem.price) + totalExtra;
+    
+    // Create a unique composite key/name so variations don't clash
+    const formattedName = `${activeSetMealItem.name} (${selectedDishes.join(', ')})`;
 
-    // 3. Construct Item Object with modifiers formatted for Basket display
-    const cartItem = {
-        ItemID: activeSetMealItem.id,
-        id: activeSetMealItem.id,
-        ItemName: `${activeSetMealItem.name} (${selectedDishes.join(', ')})`,
-        name: `${activeSetMealItem.name} (${selectedDishes.join(', ')})`,
-        Price: finalPrice,
-        price: finalPrice,
-        Quantity: 1,
-        quantity: 1,
-        Category: activeSetMealItem.category || 'FilipinoSetMeals',
-        category: activeSetMealItem.category || 'FilipinoSetMeals',
-        modifiers: selectedDishes
-    };
+    // 3. Find stock limit from inventory
+    const invItem = (db.inventory || []).find(i => String(i.ItemID || i.id) === String(activeSetMealItem.id));
+    const rawStock = invItem ? (invItem.StockQuantity !== undefined ? invItem.StockQuantity : invItem.stock) : 999;
+    const maxStock = Number(rawStock) || 0;
 
-    // 4. Send to Basket/Cart
-    if (typeof addToCart === 'function') {
-        // Try passing the item object directly
-        addToCart(cartItem);
-    } else if (typeof addToBasket === 'function') {
-        addToBasket(cartItem);
-    } else if (window.cart && Array.isArray(window.cart)) {
-        window.cart.push(cartItem);
-    } else if (window.currentOrder && Array.isArray(window.currentOrder)) {
-        window.currentOrder.push(cartItem);
+    // 4. Check if exact set meal configuration already exists in activeCart
+    const exist = activeCart.find(c => c.name === formattedName);
+
+    if (exist) {
+        if (exist.quantity >= maxStock) {
+            if (typeof showToast === 'function') {
+                showToast(`Cannot add more. Only ${maxStock} in stock.`, "warning");
+            }
+            return;
+        }
+        exist.quantity++;
+    } else {
+        if (maxStock <= 0) {
+            if (typeof showToast === 'function') {
+                showToast("Item is out of stock.", "warning");
+            }
+            return;
+        }
+
+        // Push formatted item into activeCart
+        activeCart.push({
+            id: activeSetMealItem.id,
+            name: formattedName,
+            price: finalPrice,
+            category: activeSetMealItem.category || "FilipinoSetMeals",
+            quantity: 1,
+            modifiers: selectedDishes
+        });
     }
 
-    // 5. Trigger Cart UI Refresh (calls common UI rendering functions if they exist)
+    // 5. Trigger UI update and close modal
     if (typeof renderCart === 'function') renderCart();
-    if (typeof updateCartUI === 'function') updateCartUI();
-    if (typeof renderBasket === 'function') renderBasket();
-    if (typeof updateBasket === 'function') updateBasket();
+    if (typeof showToast === 'function') showToast("Added set meal to basket!", "success");
 
-    // 6. Close Modal
     closeSetMealModal();
 }
-
 function closeSetMealModal() {
     document.getElementById('set-meal-modal').classList.add('hidden');
     activeSetMealItem = null;
