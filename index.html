@@ -1208,12 +1208,13 @@ function removeFromCart(index) {
     }).join('');
     document.getElementById('basket-total').innerText = `₱${total.toFixed(2)}`;
 }
- async function placeOrder() {
+async function placeOrder() {
+    // 1. Check if basket is empty
     if (activeCart.length === 0) return showToast("Your basket is empty!", "warning");
     
     const total = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     
-    // Validate the cash tendered amount
+    // 2. Validate cash tendered amount
     const cashInput = document.getElementById('cash-tendered');
     const cashTendered = parseFloat(cashInput ? cashInput.value : 0) || 0;
     
@@ -1221,10 +1222,22 @@ function removeFromCart(index) {
         return showToast(`Insufficient payment! Total is ₱${total.toFixed(2)} but only ₱${cashTendered.toFixed(2)} was given.`, "warning");
     }
 
+    // ===============================================================
+    // ⏳ DISABLE BUTTON & DISPLAY LOADING STATE
+    // ===============================================================
+    const btn = document.querySelector('button[onclick*="placeOrder"]') || document.getElementById('btn-complete-order');
+    let originalBtnText = "Complete Order";
+    if (btn) {
+        originalBtnText = btn.innerHTML;
+        btn.disabled = true;
+        btn.classList.add('opacity-60', 'cursor-not-allowed');
+        btn.innerHTML = `<span class="animate-spin inline-block mr-1">⏳</span> Processing...`;
+    }
+
     const payload = {
         action: "placeOrder",
         EmployeeName: activeUser ? activeUser.name : "Employee",
-        ShiftID: currentShiftSession.shiftId || "", // 👈 Associates order directly with this shift
+        ShiftID: (typeof currentShiftSession !== 'undefined' && currentShiftSession.shiftId) ? currentShiftSession.shiftId : "", // Associates order directly with this shift
         ItemsOrdered: activeCart, 
         TotalAmount: total,
         PaymentMethod: "Cash",
@@ -1239,30 +1252,37 @@ function removeFromCart(index) {
             if (!db.orders) db.orders = [];
             db.orders.push(payload);
         }
-        finalizeLocalCheckout();
+        if (typeof finalizeLocalCheckout === 'function') finalizeLocalCheckout();
         if (typeof calculateShiftSales === 'function') calculateShiftSales();
     };
 
-    // ===============================================================
-    // 💡 DEDUCT LOCAL STOCK INSTANTLY (Happens for both online & offline)
-    // ===============================================================
-    deductLocalStock(activeCart);
+    // Helper to reset button back to original state
+    const resetButton = () => {
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-60', 'cursor-not-allowed');
+            btn.innerHTML = originalBtnText;
+        }
+    };
 
-    // Safe Offline Fallback Check
-    if (typeof SCRIPT_URL === 'undefined' || SCRIPT_URL === "" || SCRIPT_URL.includes("YOUR_SCRIPT_URL_PLACEHOLDER")) {
-        console.warn("SCRIPT_URL is not defined or configured. Running in Local POS Print Mode.");
-        showToast("Database Offline. Printing receipt locally...", "warning");
-        
-        if (typeof printThermalReceipt === 'function') {
-            printThermalReceipt(payload, "LOCAL-" + Date.now());
+    try {
+        // Deduct local stock instantly
+        if (typeof deductLocalStock === 'function') deductLocalStock(activeCart);
+
+        // Safe Offline Fallback Check
+        if (typeof SCRIPT_URL === 'undefined' || SCRIPT_URL === "" || SCRIPT_URL.includes("YOUR_SCRIPT_URL_PLACEHOLDER")) {
+            console.warn("SCRIPT_URL is not defined or configured. Running in Local POS Print Mode.");
+            showToast("Database Offline. Printing receipt locally...", "warning");
+            
+            if (typeof printThermalReceipt === 'function') {
+                printThermalReceipt(payload, "LOCAL-" + Date.now());
+            }
+
+            storeAndRecalculateLocally();
+            resetButton();
+            return;
         }
 
-        storeAndRecalculateLocally();
-        return;
-    }
-
-    // Attempt Server Sync
-    try {
         // Send as a plain text post to bypass CORS preflight restrictions completely
         const response = await fetch(SCRIPT_URL, {
             method: "POST",
@@ -1294,6 +1314,8 @@ function removeFromCart(index) {
         }
 
         storeAndRecalculateLocally();
+    } finally {
+        resetButton();
     }
 }
 
