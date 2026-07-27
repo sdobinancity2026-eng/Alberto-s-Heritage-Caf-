@@ -681,7 +681,7 @@
         document.getElementById('header-system-date').innerText = new Date().toLocaleDateString('en-US', options);
     }
 
-    async function fetchAllData() {
+  async function fetchAllData() {
     try {
         const response = await fetch(`${API_URL}?action=getInitialData`);
         if (!response.ok) throw new Error("Network response was not OK");
@@ -698,6 +698,21 @@
         }
         showToast("System is currently offline. Using local backup database.", "warning");
     }
+
+    // 🌟 REFRESH UI COMPONENTS NOW THAT DATA IS IN MEMORY
+    if (typeof populateAdminPettyCashDropdown === 'function') {
+        populateAdminPettyCashDropdown();
+    }
+    if (typeof updateCashierReconciliationDisplay === 'function') {
+        updateCashierReconciliationDisplay();
+    }
+    if (typeof renderMenu === 'function') {
+        renderMenu();
+    }
+    if (typeof calculateShiftSales === 'function') {
+        calculateShiftSales();
+    }
+}
 
     // 🌟 REFRESH UI COMPONENTS NOW THAT DB IS LOADED
     if (typeof populateEmployeeAllocationDropdown === 'function') {
@@ -2461,12 +2476,12 @@ function populateAdminPettyCashDropdown() {
     const panel = document.getElementById('admin-petty-cash-panel');
     const dropdown = document.getElementById('admin-petty-employee-select');
 
-    // 1. Check current logged-in user's role
+    // 1. Get user role safely (handles "Admin", "ADMIN", "admin")
     const currentUserRole = (typeof activeUser !== 'undefined' && activeUser && activeUser.role) 
-        ? activeUser.role.toLowerCase() 
+        ? String(activeUser.role).toLowerCase().trim() 
         : "";
 
-    // 2. Hide panel if user is not an Admin
+    // 2. Hide panel if user is not an admin
     if (currentUserRole !== 'admin') {
         if (panel) panel.classList.add('hidden');
         return;
@@ -2478,17 +2493,46 @@ function populateAdminPettyCashDropdown() {
 
     dropdown.innerHTML = '<option value="">-- Choose Employee --</option>';
 
-    if (typeof db !== 'undefined' && Array.isArray(db.employees)) {
-        db.employees.forEach(emp => {
-            const name = emp.Name || emp.name || emp.EmployeeName;
-            if (name) {
-                const option = document.createElement('option');
-                option.value = name;
-                option.textContent = name;
-                dropdown.appendChild(option);
-            }
-        });
+    let staffList = [];
+
+    // 4. Safely extract staff names from db.employees
+    if (typeof db !== 'undefined' && Array.isArray(db.employees) && db.employees.length > 0) {
+        staffList = db.employees
+            .map(emp => {
+                if (!emp) return null;
+
+                // Handle Object format: { Name: "Kevin Fuentes", Role: "Admin" }
+                if (typeof emp === 'object' && !Array.isArray(emp)) {
+                    const name = emp.Name || emp.name || emp.EmployeeName || emp["Employee Name"] || emp.FullName;
+                    return name ? String(name).trim() : null;
+                }
+
+                // Handle 2D Array format: ["A0001", "Kevin Fuentes", "Admin"]
+                if (Array.isArray(emp) && emp.length > 1) {
+                    if (String(emp[0]).toLowerCase().includes('id') || String(emp[1]).toLowerCase().includes('name')) {
+                        return null; // Skip header row
+                    }
+                    return String(emp[1]).trim();
+                }
+
+                return null;
+            })
+            .filter(Boolean);
+    } else if (window.employeeStartingCashAllocations) {
+        // Fallback to local memory keys
+        staffList = Object.keys(window.employeeStartingCashAllocations);
     }
+
+    // Clean up duplicates
+    staffList = [...new Set(staffList)];
+
+    // 5. Populate dropdown options
+    staffList.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        dropdown.appendChild(option);
+    });
 }
 
 // 2. Load amount when selecting an employee in Admin Panel
