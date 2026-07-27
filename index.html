@@ -230,62 +230,105 @@
                     </div>
                 </div>
 
-                      <!-- VIEW: RECONCILE (Shift Close Checkouts) -->
-                <div id="view-reconcile" class="view-block hidden max-w-md mx-auto bg-white p-6 rounded-2xl shadow-sm border">
-                    <h2 class="text-lg font-bold text-slate-800 mb-2">Shift Cash Drawer Reconciliation</h2>
-                    <p class="text-xs text-slate-500 mb-6">Verify your actual physical drawer coins and bills to check against system calculations.</p>
-                    
-                    <div class="space-y-4">
+                     <!-- ADMIN VIEW: ASSIGN EMPLOYEE PETTY / STARTING CASH -->
+                            <div class="bg-white p-6 rounded-2xl shadow-sm border max-w-md mx-auto mb-6">
+                                <div class="flex items-center gap-2 mb-4">
+                                    <span class="text-xl">💰</span>
+                                    <div>
+                                        <h3 class="text-base font-bold text-slate-800">Assign Employee Petty Cash</h3>
+                                        <p class="text-xs text-slate-500">Set starting register cash amounts for each employee.</p>
+                                    </div>
+                                </div>
+                            
+                                <div class="space-y-4">
+                                    <!-- Employee Selector -->
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-500 mb-1">Select Employee</label>
+                                        <select 
+                                            id="admin-petty-employee-select" 
+                                            class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                            onchange="loadAssignedPettyCashForSelected()"
+                                        >
+                                            <option value="">-- Choose Employee --</option>
+                                        </select>
+                                    </div>
+                            
+                                    <!-- Petty Cash Amount Input -->
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-500 mb-1">Starting Petty Cash (₱)</label>
+                                        <input 
+                                            type="number" 
+                                            id="admin-petty-amount" 
+                                            class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-mono font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                            placeholder="0.00"
+                                            step="0.01"
+                                        />
+                                    </div>
+                            
+                                    <button onclick="saveAdminPettyCashAllocation()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl text-xs hover:bg-blue-700 transition">
+                                        💾 Save Petty Cash Allocation
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- CASHIER VIEW: SHIFT CASH DRAWER RECONCILIATION -->
+                            <div id="view-reconcile" class="view-block hidden max-w-md mx-auto bg-white p-6 rounded-2xl shadow-sm border">
+                                <h2 class="text-lg font-bold text-slate-800 mb-1">Shift Cash Drawer Reconciliation</h2>
+                                <p class="text-xs text-slate-500 mb-6">Verify your actual physical drawer coins and bills against system calculations.</p>
+                            
+                                <div class="space-y-4">
+                                    <!-- 1. Assigned Starting / Petty Cash Display (Read-only) -->
+                                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
+                                        <div>
+                                            <p class="text-xs font-semibold text-slate-500">Assigned Petty / Starting Cash</p>
+                                            <p class="text-xs text-slate-400">Allocated by Admin for this shift</p>
+                                        </div>
+                                        <span id="recon-starting-cash-display" class="font-mono font-bold text-slate-800 text-sm">₱0.00</span>
+                                    </div>
+                            
+                                    <!-- 2. Current Logged Sales (₱) (Read-only) -->
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-500 mb-1">Current Logged Sales (₱)</label>
+                                        <input 
+                                            type="number" 
+                                            id="recon-sales" 
+                                            readonly 
+                                            class="w-full p-3 rounded-xl border border-slate-100 font-mono bg-slate-50 text-slate-600 text-sm font-semibold"
+                                            placeholder="₱0.00"
+                                        />
+                                    </div>
+                            
+                                    <!-- 3. Expected Total Cash inside Drawer -->
+                                    <div class="bg-blue-50/50 p-3 rounded-xl border border-blue-100 flex justify-between items-center">
+                                        <span class="text-xs font-bold text-blue-900">Expected Total Cash</span>
+                                        <span id="recon-expected-total" class="font-mono font-bold text-blue-900 text-base">₱0.00</span>
+                                    </div>
+                            
+                                    <!-- 4. Actual Physical Cash inside Drawer (₱) -->
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-500 mb-1">Actual Physical Cash inside Drawer (₱)</label>
+                                        <input 
+                                            type="number" 
+                                            id="recon-actual" 
+                                            oninput="calculateDrawerDiscrepancy()" 
+                                            placeholder="Count physical cash" 
+                                            class="w-full p-3 rounded-xl border border-slate-200 font-mono text-base font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            step="0.01"
+                                        />
+                                    </div>
+                            
+                                    <!-- 5. Variance / Discrepancy Check -->
+                                    <div class="p-3 rounded-xl bg-slate-50 border flex justify-between items-center">
+                                        <span class="text-xs font-bold text-slate-600">Variance / Over-Short:</span>
+                                        <span id="recon-variance-display" class="font-mono font-bold text-sm text-slate-800">₱0.00</span>
+                                    </div>
+                            
+                                    <button onclick="confirmEndShift()" class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl text-xs hover:bg-slate-800 transition">
+                                        Confirm End of Shift
+                                    </button>
+                                </div>
+                            </div>
                         
-                        <!-- 1. Employee Allocation Dropdown (Visible only to Admin) -->
-                        <div id="recon-employee-select-container">
-                            <label class="block text-xs font-semibold text-slate-500 mb-1">Select Employee to Allocate Cash</label>
-                            <select 
-                                id="recon-employee-select" 
-                                class="w-full bg-slate-100 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                                onchange="handleEmployeeCashAllocationChange()"
-                            >
-                                <option value="">-- Choose Staff Member --</option>
-                            </select>
-                        </div>
-                
-                        <!-- 2. Starting Register Cash (₱) (Read-only for cashier, editable by Admin) -->
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1">Starting Register Cash (₱)</label>
-                            <input 
-                                type="number" 
-                                id="start-cash" 
-                                class="w-full bg-slate-100 border border-slate-200 rounded-xl p-3 text-sm font-mono font-bold text-slate-800 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                                placeholder="0.00"
-                                step="0.01"
-                                oninput="saveAllocatedCashChange()"
-                            />
-                            <p id="start-cash-hint" class="text-[10px] text-amber-700 mt-1 hidden">⚠️ Only Administrators can allocate and edit this starting balance.</p>
-                        </div>
-                
-                        <!-- 3. Current Logged Sales (₱) (Read-only) -->
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1">Current Logged Sales (₱)</label>
-                            <input 
-                                type="number" 
-                                id="recon-sales" 
-                                readonly 
-                                class="w-full p-3 rounded-lg border border-gray-100 font-mono bg-slate-50 text-slate-500"
-                            />
-                        </div>
-                
-                        <!-- 4. Actual Physical Cash inside Drawer (₱) -->
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1">Actual Physical Cash inside Drawer (₱)</label>
-                            <input 
-                                type="number" 
-                                id="recon-actual" 
-                                oninput="calculateDrawerDiscrepancy()" 
-                                placeholder="Count actual cash" 
-                                class="w-full p-3 rounded-lg border border-gray-200 font-mono text-lg font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500"
-                            />
-                        </div>
-                
                         <!-- 5. Variance Check Panel -->
                         <div class="p-4 rounded-xl flex justify-between items-center bg-slate-50" id="recon-discrepancy-panel">
                             <span class="text-sm font-semibold">Variance Check:</span>
@@ -2392,6 +2435,114 @@ function restoreActiveShift() {
     
     const shiftIncomeEl = document.getElementById('header-shift-income');
     if (shiftIncomeEl) shiftIncomeEl.innerText = "₱0.00";
+}
+
+    // Local store for employee allocations
+window.employeeStartingCashAllocations = JSON.parse(localStorage.getItem('pettyCashAllocations') || '{}');
+
+// 1. Populate Admin Employee Dropdown
+function populateAdminPettyCashDropdown() {
+    const dropdown = document.getElementById('admin-petty-employee-select');
+    if (!dropdown) return;
+
+    dropdown.innerHTML = '<option value="">-- Choose Employee --</option>';
+
+    if (typeof db !== 'undefined' && Array.isArray(db.employees)) {
+        db.employees.forEach(emp => {
+            const name = emp.Name || emp.name || emp.EmployeeName;
+            if (name) {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                dropdown.appendChild(option);
+            }
+        });
+    }
+}
+
+// 2. Load amount when selecting an employee in Admin Panel
+function loadAssignedPettyCashForSelected() {
+    const dropdown = document.getElementById('admin-petty-employee-select');
+    const amountInput = document.getElementById('admin-petty-amount');
+    if (!dropdown || !amountInput) return;
+
+    const selectedEmp = dropdown.value;
+    const currentAlloc = window.employeeStartingCashAllocations[selectedEmp] || 0;
+    amountInput.value = parseFloat(currentAlloc).toFixed(2);
+}
+
+// 3. Admin saves petty cash for selected staff member
+function saveAdminPettyCashAllocation() {
+    const dropdown = document.getElementById('admin-petty-employee-select');
+    const amountInput = document.getElementById('admin-petty-amount');
+    
+    if (!dropdown || !dropdown.value) {
+        return showToast("Please select an employee first!", "warning");
+    }
+
+    const empName = dropdown.value;
+    const amount = parseFloat(amountInput.value) || 0;
+
+    // Save to local memory & localStorage
+    window.employeeStartingCashAllocations[empName] = amount;
+    localStorage.setItem('pettyCashAllocations', JSON.stringify(window.employeeStartingCashAllocations));
+
+    showToast(`Assigned ₱${amount.toFixed(2)} petty cash to ${empName}`, "success");
+}
+
+// 4. Auto-update Cashier Reconciliation screen based on logged-in user
+function updateCashierReconciliationDisplay() {
+    const currentStaffElement = document.getElementById('topbar-user-name');
+    const currentStaffName = currentStaffElement ? currentStaffElement.innerText.trim() : "";
+
+    // Find petty cash assigned to logged-in user
+    const startingCash = window.employeeStartingCashAllocations[currentStaffName] || 0;
+
+    // Update starting cash display
+    const startDisplay = document.getElementById('recon-starting-cash-display');
+    if (startDisplay) startDisplay.innerText = `₱${startingCash.toFixed(2)}`;
+
+    // Get shift sales
+    const currentShiftSales = typeof calculateShiftSales === 'function' ? calculateShiftSales() : 0;
+    
+    const salesInput = document.getElementById('recon-sales');
+    if (salesInput) salesInput.value = currentShiftSales.toFixed(2);
+
+    // Calculate Expected Total = Petty Cash + Shift Sales
+    const expectedTotal = startingCash + currentShiftSales;
+    const expectedEl = document.getElementById('recon-expected-total');
+    if (expectedEl) expectedEl.innerText = `₱${expectedTotal.toFixed(2)}`;
+
+    calculateDrawerDiscrepancy();
+}
+
+// 5. Calculate Over/Short Discrepancy
+function calculateDrawerDiscrepancy() {
+    const currentStaffElement = document.getElementById('topbar-user-name');
+    const currentStaffName = currentStaffElement ? currentStaffElement.innerText.trim() : "";
+    
+    const startingCash = window.employeeStartingCashAllocations[currentStaffName] || 0;
+    const currentSales = parseFloat(document.getElementById('recon-sales')?.value || 0);
+    const expectedTotal = startingCash + currentSales;
+
+    const actualInput = document.getElementById('recon-actual');
+    const actualCash = parseFloat(actualInput ? actualInput.value : 0) || 0;
+
+    const discrepancy = actualCash - expectedTotal;
+    const varEl = document.getElementById('recon-variance-display');
+
+    if (varEl) {
+        if (discrepancy === 0) {
+            varEl.innerText = "₱0.00 (Balanced)";
+            varEl.className = "font-mono font-bold text-sm text-emerald-600";
+        } else if (discrepancy > 0) {
+            varEl.innerText = `+₱${discrepancy.toFixed(2)} (Over)`;
+            varEl.className = "font-mono font-bold text-sm text-blue-600";
+        } else {
+            varEl.innerText = `-₱${Math.abs(discrepancy).toFixed(2)} (Short)`;
+            varEl.className = "font-mono font-bold text-sm text-red-600";
+        }
+    }
 }
 
 </script>
