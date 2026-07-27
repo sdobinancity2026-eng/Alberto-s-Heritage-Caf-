@@ -2521,17 +2521,6 @@ function populateAdminPettyCashDropdown() {
     });
 }
 // 2. Load amount when selecting an employee in Admin Panel
-function loadAssignedPettyCashForSelected() {
-    const dropdown = document.getElementById('admin-petty-employee-select');
-    const amountInput = document.getElementById('admin-petty-amount');
-    if (!dropdown || !amountInput) return;
-
-    const selectedEmp = dropdown.value;
-    const currentAlloc = window.employeeStartingCashAllocations[selectedEmp] || 0;
-    amountInput.value = parseFloat(currentAlloc).toFixed(2);
-}
-
-// 3. Admin saves petty cash for selected staff member
 async function saveAdminPettyCashAllocation() {
     // 1. Role verification
     const currentUserRole = (typeof activeUser !== 'undefined' && activeUser && activeUser.role) 
@@ -2552,41 +2541,46 @@ async function saveAdminPettyCashAllocation() {
     const empName = dropdown.value;
     const amount = parseFloat(amountInput.value) || 0;
 
-    // Show immediate local confirmation UI
+    // Save locally
     window.employeeStartingCashAllocations = window.employeeStartingCashAllocations || {};
     window.employeeStartingCashAllocations[empName] = amount;
     localStorage.setItem('pettyCashAllocations', JSON.stringify(window.employeeStartingCashAllocations));
 
-    // Disable button while sending request to Google Sheets
     const saveBtn = document.activeElement;
     if (saveBtn) saveBtn.disabled = true;
 
     showToast(`Saving petty cash for ${empName}...`, "info");
 
-    try {
-        const payload = {
-            action: 'assignPettyCash',
-            employeeName: empName,
-            startCash: amount,
-            date: new Date().toLocaleString()
-        };
+    const payload = {
+        action: 'assignPettyCash',
+        employeeName: empName,
+        startCash: amount,
+        date: new Date().toLocaleString()
+    };
 
+    try {
+        // Send request as text/plain body to bypass CORS preflight issues with Google Apps Script
         const response = await fetch(API_URL, {
             method: 'POST',
+            mode: 'cors',
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8'
+            },
             body: JSON.stringify(payload)
         });
 
         const result = await response.json();
 
-        if (result && (result.status === 'success' || result.success)) {
+        if (result && (result.status === "SUCCESS" || result.status === "success" || result.success)) {
             showToast(`Assigned ₱${amount.toFixed(2)} petty cash to ${empName}`, "success");
             
-            // Re-fetch database from Google Sheets to ensure db.shifts is fresh
+            // Re-fetch database to sync db.shifts
             if (typeof fetchAllData === 'function') {
                 await fetchAllData();
             }
         } else {
-            showToast("Saved locally, but failed to sync to Google Sheets.", "warning");
+            console.warn("Backend response:", result);
+            showToast("Saved locally, but server returned an issue.", "warning");
         }
     } catch (err) {
         console.error("Error saving petty cash to sheet:", err);
