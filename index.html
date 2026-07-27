@@ -2561,56 +2561,99 @@ function saveAdminPettyCashAllocation() {
 
 // 4. Auto-update Cashier Reconciliation screen based on logged-in user
 function updateCashierReconciliationDisplay() {
-    // 1. Get currently logged-in employee name
+    // 1. Get logged-in employee name
     const currentStaffElement = document.getElementById('topbar-user-name');
     const currentStaffName = currentStaffElement ? currentStaffElement.innerText.trim() : "";
 
     let startingCash = 0;
 
-    // Check 1: Check if current shift session object has start cash
+    // Check 1: Active session memory
     if (typeof currentShiftSession !== 'undefined' && currentShiftSession && currentShiftSession.startCash) {
         startingCash = parseFloat(currentShiftSession.startCash) || 0;
     }
 
-    // Check 2: Find active shift record in db.shifts matching this employee
-    if (startingCash === 0 && typeof db !== 'undefined' && Array.isArray(db.shifts)) {
-        const userShift = db.shifts.find(s => {
-            const empName = s.EmployeeName || s.employeeName || s.Name || "";
-            const status = String(s.Status || s.status || "").toLowerCase();
-            return empName.toLowerCase() === currentStaffName.toLowerCase() && status !== "closed";
+    // Check 2: Parse db.shifts from Google Sheets
+    if (startingCash === 0 && typeof db !== 'undefined' && Array.isArray(db.shifts) && db.shifts.length > 0) {
+        
+        // Find matching shifts for the current logged-in user or get the latest shift entry
+        const userShifts = db.shifts.filter(s => {
+            if (!s) return false;
+
+            // Handle Object format { EmployeeName: "Kristine Reyes", StartCash: 2000 }
+            if (typeof s === 'object' && !Array.isArray(s)) {
+                const emp = s.EmployeeName || s.employeeName || s.Name || s.employee || "";
+                return emp.toString().toLowerCase().trim() === currentStaffName.toLowerCase().trim();
+            }
+
+            // Handle Raw Array format ["SHFT-123", "Kristine Reyes", "7/27/2026", 2000, ...]
+            if (Array.isArray(s) && s.length > 3) {
+                const emp = String(s[1] || "");
+                return emp.toLowerCase().trim() === currentStaffName.toLowerCase().trim();
+            }
+
+            return false;
         });
 
-        if (userShift) {
-            startingCash = parseFloat(userShift.StartCash || userShift.startCash || userShift.StartingCash || 0);
+        if (userShifts.length > 0) {
+            // Get the last shift record for this user
+            const latestShift = userShifts[userShifts.length - 1];
+
+            if (typeof latestShift === 'object' && !Array.isArray(latestShift)) {
+                startingCash = parseFloat(
+                    latestShift.StartCash ?? 
+                    latestShift.startCash ?? 
+                    latestShift.StartingCash ?? 
+                    latestShift["Start Cash"] ?? 
+                    0
+                ) || 0;
+            } else if (Array.isArray(latestShift)) {
+                // Column D (index 3) is StartCash
+                startingCash = parseFloat(latestShift[3]) || 0;
+            }
+        } else {
+            // Check 2B: Fallback — if no specific employee match, check the latest global shift row in the sheet
+            const lastGlobalShift = db.shifts[db.shifts.length - 1];
+            if (lastGlobalShift) {
+                if (typeof lastGlobalShift === 'object' && !Array.isArray(lastGlobalShift)) {
+                    startingCash = parseFloat(
+                        lastGlobalShift.StartCash ?? lastGlobalShift.startCash ?? 0
+                    ) || 0;
+                } else if (Array.isArray(lastGlobalShift) && lastGlobalShift.length > 3) {
+                    // Skip header row if selected
+                    if (!String(lastGlobalShift[0]).toLowerCase().includes("shiftid")) {
+                        startingCash = parseFloat(lastGlobalShift[3]) || 0;
+                    }
+                }
+            }
         }
     }
 
-    // Check 3: Check local admin allocations memory
+    // Check 3: Check local Admin memory allocations
     if (startingCash === 0 && window.employeeStartingCashAllocations) {
         startingCash = parseFloat(window.employeeStartingCashAllocations[currentStaffName] || 0);
     }
 
-    // Update starting cash display on screen
+    // Update starting cash display
     const startDisplay = document.getElementById('recon-starting-cash-display');
     if (startDisplay) {
         startDisplay.innerText = `₱${startingCash.toFixed(2)}`;
     }
 
-    // Update logged shift sales
+    // Update current shift logged sales
     const currentShiftSales = typeof calculateShiftSales === 'function' ? calculateShiftSales() : 0;
     const salesInput = document.getElementById('recon-sales');
     if (salesInput) {
         salesInput.value = currentShiftSales.toFixed(2);
     }
 
-    // Calculate Expected Total = Assigned Petty Cash + Current Shift Sales
+    // Calculate Expected Total = Starting Cash + Shift Sales
     const expectedTotal = startingCash + currentShiftSales;
     const expectedEl = document.getElementById('recon-expected-total');
     if (expectedEl) {
         expectedEl.innerText = `₱${expectedTotal.toFixed(2)}`;
     }
 
-    // Recalculate over/short discrepancy
+    // Recalculate Variance
     if (typeof calculateDrawerDiscrepancy === 'function') {
         calculateDrawerDiscrepancy();
     }
