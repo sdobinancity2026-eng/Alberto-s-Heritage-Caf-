@@ -230,46 +230,46 @@
                     </div>
                 </div>
 
-                     <!-- ADMIN VIEW: ASSIGN EMPLOYEE PETTY / STARTING CASH -->
-                            <div class="bg-white p-6 rounded-2xl shadow-sm border max-w-md mx-auto mb-6">
-                                <div class="flex items-center gap-2 mb-4">
-                                    <span class="text-xl">💰</span>
-                                    <div>
-                                        <h3 class="text-base font-bold text-slate-800">Assign Employee Petty Cash</h3>
-                                        <p class="text-xs text-slate-500">Set starting register cash amounts for each employee.</p>
-                                    </div>
-                                </div>
-                            
-                                <div class="space-y-4">
-                                    <!-- Employee Selector -->
-                                    <div>
-                                        <label class="block text-xs font-semibold text-slate-500 mb-1">Select Employee</label>
-                                        <select 
-                                            id="admin-petty-employee-select" 
-                                            class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                            onchange="loadAssignedPettyCashForSelected()"
-                                        >
-                                            <option value="">-- Choose Employee --</option>
-                                        </select>
-                                    </div>
-                            
-                                    <!-- Petty Cash Amount Input -->
-                                    <div>
-                                        <label class="block text-xs font-semibold text-slate-500 mb-1">Starting Petty Cash (₱)</label>
-                                        <input 
-                                            type="number" 
-                                            id="admin-petty-amount" 
-                                            class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-mono font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                            placeholder="0.00"
-                                            step="0.01"
-                                        />
-                                    </div>
-                            
-                                    <button onclick="saveAdminPettyCashAllocation()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl text-xs hover:bg-blue-700 transition">
-                                        💾 Save Petty Cash Allocation
-                                    </button>
-                                </div>
+                     <!-- ADMIN ONLY: ASSIGN EMPLOYEE PETTY CASH -->
+                    <div id="admin-petty-cash-panel" class="hidden bg-white p-6 rounded-2xl shadow-sm border max-w-md mx-auto mb-6">
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="text-xl">💰</span>
+                            <div>
+                                <h3 class="text-base font-bold text-slate-800">Assign Employee Petty Cash</h3>
+                                <p class="text-xs text-slate-500">Set starting register cash amounts for each employee.</p>
                             </div>
+                        </div>
+                    
+                        <div class="space-y-4">
+                            <!-- Employee Selector -->
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1">Select Employee</label>
+                                <select 
+                                    id="admin-petty-employee-select" 
+                                    class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                    onchange="loadAssignedPettyCashForSelected()"
+                                >
+                                    <option value="">-- Choose Employee --</option>
+                                </select>
+                            </div>
+                    
+                            <!-- Petty Cash Amount Input -->
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1">Starting Petty Cash (₱)</label>
+                                <input 
+                                    type="number" 
+                                    id="admin-petty-amount" 
+                                    class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-mono font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                    placeholder="0.00"
+                                    step="0.01"
+                                />
+                            </div>
+                    
+                            <button onclick="saveAdminPettyCashAllocation()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl text-xs hover:bg-blue-700 transition">
+                                💾 Save Petty Cash Allocation
+                            </button>
+                        </div>
+                    </div>
 
                             <!-- CASHIER VIEW: SHIFT CASH DRAWER RECONCILIATION -->
                             <div id="view-reconcile" class="view-block hidden max-w-md mx-auto bg-white p-6 rounded-2xl shadow-sm border">
@@ -893,7 +893,7 @@ function evaluateStartingCashAccess() {
 
 // Standard Navigation Controller
 function navigateView(viewName) {
-    // 1. Toggle visibility of all views
+    // 1. Toggle visibility of all view blocks
     document.querySelectorAll('.view-block').forEach(el => el.classList.add('hidden'));
     const targetView = document.getElementById(`view-${viewName}`);
     if (targetView) targetView.classList.remove('hidden');
@@ -928,31 +928,41 @@ function navigateView(viewName) {
         titleEl.innerText = titleMap[viewName] || 'Dashboard';
     }
 
-    // 🌟 Dynamically rebuild category elements whenever visiting key views
+    // Dynamically rebuild categories if on register/inventory
     if ((viewName === 'register' || viewName === 'admin-inventory') && typeof populateDynamicCategories === 'function') {
         populateDynamicCategories();
     }
 
-    // 💰 ALWAYS recalculate shift sales when navigating between views
+    // ALWAYS recalculate shift sales when switching views
     if (typeof calculateShiftSales === 'function') {
         calculateShiftSales();
     }
 
-    // 4. Trigger specific actions depending on which view is being loaded
+    // 4. View-specific triggers & Role Enforcement
+    const userRole = (typeof activeUser !== 'undefined' && activeUser && activeUser.role) 
+        ? activeUser.role.toLowerCase() 
+        : "";
+
     if (viewName === 'reconcile') {
-        // 💰 Auto-calculate Petty Cash + Shift Sales for the logged-in Cashier
+        // 💰 Always refresh the cashier's expected starting petty cash and sales total
         if (typeof updateCashierReconciliationDisplay === 'function') {
             updateCashierReconciliationDisplay();
         }
-    }
 
-    if (viewName === 'admin-employees') {
-        // 👥 Populate Admin Petty Cash Allocation employee dropdown
-        if (typeof populateAdminPettyCashDropdown === 'function') {
+        // 🔒 Only populate and display the Petty Cash Allocation form if the user is an Admin
+        if (userRole === 'admin' && typeof populateAdminPettyCashDropdown === 'function') {
             populateAdminPettyCashDropdown();
+        } else {
+            // Ensure the admin allocation panel is hidden for regular employees
+            const adminPanel = document.getElementById('admin-petty-cash-panel');
+            if (adminPanel) adminPanel.classList.add('hidden');
         }
     }
 
+    // Other admin views
+    if (viewName === 'admin-employees' && userRole === 'admin' && typeof populateAdminPettyCashDropdown === 'function') {
+        populateAdminPettyCashDropdown();
+    }
     if (viewName === 'admin-daily' && typeof renderDailyLedger === 'function') renderDailyLedger();
     if (viewName === 'admin-weekly' && typeof renderWeeklyLedger === 'function') renderWeeklyLedger();
     if (viewName === 'admin-monthly' && typeof renderMonthlyLedger === 'function') renderMonthlyLedger();
@@ -2448,7 +2458,22 @@ window.employeeStartingCashAllocations = JSON.parse(localStorage.getItem('pettyC
 
 // 1. Populate Admin Employee Dropdown
 function populateAdminPettyCashDropdown() {
+    const panel = document.getElementById('admin-petty-cash-panel');
     const dropdown = document.getElementById('admin-petty-employee-select');
+
+    // 1. Check current logged-in user's role
+    const currentUserRole = (typeof activeUser !== 'undefined' && activeUser && activeUser.role) 
+        ? activeUser.role.toLowerCase() 
+        : "";
+
+    // 2. Hide panel if user is not an Admin
+    if (currentUserRole !== 'admin') {
+        if (panel) panel.classList.add('hidden');
+        return;
+    }
+
+    // 3. Reveal panel for Admin
+    if (panel) panel.classList.remove('hidden');
     if (!dropdown) return;
 
     dropdown.innerHTML = '<option value="">-- Choose Employee --</option>';
@@ -2479,6 +2504,15 @@ function loadAssignedPettyCashForSelected() {
 
 // 3. Admin saves petty cash for selected staff member
 function saveAdminPettyCashAllocation() {
+    // Admin role safeguard
+    const currentUserRole = (typeof activeUser !== 'undefined' && activeUser && activeUser.role) 
+        ? activeUser.role.toLowerCase() 
+        : "";
+
+    if (currentUserRole !== 'admin') {
+        return showToast("Access Denied: Only Administrators can set petty cash.", "warning");
+    }
+
     const dropdown = document.getElementById('admin-petty-employee-select');
     const amountInput = document.getElementById('admin-petty-amount');
     
@@ -2489,7 +2523,7 @@ function saveAdminPettyCashAllocation() {
     const empName = dropdown.value;
     const amount = parseFloat(amountInput.value) || 0;
 
-    // Save to local memory & localStorage
+    // Save allocation
     window.employeeStartingCashAllocations[empName] = amount;
     localStorage.setItem('pettyCashAllocations', JSON.stringify(window.employeeStartingCashAllocations));
 
