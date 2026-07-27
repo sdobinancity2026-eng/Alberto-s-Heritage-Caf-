@@ -1016,7 +1016,7 @@ function logout() {
         document.getElementById('app-wrapper').classList.add('hidden');
         showToast("Successfully logged out.");
     }
-   function renderMenu() {
+  function renderMenu() {
     // 1. Render Category Buttons Tab Bar
     const tabContainer = document.getElementById('category-tab-bar');
     tabContainer.innerHTML = menuCategories.map(cat => {
@@ -1055,6 +1055,7 @@ function logout() {
     }
 
     tableBody.innerHTML = filteredItems.map(item => {
+        const itemId = item.ItemID || item.id;
         const rawStock = item.StockQuantity !== undefined ? item.StockQuantity : (item.stock || 0);
         const stock = Number(rawStock) || 0;
         const isOutOfStock = stock <= 0;
@@ -1068,24 +1069,16 @@ function logout() {
                           itemName.includes('set b') || 
                           itemName.includes('set c');
 
-        // Create normalized object to pass into modal
-        const itemObj = JSON.stringify({
-            id: item.ItemID || item.id,
-            name: item.ItemName || item.name,
-            price: price,
-            category: item.Category || item.category
-        }).replace(/'/g, "&apos;"); // Escape single quotes for HTML attribute safety
-
-        // Choose dynamic click action
+        // Safe click action using ID only
         const clickAction = isSetMeal 
-            ? `openSetMealModal(${itemObj})` 
-            : `addToCart('${item.ItemID}')`;
+            ? `openSetMealModal('${itemId}')` 
+            : `addToCart('${itemId}')`;
 
         return `
             <tr class="hover:bg-slate-50/50 transition">
-                <td class="py-3.5 px-2 text-xs font-mono text-slate-400 font-medium">#${item.ItemID}</td>
+                <td class="py-3.5 px-2 text-xs font-mono text-slate-400 font-medium">#${itemId}</td>
                 <td class="py-3.5 px-2">
-                    <span class="font-bold text-slate-800 text-sm block leading-tight">${item.ItemName}</span>
+                    <span class="font-bold text-slate-800 text-sm block leading-tight">${item.ItemName || item.name}</span>
                     <span class="text-[10px] text-amber-800 font-medium bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">${item.Category || item.category}</span>
                 </td>
                 <td class="py-3.5 px-2 text-right font-mono font-bold text-slate-700 text-sm">₱${price.toFixed(2)}</td>
@@ -2872,18 +2865,36 @@ let activeSetMealItem = null; // Stores product object being customized
 /**
  * Triggers when clicking "+ Add" on a Filipino Set Meal
  */
-function openSetMealModal(item) {
-    const key = Object.keys(SET_MEAL_CONFIGS).find(k => item.name.toLowerCase().includes(k));
-    if (!key) {
-        // Fallback for non-configurable items
-        if (typeof addToCart === 'function') addToCart(item);
+function openSetMealModal(itemId) {
+    // 1. Find item from db.inventory using the ID
+    const item = (db.inventory || []).find(i => String(i.ItemID || i.id) === String(itemId));
+    
+    if (!item) {
+        if (typeof showToast === 'function') showToast("Item details not found.", "warning");
         return;
     }
 
-    activeSetMealItem = { ...item, config: SET_MEAL_CONFIGS[key] };
+    const itemName = item.ItemName || item.name || "";
+    const itemPrice = Number(item.Price) || Number(item.price) || 0;
+
+    // 2. Match configuration (Set A, Set B, or Set C)
+    const key = Object.keys(SET_MEAL_CONFIGS).find(k => itemName.toLowerCase().includes(k));
+    if (!key) {
+        if (typeof addToCart === 'function') addToCart(itemId);
+        return;
+    }
+
+    // 3. Store active item details
+    activeSetMealItem = { 
+        id: item.ItemID || item.id,
+        name: itemName,
+        price: itemPrice,
+        category: item.Category || item.category,
+        config: SET_MEAL_CONFIGS[key] 
+    };
     
     document.getElementById('set-meal-title').innerText = activeSetMealItem.config.name;
-    document.getElementById('set-meal-price-display').innerText = `₱${parseFloat(item.price).toFixed(2)}`;
+    document.getElementById('set-meal-price-display').innerText = `₱${itemPrice.toFixed(2)}`;
     
     const container = document.getElementById('set-meal-options-container');
     container.innerHTML = '';
@@ -2926,7 +2937,6 @@ function openSetMealModal(item) {
 
     document.getElementById('set-meal-modal').classList.remove('hidden');
 }
-
 /**
  * Validates check limits per group and updates the price total dynamically
  */
