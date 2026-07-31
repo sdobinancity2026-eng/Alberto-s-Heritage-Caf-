@@ -716,6 +716,27 @@
         "Pizza", "Pasta", "MainCourse", "BestSeller"
     ];
 
+      // Complete Pricing Data Mapping based on your menu
+const PIZZA_PRICING_DATABASE = {
+    "Hawaiian": { thin10: 299, thin12: 359, regular10: 319, regular12: 379 },
+    "Pepperoni": { thin10: 299, thin12: 359, regular10: 319, regular12: 379 },
+    "Veggies Galore": { thin10: 309, thin12: 359, regular10: 319, regular12: 379 },
+    "Quattro Formaggi": { thin10: 309, thin12: 359, regular10: 329, regular12: 379 },
+    "Barbecue Chicken": { thin10: 309, thin12: 369, regular10: 329, regular12: 389 },
+    "All Meat Madness": { thin10: 319, thin12: 369, regular10: 339, regular12: 389 },
+    "Classic 4-Flavors-In-1": { thin12: 379, regular12: 399 }, // 12" only
+    "Signature 4-Flavors-In-1": { thin12: 399, regular12: 429 }, // 12" only
+    "Cheeseburger Pizza": { thin10: 329, thin12: 399, regular10: 339, regular12: 429 },
+    "Pizza De Alberto": { thin10: 329, thin12: 399, regular10: 339, regular12: 429 },
+    "Shrimp Alfredo Pizza": { thin10: 349, thin12: 399, regular10: 369, regular12: 429 },
+    "Meat & Veggies Pizza": { thin10: 349, thin12: 399, regular10: 369, regular12: 429 }
+};
+
+let activePizzaFlavor = "";
+let selectedCrust = "thin"; // Default: thin
+let selectedSize = "10";   // Default: 10"
+
+
     // ==========================================
     // 2. INITIALIZATION / BOOTSTRAP LOGIC
     // ==========================================
