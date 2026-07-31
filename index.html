@@ -698,6 +698,7 @@
     
     const API_URL = "https://script.google.com/macros/s/AKfycbxulPl24lg5hJS8a_5KuXPxUH7usUHHpl-JqdASVCFHiG0PTej7GaGFZoSKNY-dOvD-Uw/exec";
     const SCRIPT_URL = API_URL;
+
     // ==========================================
     // 1. GLOBAL STATE & CONFIG CONSTANTS
     // ==========================================
@@ -709,6 +710,12 @@
     // Tracking the active category tab (defaulting to "All" on start)
     let activeCategoryTab = "All";
 
+    // --- ADDED: Pizza Modal State Trackers ---
+    let activePizzaFlavor = "";
+    let activePizzaId = null;
+    let selectedCrust = "thin";
+    let selectedSize = "10";
+
     // Categories explicitly requested to match your sheets layout
     const menuCategories = [
         "All", "Appetizer", "Soup", "Salad", "AllDayBfast", 
@@ -716,21 +723,21 @@
         "Pizza", "Pasta", "MainCourse", "BestSeller"
     ];
 
-      // Complete Pricing Data Mapping based on your menu
-const PIZZA_PRICING_DATABASE = {
-    "Hawaiian": { thin10: 299, thin12: 359, regular10: 319, regular12: 379 },
-    "Pepperoni": { thin10: 299, thin12: 359, regular10: 319, regular12: 379 },
-    "Veggies Galore": { thin10: 309, thin12: 359, regular10: 319, regular12: 379 },
-    "Quattro Formaggi": { thin10: 309, thin12: 359, regular10: 329, regular12: 379 },
-    "Barbecue Chicken": { thin10: 309, thin12: 369, regular10: 329, regular12: 389 },
-    "All Meat Madness": { thin10: 319, thin12: 369, regular10: 339, regular12: 389 },
-    "Classic 4-Flavors-In-1": { thin12: 379, regular12: 399 }, // 12" only
-    "Signature 4-Flavors-In-1": { thin12: 399, regular12: 429 }, // 12" only
-    "Cheeseburger Pizza": { thin10: 329, thin12: 399, regular10: 339, regular12: 429 },
-    "Pizza De Alberto": { thin10: 329, thin12: 399, regular10: 339, regular12: 429 },
-    "Shrimp Alfredo Pizza": { thin10: 349, thin12: 399, regular10: 369, regular12: 429 },
-    "Meat & Veggies Pizza": { thin10: 349, thin12: 399, regular10: 369, regular12: 429 }
-};
+    // Complete Pricing Data Mapping based on your menu
+    const PIZZA_PRICING_DATABASE = {
+        "Hawaiian": { thin10: 299, thin12: 359, regular10: 319, regular12: 379 },
+        "Pepperoni": { thin10: 299, thin12: 359, regular10: 319, regular12: 379 },
+        "Veggies Galore": { thin10: 309, thin12: 359, regular10: 319, regular12: 379 },
+        "Quattro Formaggi": { thin10: 309, thin12: 359, regular10: 329, regular12: 379 },
+        "Barbecue Chicken": { thin10: 309, thin12: 369, regular10: 329, regular12: 389 },
+        "All Meat Madness": { thin10: 319, thin12: 369, regular10: 339, regular12: 389 },
+        "Classic 4-Flavors-In-1": { thin12: 379, regular12: 399 }, // 12" only
+        "Signature 4-Flavors-In-1": { thin12: 399, regular12: 429 }, // 12" only
+        "Cheeseburger Pizza": { thin10: 329, thin12: 399, regular10: 339, regular12: 429 },
+        "Pizza De Alberto": { thin10: 329, thin12: 399, regular10: 339, regular12: 429 },
+        "Shrimp Alfredo Pizza": { thin10: 349, thin12: 399, regular10: 369, regular12: 429 },
+        "Meat & Veggies Pizza": { thin10: 349, thin12: 399, regular10: 369, regular12: 429 }
+    };
 
     // ==========================================
     // 2. INITIALIZATION / BOOTSTRAP LOGIC
@@ -742,7 +749,6 @@ const PIZZA_PRICING_DATABASE = {
     }
 
     // Run app initialization when script executes
-    // (Or wrap in document.addEventListener("DOMContentLoaded", initApp) for maximum safety)
     initApp();
 
     // ==========================================
@@ -3259,114 +3265,121 @@ function closeSetMealModal() {
                 toggleMobileSidebar(false);
             }
         };
-
-             
-
-/**
- * Call this when clicking "+ Add" on any Pizza item
- */
-let activePizzaFlavor = "";
-let activePizzaId = null;
-let selectedCrust = "thin"; 
-let selectedSize = "10";   
-
+// ==========================================
+// 3. PIZZA MODAL INTERACTION LOGIC
+// ==========================================
 function openPizzaModal(flavorName, itemId) {
-    activePizzaFlavor = flavorName;
-    activePizzaId = itemId;
-    document.getElementById('pizza-modal-title').textContent = flavorName;
+    window.activePizzaFlavor = flavorName;
+    window.activePizzaId = itemId;
     
-    // Check if flavor only supports 12" size
+    const modalTitle = document.getElementById('pizza-modal-title');
+    if (modalTitle) modalTitle.textContent = flavorName;
+    
+    // Check if flavor only supports 12" size (e.g. 4-Flavors-In-1)
     const pizzaData = PIZZA_PRICING_DATABASE[flavorName];
     const size10Btn = document.getElementById('size-10-btn');
     
     if (pizzaData && !pizzaData.thin10 && !pizzaData.regular10) {
-        size10Btn.classList.add('hidden');
-        selectedSize = "12";
+        if (size10Btn) size10Btn.classList.add('hidden');
+        window.selectedSize = "12";
     } else {
-        size10Btn.classList.remove('hidden');
-        selectedSize = "10";
+        if (size10Btn) size10Btn.classList.remove('hidden');
+        window.selectedSize = "10";
     }
 
-    selectedCrust = "thin";
+    window.selectedCrust = "thin";
     updateModalUI();
-    document.getElementById('pizza-modal').classList.remove('hidden');
+    
+    const modal = document.getElementById('pizza-modal');
+    if (modal) modal.classList.remove('hidden');
 }
 
 function closePizzaModal() {
-    document.getElementById('pizza-modal').classList.add('hidden');
+    const modal = document.getElementById('pizza-modal');
+    if (modal) modal.classList.add('hidden');
 }
 
 function selectPizzaCrust(crust) {
-    selectedCrust = crust;
+    window.selectedCrust = crust;
     updateModalUI();
 }
 
 function selectPizzaSize(size) {
-    selectedSize = size;
+    window.selectedSize = size;
     updateModalUI();
 }
 
 function updateModalUI() {
-    // Button styling toggles for Crust
     const thinBtn = document.getElementById('crust-thin-btn');
     const regBtn = document.getElementById('crust-regular-btn');
     
-    if (selectedCrust === 'thin') {
-        thinBtn.className = "p-3 rounded-xl border-2 border-amber-800 bg-amber-50 text-amber-900 font-bold text-sm text-center transition-all";
-        regBtn.className = "p-3 rounded-xl border-2 border-slate-200 bg-white text-slate-600 font-bold text-sm text-center hover:border-slate-300 transition-all";
-    } else {
-        regBtn.className = "p-3 rounded-xl border-2 border-amber-800 bg-amber-50 text-amber-900 font-bold text-sm text-center transition-all";
-        thinBtn.className = "p-3 rounded-xl border-2 border-slate-200 bg-white text-slate-600 font-bold text-sm text-center hover:border-slate-300 transition-all";
+    if (thinBtn && regBtn) {
+        if (window.selectedCrust === 'thin') {
+            thinBtn.className = "p-3 rounded-xl border-2 border-amber-800 bg-amber-50 text-amber-900 font-bold text-sm text-center transition-all";
+            regBtn.className = "p-3 rounded-xl border-2 border-slate-200 bg-white text-slate-600 font-bold text-sm text-center hover:border-slate-300 transition-all";
+        } else {
+            regBtn.className = "p-3 rounded-xl border-2 border-amber-800 bg-amber-50 text-amber-900 font-bold text-sm text-center transition-all";
+            thinBtn.className = "p-3 rounded-xl border-2 border-slate-200 bg-white text-slate-600 font-bold text-sm text-center hover:border-slate-300 transition-all";
+        }
     }
 
-    // Button styling toggles for Size
     const btn10 = document.getElementById('size-10-btn');
     const btn12 = document.getElementById('size-12-btn');
 
-    if (selectedSize === '10') {
-        btn10.className = "p-3 rounded-xl border-2 border-amber-800 bg-amber-50 text-amber-900 font-bold text-sm text-center transition-all";
-        btn12.className = "p-3 rounded-xl border-2 border-slate-200 bg-white text-slate-600 font-bold text-sm text-center hover:border-slate-300 transition-all";
-    } else {
-        btn12.className = "p-3 rounded-xl border-2 border-amber-800 bg-amber-50 text-amber-900 font-bold text-sm text-center transition-all";
-        btn10.className = "p-3 rounded-xl border-2 border-slate-200 bg-white text-slate-600 font-bold text-sm text-center hover:border-slate-300 transition-all";
+    if (btn10 && btn12) {
+        if (window.selectedSize === '10') {
+            btn10.className = "p-3 rounded-xl border-2 border-amber-800 bg-amber-50 text-amber-900 font-bold text-sm text-center transition-all";
+            btn12.className = "p-3 rounded-xl border-2 border-slate-200 bg-white text-slate-600 font-bold text-sm text-center hover:border-slate-300 transition-all";
+        } else {
+            btn12.className = "p-3 rounded-xl border-2 border-amber-800 bg-amber-50 text-amber-900 font-bold text-sm text-center transition-all";
+            btn10.className = "p-3 rounded-xl border-2 border-slate-200 bg-white text-slate-600 font-bold text-sm text-center hover:border-slate-300 transition-all";
+        }
     }
 
-    // Calculate Price
-    const key = selectedCrust + selectedSize; // e.g. "thin10", "regular12"
-    const price = PIZZA_PRICING_DATABASE[activePizzaFlavor]?.[key] || 0;
+    // Calculate Price dynamically
+    const key = window.selectedCrust + window.selectedSize;
+    const price = PIZZA_PRICING_DATABASE[window.activePizzaFlavor]?.[key] || 0;
     
-    document.getElementById('pizza-modal-price').textContent = `₱${price.toFixed(2)}`;
+    const priceDisplay = document.getElementById('pizza-modal-price');
+    if (priceDisplay) priceDisplay.textContent = `₱${price.toFixed(2)}`;
 }
 
+// ==========================================
+// 4. CONFIRM & ADD TO CART LOGIC
+// ==========================================
 function confirmPizzaAddToCart() {
-    const key = selectedCrust + selectedSize;
-    const price = PIZZA_PRICING_DATABASE[activePizzaFlavor]?.[key] || 0;
-    const crustLabel = selectedCrust === 'thin' ? 'Thin Crust' : 'Regular Crust';
-    const formattedName = `${activePizzaFlavor} (${crustLabel} ${selectedSize}")`;
+    const key = window.selectedCrust + window.selectedSize;
+    const price = PIZZA_PRICING_DATABASE[window.activePizzaFlavor]?.[key] || 0;
+    const crustLabel = window.selectedCrust === 'thin' ? 'Thin Crust' : 'Regular Crust';
+    const formattedName = `${window.activePizzaFlavor} (${crustLabel} ${window.selectedSize}")`;
 
-    // Create a unique identifier for this specific pizza variant
-    const variantId = `${activePizzaId}_${selectedCrust}_${selectedSize}`;
+    const variantId = `${window.activePizzaId}_${window.selectedCrust}_${window.selectedSize}`;
 
-    // Check stock from original item
-    const item = db.inventory.find(i => i.ItemID == activePizzaId);
-    const rawStock = item ? (item.StockQuantity !== undefined ? item.StockQuantity : (item.stock || 0)) : 99;
-    const maxStock = Number(rawStock) || 0;
+    // Access database stock safely
+    let maxStock = 99;
+    if (typeof db !== 'undefined' && db.inventory) {
+        const item = db.inventory.find(i => i.ItemID == window.activePizzaId);
+        if (item) {
+            const rawStock = item.StockQuantity !== undefined ? item.StockQuantity : (item.stock || 0);
+            maxStock = Number(rawStock) || 0;
+        }
+    }
 
     const exist = activeCart.find(c => c.variantId === variantId);
 
     if (exist) {
         if (exist.quantity >= maxStock) {
-            showToast(`Cannot add more. Only ${maxStock} in stock.`, "warning");
+            if (typeof showToast === 'function') showToast(`Cannot add more. Only ${maxStock} in stock.`, "warning");
             return;
         }
         exist.quantity++;
     } else {
         if (maxStock <= 0) {
-            showToast("Item is out of stock.", "warning");
+            if (typeof showToast === 'function') showToast("Item is out of stock.", "warning");
             return;
         }
         activeCart.push({ 
-            id: activePizzaId,
+            id: window.activePizzaId,
             variantId: variantId,
             name: formattedName, 
             price: price, 
@@ -3375,9 +3388,16 @@ function confirmPizzaAddToCart() {
         });
     }
 
-    renderCart();
+    if (typeof renderCart === 'function') renderCart();
     closePizzaModal();
-}            
+}
+
+// Attach functions explicitly to global window object
+window.openPizzaModal = openPizzaModal;
+window.closePizzaModal = closePizzaModal;
+window.selectPizzaCrust = selectPizzaCrust;
+window.selectPizzaSize = selectPizzaSize;
+window.confirmPizzaAddToCart = confirmPizzaAddToCart;   
 </script>
 </body>
 </html>
