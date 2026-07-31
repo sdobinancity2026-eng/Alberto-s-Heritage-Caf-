@@ -693,6 +693,13 @@
 
 
 <script>
+            // Silence background extension promise rejections when tab is idle
+        window.addEventListener('unhandledrejection', function(event) {
+            if (event.reason && event.reason.message && event.reason.message.includes('message channel closed')) {
+                event.preventDefault(); // Suppress Chrome extension background noise
+            }
+        });
+    
     // This style avoids "Identifier already declared" syntax errors entirely!
     window.employeeStartingCashAllocations = window.employeeStartingCashAllocations || JSON.parse(localStorage.getItem('caf_cash_allocations')) || {};
     
