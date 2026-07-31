@@ -1208,11 +1208,44 @@ function logout() {
         renderMenu();
     }
 
-    // Tab selection click handler
-    function setCategoryFilter(categoryName) {
-        activeCategoryTab = categoryName;
-        renderMenu();
+    function addToCart(id) {
+    const item = db.inventory.find(i => i.ItemID == id);
+    if (!item) return;
+
+    // 1. Intercept Pizza category items
+    const itemCategory = (item.Category || item.category || "").toLowerCase();
+    if (itemCategory === "pizza") {
+        // Open the Pizza Modal using the item's name and ID
+        openPizzaModal(item.ItemName, item.ItemID);
+        return; // Stop here so it doesn't get added to cart immediately!
     }
+
+    // 2. Standard cart logic for all other menu items
+    const rawStock = item.StockQuantity !== undefined ? item.StockQuantity : (item.stock || 0);
+    const maxStock = Number(rawStock) || 0;
+    const exist = activeCart.find(c => c.id == id);
+
+    if (exist) {
+        if (exist.quantity >= maxStock) {
+            showToast(`Cannot add more. Only ${maxStock} in stock.`, "warning");
+            return;
+        }
+        exist.quantity++;
+    } else {
+        if (maxStock <= 0) {
+            showToast("Item is out of stock.", "warning");
+            return;
+        }
+        activeCart.push({ 
+            id: item.ItemID, 
+            name: item.ItemName, 
+            price: Number(item.Price) || 0, 
+            category: item.Category || item.category || "General", 
+            quantity: 1 
+        });
+    }
+    renderCart();
+}
 
    let activePizzaFlavor = "";
 let activePizzaId = null;
