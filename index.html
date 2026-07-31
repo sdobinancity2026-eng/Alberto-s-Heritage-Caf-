@@ -732,11 +732,6 @@ const PIZZA_PRICING_DATABASE = {
     "Meat & Veggies Pizza": { thin10: 349, thin12: 399, regular10: 369, regular12: 429 }
 };
 
-let activePizzaFlavor = "";
-let selectedCrust = "thin"; // Default: thin
-let selectedSize = "10";   // Default: 10"
-
-
     // ==========================================
     // 2. INITIALIZATION / BOOTSTRAP LOGIC
     // ==========================================
@@ -1219,35 +1214,32 @@ function logout() {
         renderMenu();
     }
 
-    function addToCart(id) {
-        const item = db.inventory.find(i => i.ItemID == id);
-        if (!item) return;
+   let activePizzaFlavor = "";
+let activePizzaId = null;
+let selectedCrust = "thin"; 
+let selectedSize = "10";   
 
-        const rawStock = item.StockQuantity !== undefined ? item.StockQuantity : (item.stock || 0);
-        const maxStock = Number(rawStock) || 0;
-        const exist = activeCart.find(c => c.id == id);
-
-        if (exist) {
-            if (exist.quantity >= maxStock) {
-                showToast(`Cannot add more. Only ${maxStock} in stock.`, "warning");
-                return;
-            }
-            exist.quantity++;
-        } else {
-            if (maxStock <= 0) {
-                showToast("Item is out of stock.", "warning");
-                return;
-            }
-            activeCart.push({ 
-                id: item.ItemID, 
-                name: item.ItemName, 
-                price: Number(item.Price) || 0, 
-                category: item.Category || item.category || "General", 
-                quantity: 1 
-            });
-        }
-        renderCart();
+function openPizzaModal(flavorName, itemId) {
+    activePizzaFlavor = flavorName;
+    activePizzaId = itemId;
+    document.getElementById('pizza-modal-title').textContent = flavorName;
+    
+    // Check if flavor only supports 12" size
+    const pizzaData = PIZZA_PRICING_DATABASE[flavorName];
+    const size10Btn = document.getElementById('size-10-btn');
+    
+    if (pizzaData && !pizzaData.thin10 && !pizzaData.regular10) {
+        size10Btn.classList.add('hidden');
+        selectedSize = "12";
+    } else {
+        size10Btn.classList.remove('hidden');
+        selectedSize = "10";
     }
+
+    selectedCrust = "thin";
+    updateModalUI();
+    document.getElementById('pizza-modal').classList.remove('hidden');
+}
 
     // Remove a specific item index from the active order basket
 function removeFromCart(index) {
@@ -3235,34 +3227,22 @@ function closeSetMealModal() {
             }
         };
 
-                // Complete Pricing Data Mapping based on your menu
-const PIZZA_PRICING_DATABASE = {
-    "Hawaiian": { thin10: 299, thin12: 359, regular10: 319, regular12: 379 },
-    "Pepperoni": { thin10: 299, thin12: 359, regular10: 319, regular12: 379 },
-    "Veggies Galore": { thin10: 309, thin12: 359, regular10: 319, regular12: 379 },
-    "Quattro Formaggi": { thin10: 309, thin12: 359, regular10: 329, regular12: 379 },
-    "Barbecue Chicken": { thin10: 309, thin12: 369, regular10: 329, regular12: 389 },
-    "All Meat Madness": { thin10: 319, thin12: 369, regular10: 339, regular12: 389 },
-    "Classic 4-Flavors-In-1": { thin12: 379, regular12: 399 }, // 12" only
-    "Signature 4-Flavors-In-1": { thin12: 399, regular12: 429 }, // 12" only
-    "Cheeseburger Pizza": { thin10: 329, thin12: 399, regular10: 339, regular12: 429 },
-    "Pizza De Alberto": { thin10: 329, thin12: 399, regular10: 339, regular12: 429 },
-    "Shrimp Alfredo Pizza": { thin10: 349, thin12: 399, regular10: 369, regular12: 429 },
-    "Meat & Veggies Pizza": { thin10: 349, thin12: 399, regular10: 369, regular12: 429 }
-};
-
-let activePizzaFlavor = "";
-let selectedCrust = "thin"; // Default: thin
-let selectedSize = "10";   // Default: 10"
+             
 
 /**
  * Call this when clicking "+ Add" on any Pizza item
  */
-function openPizzaModal(flavorName) {
+let activePizzaFlavor = "";
+let activePizzaId = null;
+let selectedCrust = "thin"; 
+let selectedSize = "10";   
+
+function openPizzaModal(flavorName, itemId) {
     activePizzaFlavor = flavorName;
+    activePizzaId = itemId;
     document.getElementById('pizza-modal-title').textContent = flavorName;
     
-    // Check if item only supports 12" size
+    // Check if flavor only supports 12" size
     const pizzaData = PIZZA_PRICING_DATABASE[flavorName];
     const size10Btn = document.getElementById('size-10-btn');
     
@@ -3328,19 +3308,43 @@ function updateModalUI() {
 function confirmPizzaAddToCart() {
     const key = selectedCrust + selectedSize;
     const price = PIZZA_PRICING_DATABASE[activePizzaFlavor]?.[key] || 0;
-    
-    const formattedName = `${activePizzaFlavor} (${selectedCrust.toUpperCase()} ${selectedSize}")`;
+    const crustLabel = selectedCrust === 'thin' ? 'Thin Crust' : 'Regular Crust';
+    const formattedName = `${activePizzaFlavor} (${crustLabel} ${selectedSize}")`;
 
-    // Execute your existing basket logic (Replace with your custom basket add function)
-    if (typeof addToBasket === 'function') {
-        addToBasket(formattedName, price);
+    // Create a unique identifier for this specific pizza variant
+    const variantId = `${activePizzaId}_${selectedCrust}_${selectedSize}`;
+
+    // Check stock from original item
+    const item = db.inventory.find(i => i.ItemID == activePizzaId);
+    const rawStock = item ? (item.StockQuantity !== undefined ? item.StockQuantity : (item.stock || 0)) : 99;
+    const maxStock = Number(rawStock) || 0;
+
+    const exist = activeCart.find(c => c.variantId === variantId);
+
+    if (exist) {
+        if (exist.quantity >= maxStock) {
+            showToast(`Cannot add more. Only ${maxStock} in stock.`, "warning");
+            return;
+        }
+        exist.quantity++;
     } else {
-        console.log(`Added to Receipt: ${formattedName} - ₱${price}`);
+        if (maxStock <= 0) {
+            showToast("Item is out of stock.", "warning");
+            return;
+        }
+        activeCart.push({ 
+            id: activePizzaId,
+            variantId: variantId,
+            name: formattedName, 
+            price: price, 
+            category: "Pizza", 
+            quantity: 1 
+        });
     }
 
+    renderCart();
     closePizzaModal();
-}
-                
+}            
 </script>
 </body>
 </html>
