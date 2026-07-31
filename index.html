@@ -686,6 +686,33 @@
     </div>
 </div>
 
+    <!-- PASTA MODAL -->
+<div id="pasta-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl transition-all">
+        <div class="flex justify-between items-center pb-4 border-b">
+            <h3 id="pasta-modal-title" class="text-xl font-bold text-slate-800">Classic Aglio Olio</h3>
+            <button onclick="closePastaModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+        </div>
+
+        <div class="py-6 space-y-4">
+            <p class="text-sm font-semibold text-slate-600">Select Protein / Flavor:</p>
+            <div class="grid grid-cols-2 gap-3">
+                <button id="pasta-shrimp-btn" onclick="selectPastaFlavor('Shrimp')" class="p-4 rounded-xl border-2 border-amber-800 bg-amber-50 text-amber-900 font-bold text-center transition-all">
+                    Shrimp
+                </button>
+                <button id="pasta-tuna-btn" onclick="selectPastaFlavor('Tuna')" class="p-4 rounded-xl border-2 border-slate-200 bg-white text-slate-600 font-bold text-center hover:border-slate-300 transition-all">
+                    Tuna
+                </button>
+            </div>
+        </div>
+
+        <div class="pt-4 border-t flex gap-3">
+            <button onclick="closePastaModal()" class="w-1/2 py-3 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
+            <button onclick="confirmPastaAddToCart()" class="w-1/2 py-3 rounded-xl bg-amber-800 text-white font-bold hover:bg-amber-900 transition-all">Add to Order</button>
+        </div>
+    </div>
+</div>
+
     <!-- Hidden Printable Node Container for Thermal Output -->
     <div id="receipt-print-zone" class="hidden"></div>
     <!-- Hidden Printable Node Container for Thermal Output -->
@@ -1225,15 +1252,22 @@ function logout() {
     const item = db.inventory.find(i => i.ItemID == id);
     if (!item) return;
 
-    // 1. Intercept Pizza category items
+    const itemName = (item.ItemName || "").trim();
     const itemCategory = (item.Category || item.category || "").toLowerCase();
+
+    // 1. Intercept Pizza category items
     if (itemCategory === "pizza") {
-        // Open the Pizza Modal using the item's name and ID
         openPizzaModal(item.ItemName, item.ItemID);
-        return; // Stop here so it doesn't get added to cart immediately!
+        return;
     }
 
-    // 2. Standard cart logic for all other menu items
+    // 2. Intercept Classic Aglio Olio Pasta
+    if (itemName.toLowerCase().includes("aglio olio")) {
+        openPastaModal(item.ItemName, item.ItemID);
+        return;
+    }
+
+    // 3. Standard cart logic for all other menu items
     const rawStock = item.StockQuantity !== undefined ? item.StockQuantity : (item.stock || 0);
     const maxStock = Number(rawStock) || 0;
     const exist = activeCart.find(c => c.id == id);
@@ -3399,6 +3433,85 @@ window.closePizzaModal = closePizzaModal;
 window.selectPizzaCrust = selectPizzaCrust;
 window.selectPizzaSize = selectPizzaSize;
 window.confirmPizzaAddToCart = confirmPizzaAddToCart;   
+
+    let activePastaId = null;
+let activePastaName = "";
+let selectedPastaFlavor = "Shrimp"; // Default choice
+
+function openPastaModal(itemName, itemId) {
+    activePastaId = itemId;
+    activePastaName = itemName;
+    selectedPastaFlavor = "Shrimp"; // Reset to Shrimp by default
+    
+    const title = document.getElementById('pasta-modal-title');
+    if (title) title.textContent = itemName;
+
+    updatePastaModalUI();
+    
+    const modal = document.getElementById('pasta-modal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closePastaModal() {
+    const modal = document.getElementById('pasta-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function selectPastaFlavor(flavor) {
+    selectedPastaFlavor = flavor;
+    updatePastaModalUI();
+}
+
+function updatePastaModalUI() {
+    const shrimpBtn = document.getElementById('pasta-shrimp-btn');
+    const tunaBtn = document.getElementById('pasta-tuna-btn');
+
+    if (selectedPastaFlavor === 'Shrimp') {
+        shrimpBtn.className = "p-4 rounded-xl border-2 border-amber-800 bg-amber-50 text-amber-900 font-bold text-center transition-all";
+        tunaBtn.className = "p-4 rounded-xl border-2 border-slate-200 bg-white text-slate-600 font-bold text-center hover:border-slate-300 transition-all";
+    } else {
+        tunaBtn.className = "p-4 rounded-xl border-2 border-amber-800 bg-amber-50 text-amber-900 font-bold text-center transition-all";
+        shrimpBtn.className = "p-4 rounded-xl border-2 border-slate-200 bg-white text-slate-600 font-bold text-center hover:border-slate-300 transition-all";
+    }
+}
+
+function confirmPastaAddToCart() {
+    const item = db.inventory.find(i => i.ItemID == activePastaId);
+    if (!item) return;
+
+    const basePrice = Number(item.Price) || 0;
+    const formattedName = `${activePastaName} (${selectedPastaFlavor})`;
+    const variantId = `${activePastaId}_${selectedPastaFlavor}`;
+
+    const rawStock = item.StockQuantity !== undefined ? item.StockQuantity : (item.stock || 0);
+    const maxStock = Number(rawStock) || 0;
+
+    const exist = activeCart.find(c => c.variantId === variantId);
+
+    if (exist) {
+        if (exist.quantity >= maxStock) {
+            showToast(`Cannot add more. Only ${maxStock} in stock.`, "warning");
+            return;
+        }
+        exist.quantity++;
+    } else {
+        if (maxStock <= 0) {
+            showToast("Item is out of stock.", "warning");
+            return;
+        }
+        activeCart.push({ 
+            id: activePastaId,
+            variantId: variantId,
+            name: formattedName, 
+            price: basePrice, 
+            category: "Pasta", 
+            quantity: 1 
+        });
+    }
+
+    renderCart();
+    closePastaModal();
+}
 </script>
 </body>
 </html>
