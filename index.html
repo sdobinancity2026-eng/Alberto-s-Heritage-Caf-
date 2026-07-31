@@ -254,8 +254,7 @@
                             <select 
                                 id="admin-petty-employee-select" 
                                 class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                onchange="loadAssignedPettyCashForSelected()"
-                            >
+                                onchange="loadAssignedPettyCashForSelected()">
                                 <option value="">-- Choose Employee --</option>
                             </select>
                         </div>
@@ -789,48 +788,52 @@
     // 3. APPLICATION FUNCTIONS
     // ==========================================
     
-    function checkAutoLogin() {
-        const saved = localStorage.getItem('logged_user');
-        if (saved) {
-            try {
-                activeUser = JSON.parse(saved);
-                
-                // Re-sync states
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('app-wrapper').classList.remove('hidden');
-                
-                // Populate Sticky Nav details
-                document.getElementById('topbar-user-name').innerText = activeUser.name;
-                document.getElementById('topbar-user-role').innerText = activeUser.role;
+    // Track the active view globally
+let currentActiveView = localStorage.getItem('last_active_view') || 'register';
 
-                if (activeUser.role && activeUser.role.toLowerCase() === 'admin') {
-                    document.getElementById('admin-nav-links').classList.remove('hidden');
-                } else {
-                    document.getElementById('admin-nav-links').classList.add('hidden');
-                }
+function checkAutoLogin() {
+    const saved = localStorage.getItem('logged_user');
+    if (saved) {
+        try {
+            activeUser = JSON.parse(saved);
+            
+            // Re-sync states
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('app-wrapper').classList.remove('hidden');
+            
+            // Populate Sticky Nav details
+            document.getElementById('topbar-user-name').innerText = activeUser.name;
+            document.getElementById('topbar-user-role').innerText = activeUser.role;
 
-                // Standard layout load tasks
-                navigateView('register');
-                calculateShiftSales();
-                renderMenu();
-                
-            } catch (e) {
-                console.error("Error parsing auto-login cache:", e);
-                logout();
+            if (activeUser.role && activeUser.role.toLowerCase() === 'admin') {
+                document.getElementById('admin-nav-links').classList.remove('hidden');
+            } else {
+                document.getElementById('admin-nav-links').classList.add('hidden');
             }
-        } else {
-            // Safe fallback: No user active, clean up layout states
-            document.getElementById('login-screen').classList.remove('hidden');
-            document.getElementById('app-wrapper').classList.add('hidden');
+
+            // Standard layout load tasks
+            // ✅ Fix: Retain current view instead of forcing 'register' on every check!
+            navigateView(currentActiveView); 
+            calculateShiftSales();
+            renderMenu();
+            
+        } catch (e) {
+            console.error("Error parsing auto-login cache:", e);
+            logout();
         }
+    } else {
+        // Safe fallback: No user active, clean up layout states
+        document.getElementById('login-screen').classList.remove('hidden');
+        document.getElementById('app-wrapper').classList.add('hidden');
     }
+}
 
     function updateSystemDate() {
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         document.getElementById('header-system-date').innerText = new Date().toLocaleDateString('en-US', options);
     }
 
-  async function fetchAllData() {
+ async function fetchAllData() {
     try {
         const response = await fetch(`${API_URL}?action=getInitialData`);
         if (!response.ok) throw new Error("Network response was not OK");
@@ -845,21 +848,34 @@
             connStatus.innerText = "Offline Mode";
             connStatus.className = "bg-red-600 px-2 py-0.5 rounded text-[10px] font-bold text-white";
         }
-        showToast("System is currently offline. Using local backup database.", "warning");
+        if (typeof showToast === 'function') {
+            showToast("System is currently offline. Using local backup database.", "warning");
+        }
     }
 
-    // Refresh UI components now that data is in memory
-    if (typeof populateAdminPettyCashDropdown === 'function') {
-        populateAdminPettyCashDropdown();
-    }
-    if (typeof updateCashierReconciliationDisplay === 'function') {
-        updateCashierReconciliationDisplay();
-    }
-    if (typeof renderMenu === 'function') {
-        renderMenu();
-    }
+    // Always update global shift calculations
     if (typeof calculateShiftSales === 'function') {
         calculateShiftSales();
+    }
+
+    // Refresh ONLY the view the user is currently looking at to prevent flickering/jumping!
+    const activeView = (typeof currentActiveView !== 'undefined' && currentActiveView) 
+        ? currentActiveView 
+        : (localStorage.getItem('last_active_view') || 'register');
+
+    if (activeView === 'register' && typeof renderMenu === 'function') {
+        renderMenu();
+    } else if (activeView === 'admin-consumables' && typeof renderConsumables === 'function') {
+        renderConsumables();
+    } else if (activeView === 'reconcile') {
+        if (typeof updateCashierReconciliationDisplay === 'function') updateCashierReconciliationDisplay();
+        if (typeof populateAdminPettyCashDropdown === 'function') populateAdminPettyCashDropdown();
+    } else if (activeView === 'admin-daily' && typeof renderDailyLedger === 'function') {
+        renderDailyLedger();
+    } else if (activeView === 'admin-reprint' && typeof renderReprintTable === 'function') {
+        renderReprintTable();
+    } else if (activeView === 'admin-analytics' && typeof renderCharts === 'function') {
+        renderCharts();
     }
 }
 
@@ -1047,7 +1063,12 @@ function evaluateStartingCashAccess() {
 }
 
 // Standard Navigation Controller
+// Standard Navigation Controller
 function navigateView(viewName) {
+    // Save active view state
+    currentActiveView = viewName;
+    localStorage.setItem('last_active_view', viewName);
+
     // 1. Toggle visibility of all view blocks
     document.querySelectorAll('.view-block').forEach(el => el.classList.add('hidden'));
     const targetView = document.getElementById(`view-${viewName}`);
@@ -1099,16 +1120,13 @@ function navigateView(viewName) {
         : "";
 
     if (viewName === 'reconcile') {
-        // 💰 Always refresh the cashier's expected starting petty cash and sales total
         if (typeof updateCashierReconciliationDisplay === 'function') {
             updateCashierReconciliationDisplay();
         }
 
-        // 🔒 Only populate and display the Petty Cash Allocation form if the user is an Admin
         if (userRole === 'admin' && typeof populateAdminPettyCashDropdown === 'function') {
             populateAdminPettyCashDropdown();
         } else {
-            // Ensure the admin allocation panel is hidden for regular employees
             const adminPanel = document.getElementById('admin-petty-cash-panel');
             if (adminPanel) adminPanel.classList.add('hidden');
         }
@@ -3511,6 +3529,29 @@ function confirmPastaAddToCart() {
 
     renderCart();
     closePastaModal();
+}
+
+    function loadAssignedPettyCashForSelected() {
+    const selectElem = document.getElementById('admin-petty-employee-select');
+    if (!selectElem) return;
+
+    const selectedEmployeeId = selectElem.value;
+    if (!selectedEmployeeId) {
+        // Clear input field or reset to 0 if no employee selected
+        const amountInput = document.getElementById('admin-petty-cash-input'); // Update ID to match your input
+        if (amountInput) amountInput.value = '';
+        return;
+    }
+
+    // Retrieve saved allocation from global object or local storage
+    const allocations = window.employeeStartingCashAllocations || {};
+    const existingAmount = allocations[selectedEmployeeId] || 0;
+
+    // Display existing value in the corresponding input field
+    const amountInput = document.getElementById('admin-petty-cash-input'); // Update ID to match your input
+    if (amountInput) {
+        amountInput.value = existingAmount;
+    }
 }
 </script>
 </body>
