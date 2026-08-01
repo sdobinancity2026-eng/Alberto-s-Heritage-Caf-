@@ -2007,26 +2007,89 @@ function renderMonthlyLedger() {
 }
 
 async function registerEmployee() {
-    const id = document.getElementById('reg-emp-id').value.trim();
-    const name = document.getElementById('reg-emp-name').value.trim();
-    const role = document.getElementById('reg-emp-role').value;
-    const password = document.getElementById('reg-emp-pass').value.trim();
+    const idInput = document.getElementById('reg-emp-id');
+    const nameInput = document.getElementById('reg-emp-name');
+    const roleInput = document.getElementById('reg-emp-role');
+    const passInput = document.getElementById('reg-emp-pass');
 
-    if (!id || !name || !password) return showToast("Complete all inputs.", "warning");
+    const id = idInput ? idInput.value.trim() : "";
+    const name = nameInput ? nameInput.value.trim() : "";
+    const role = roleInput ? roleInput.value : "employee";
+    const password = passInput ? passInput.value.trim() : "";
 
-    const payload = { action: "saveEmployee", id, name, role, password };
+    // 1. Input Validation
+    if (!id || !name || !password) {
+        if (typeof showToast === 'function') {
+            showToast("Complete all inputs.", "warning");
+        } else {
+            alert("Complete all inputs.");
+        }
+        return;
+    }
+
+    // 2. Fallback check for URL variable (SCRIPT_URL vs API_URL)
+    const targetUrl = (typeof SCRIPT_URL !== 'undefined') ? SCRIPT_URL : (typeof API_URL !== 'undefined' ? API_URL : "");
+
+    if (!targetUrl || targetUrl.includes("YOUR_SCRIPT_URL_PLACEHOLDER")) {
+        if (typeof showToast === 'function') showToast("Script URL is not configured!", "error");
+        console.error("API / SCRIPT URL is missing.");
+        return;
+    }
+
+    // UI Loading feedback
+    const btn = document.querySelector('button[onclick="registerEmployee()"]');
+    let origText = "Register & Save";
+    if (btn) {
+        origText = btn.innerText;
+        btn.disabled = true;
+        btn.innerText = "Saving...";
+    }
+
+    const payload = { 
+        action: "saveEmployee", 
+        id: id, 
+        name: name, 
+        role: role, 
+        password: password 
+    };
 
     try {
-        const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
-        const res = await response.json();
-        if (res.status === "SUCCESS") {
-            showToast("Staff profile created successfully!");
-            await fetchAllData();
-            navigateView('register');
-        }
-    } catch(e) { showToast("Staff creation failed.", "error"); }
-}
+        const response = await fetch(targetUrl, {
+            method: "POST",
+            mode: "cors",
+            headers: {
+                "Content-Type": "text/plain;charset=utf-8"
+            },
+            body: JSON.stringify(payload)
+        });
 
+        const res = await response.json();
+
+        if (res.status === "SUCCESS") {
+            if (typeof showToast === 'function') showToast("Staff profile created successfully!", "success");
+            
+            // Clear inputs
+            idInput.value = "";
+            nameInput.value = "";
+            passInput.value = "";
+
+            // Refresh local data & redirect
+            if (typeof fetchAllData === 'function') await fetchAllData();
+            if (typeof navigateView === 'function') navigateView('register');
+        } else {
+            if (typeof showToast === 'function') showToast("Error: " + res.message, "error");
+            else alert("Error: " + res.message);
+        }
+    } catch (e) {
+        console.error("Error registering employee:", e);
+        if (typeof showToast === 'function') showToast("Staff creation failed.", "error");
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = origText;
+        }
+    }
+}
 async function addInventoryItem() {
     const id = document.getElementById('add-inv-id').value.trim();
     const name = document.getElementById('add-inv-name').value.trim();
