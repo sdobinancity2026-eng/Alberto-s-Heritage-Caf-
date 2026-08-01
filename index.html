@@ -238,44 +238,6 @@
                     </div>
                 </div>
 
-                <!-- ADMIN ONLY: ASSIGN EMPLOYEE PETTY CASH -->
-                <div id="admin-petty-cash-panel" class="hidden bg-white p-6 rounded-2xl shadow-sm border max-w-md mx-auto mb-6">
-                    <div class="flex items-center gap-2 mb-4">
-                        <span class="text-xl">💰</span>
-                        <div>
-                            <h3 class="text-base font-bold text-slate-800">Assign Employee Petty Cash</h3>
-                            <p class="text-xs text-slate-500">Set starting register cash amounts for each employee.</p>
-                        </div>
-                    </div>
-                
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1">Select Employee</label>
-                            <select 
-                                id="admin-petty-employee-select" 
-                                class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                onchange="loadAssignedPettyCashForSelected()">
-                                <option value="">-- Choose Employee --</option>
-                            </select>
-                        </div>
-                    
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1">Starting Petty Cash (₱)</label>
-                            <input 
-                                type="number" 
-                                id="admin-petty-amount" 
-                                class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-mono font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                placeholder="0.00"
-                                step="0.01"
-                            />
-                        </div>
-                    
-                        <button onclick="saveAdminPettyCashAllocation()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl text-xs hover:bg-blue-700 transition">
-                            💾 Save Petty Cash Allocation
-                        </button>
-                    </div>
-                </div>
-
                 <!-- CASHIER VIEW: SHIFT CASH DRAWER RECONCILIATION -->
 <div id="view-reconcile" class="view-block hidden space-y-6">
 
