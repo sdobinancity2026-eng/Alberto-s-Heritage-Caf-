@@ -198,91 +198,92 @@
     </div>
 
     <!-- Transaction Sidebar (Basket) -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between h-[500px] lg:h-full overflow-hidden min-h-0">
-        <!-- Top Header and Basket List Section -->
-        <div class="p-4 md:p-6 flex flex-col flex-1 overflow-hidden min-h-0">
-            <h3 class="text-sm md:text-md font-bold text-slate-800 mb-3 md:mb-4 flex justify-between items-center flex-shrink-0">
-                <span>Basket</span>
-                <span id="basket-counter" class="text-xs bg-slate-100 px-2 py-0.5 rounded-full text-slate-600">0</span>
-            </h3>
-
-            <!-- Senior / PWD Discount Panel -->
-            <div class="bg-amber-50/60 border border-amber-200 rounded-xl p-3 mb-3 flex-shrink-0">
-                <div class="flex items-center justify-between mb-1.5">
-                    <label class="text-[11px] font-bold text-amber-900 uppercase tracking-wide flex items-center gap-1">
-                        🏷️ SC / PWD ID Discount (20%)
-                    </label>
-                    <button type="button" onclick="clearDiscountId()" id="btn-clear-discount" class="hidden text-[10px] text-red-600 font-bold hover:underline">
-                        Clear
-                    </button>
-                </div>
-                <input type="text" id="discount-id-input" placeholder="Enter Senior / PWD ID No." 
-                       oninput="handleDiscountIdInput()"
-                       class="w-full bg-white border border-amber-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500">
-                <p id="discount-status-msg" class="text-[10px] text-amber-700 mt-1 font-medium hidden">
-                    ✨ 20% discount will apply to the <strong>first item</strong> added.
-                </p>
-            </div>
-
-            <!-- Basket Items List -->
-            <div id="basket-list" class="flex-1 space-y-3 overflow-y-auto pr-1 min-h-0"></div>
-        </div>
-
-        <!-- Checkout Controls -->
-<div class="border-t border-slate-100 p-4 md:p-6 bg-slate-50 flex-shrink-0 space-y-3 md:space-y-4">
+<div class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between h-auto min-h-[550px] lg:h-full overflow-hidden">
     
-    <!-- Discount Summary Row -->
-    <div id="discount-summary-row" class="hidden justify-between text-xs font-bold text-emerald-600">
-        <span>SC/PWD Discount (20% on 1st meal):</span>
-        <span id="basket-discount-amount" class="font-mono">-₱0.00</span>
-    </div>
+    <!-- Top Header and Basket List Section -->
+    <div class="p-3 md:p-5 flex flex-col flex-1 overflow-hidden min-h-0">
+        <h3 class="text-sm md:text-md font-bold text-slate-800 mb-2 md:mb-4 flex justify-between items-center flex-shrink-0">
+            <span>Basket</span>
+            <span id="basket-counter" class="text-xs bg-slate-100 px-2 py-0.5 rounded-full text-slate-600">0</span>
+        </h3>
 
-    <!-- Total Amount Display -->
-    <div class="flex justify-between text-sm md:text-md font-bold text-slate-700">
-        <span>Total Amount:</span>
-        <span id="basket-total" class="font-mono text-amber-950">₱0.00</span>
-    </div>
-
-    <!-- Payment Method Selector -->
-    <div class="space-y-1">
-        <label class="block text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wider">Payment Method</label>
-        <select id="payment-method" onchange="handlePaymentMethodChange()" class="w-full rounded-xl border border-slate-200 py-2 px-3 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-800">
-            <option value="Cash">Cash</option>
-            <option value="GCash">GCash</option>
-            <option value="Bank Transfer">Bank Transfer</option>
-        </select>
-    </div>
-
-    <!-- Dynamic Container: Cash Tendered (Cash Only) -->
-    <div id="cash-payment-container" class="space-y-1">
-        <label class="block text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wider">Cash Received</label>
-        <div class="relative rounded-xl shadow-sm">
-            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                <span class="text-slate-400 font-bold text-sm">₱</span>
+        <!-- Senior / PWD Discount Panel -->
+        <div class="bg-amber-50/60 border border-amber-200 rounded-xl p-2.5 mb-2 flex-shrink-0">
+            <div class="flex items-center justify-between mb-1">
+                <label class="text-[10px] md:text-[11px] font-bold text-amber-900 uppercase tracking-wide flex items-center gap-1">
+                    🏷️ SC / PWD ID Discount (20%)
+                </label>
+                <button type="button" onclick="clearDiscountId()" id="btn-clear-discount" class="hidden text-[10px] text-red-600 font-bold hover:underline">
+                    Clear
+                </button>
             </div>
-            <input type="number" step="any" min="0" id="cash-tendered" oninput="calculateChange()" placeholder="0.00" 
-                   class="w-full rounded-xl border border-slate-200 py-2.5 pl-7 pr-3 text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-amber-800 transition-all">
+            <input type="text" id="discount-id-input" placeholder="Enter Senior / PWD ID No." 
+                   oninput="handleDiscountIdInput()"
+                   class="w-full bg-white border border-amber-200 rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500">
+            <p id="discount-status-msg" class="text-[10px] text-amber-700 mt-1 font-medium hidden">
+                ✨ 20% discount will apply to the <strong>first item</strong> added.
+            </p>
         </div>
+
+        <!-- Basket Items List (Dynamically scrolls without overflowing) -->
+        <div id="basket-list" class="flex-1 space-y-2 overflow-y-auto pr-1 min-h-[100px] max-h-[180px] sm:max-h-[250px] lg:max-h-none"></div>
     </div>
 
-    <!-- Dynamic Container: Reference/Transaction # (GCash / Bank Transfer) -->
-    <div id="digital-payment-container" class="space-y-1 hidden">
-        <label id="reference-no-label" class="block text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wider">Reference No.</label>
-        <input type="text" id="transaction-no" placeholder="Enter Ref / Trans No." 
-               class="w-full rounded-xl border border-slate-200 py-2 px-3 text-xs font-bold font-mono focus:outline-none focus:ring-2 focus:ring-amber-800 bg-white">
-    </div>
+    <!-- Checkout Controls (Fixed to Bottom, Tightened Padding for Mobile) -->
+    <div class="border-t border-slate-100 p-3 md:p-5 bg-slate-50 flex-shrink-0 space-y-2 md:space-y-3">
+        
+        <!-- Discount Summary Row -->
+        <div id="discount-summary-row" class="hidden justify-between text-xs font-bold text-emerald-600">
+            <span>SC/PWD Discount (20% on 1st meal):</span>
+            <span id="basket-discount-amount" class="font-mono">-₱0.00</span>
+        </div>
 
-    <!-- Change Display Row (Cash Only) -->
-    <div id="change-due-container" class="flex justify-between items-center py-2 px-3 bg-white rounded-xl border border-dashed border-slate-200">
-        <span class="text-xs font-bold text-slate-500">Change Due:</span>
-        <span id="customer-change" class="text-sm font-mono font-bold text-slate-400">₱0.00</span>
-    </div>
+        <!-- Total Amount Display -->
+        <div class="flex justify-between text-sm md:text-md font-bold text-slate-700">
+            <span>Total Amount:</span>
+            <span id="basket-total" class="font-mono text-amber-950">₱0.00</span>
+        </div>
 
-    <button onclick="placeOrder()" class="w-full bg-amber-800 text-white font-bold py-3.5 rounded-xl hover:bg-amber-900 transition-all shadow-md active:scale-[0.99]">
-        Complete Order
-    </button>
+        <!-- Payment Method Selector -->
+        <div class="space-y-0.5">
+            <label class="block text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wider">Payment Method</label>
+            <select id="payment-method" onchange="handlePaymentMethodChange()" class="w-full rounded-xl border border-slate-200 py-1.5 px-3 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-800">
+                <option value="Cash">Cash</option>
+                <option value="GCash">GCash</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+            </select>
+        </div>
+
+        <!-- Dynamic Container: Cash Tendered (Cash Only) -->
+        <div id="cash-payment-container" class="space-y-0.5">
+            <label class="block text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wider">Cash Received</label>
+            <div class="relative rounded-xl shadow-sm">
+                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <span class="text-slate-400 font-bold text-sm">₱</span>
+                </div>
+                <input type="number" step="any" min="0" id="cash-tendered" oninput="calculateChange()" placeholder="0.00" 
+                       class="w-full rounded-xl border border-slate-200 py-1.5 pl-7 pr-3 text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-amber-800 transition-all">
+            </div>
+        </div>
+
+        <!-- Dynamic Container: Reference/Transaction # (GCash / Bank Transfer) -->
+        <div id="digital-payment-container" class="space-y-0.5 hidden">
+            <label id="reference-no-label" class="block text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wider">Reference No.</label>
+            <input type="text" id="transaction-no" placeholder="Enter Ref / Trans No." 
+                   class="w-full rounded-xl border border-slate-200 py-1.5 px-3 text-xs font-bold font-mono focus:outline-none focus:ring-2 focus:ring-amber-800 bg-white">
+        </div>
+
+        <!-- Change Display Row (Cash Only) -->
+        <div id="change-due-container" class="flex justify-between items-center py-1.5 px-3 bg-white rounded-xl border border-dashed border-slate-200">
+            <span class="text-xs font-bold text-slate-500">Change Due:</span>
+            <span id="customer-change" class="text-sm font-mono font-bold text-slate-400">₱0.00</span>
+        </div>
+
+        <button onclick="placeOrder()" class="w-full bg-amber-800 text-white font-bold py-2.5 md:py-3.5 rounded-xl hover:bg-amber-900 transition-all shadow-md active:scale-[0.99]">
+            Complete Order
+        </button>
+    </div>
 </div>
-    </div>
 </div>
                 <!-- CASHIER VIEW: SHIFT CASH DRAWER RECONCILIATION -->
 <div id="view-reconcile" class="view-block hidden space-y-6">
@@ -1859,6 +1860,12 @@ function registerEmployeeShiftAssets(user) {
 // SALES & DISCREPANCY ARITHMETIC
 // ==========================================
 
+// Dictionary tracking starting cash allocations in memory
+let employeeStartingCashAllocations = {
+    "Kristine Reyes": 1000.00,
+    "Employee": 500.00
+};
+
 function calculateShiftSales() {
     if (!activeUser) return;
     
@@ -1875,12 +1882,6 @@ function calculateShiftSales() {
     calculateDrawerDiscrepancy(staffSales);
 }
 
-// Dictionary tracking starting cash allocations in memory
-let employeeStartingCashAllocations = {
-    "Kristine Reyes": 1000.00,
-    "Employee": 500.00
-};
-
 function calculateDrawerDiscrepancy(systemSales = null) {
     const salesField = document.getElementById('recon-sales');
     
@@ -1891,69 +1892,40 @@ function calculateDrawerDiscrepancy(systemSales = null) {
     const startCashEl = document.getElementById('start-cash');
     const actualCashEl = document.getElementById('recon-actual');
 
-    // Safe lookup values that gracefully default to 0 if page isn't fully initialized
     const startCash = parseFloat(startCashEl ? startCashEl.value : 0) || 0;
-    const actualCash = parseFloat(actualCashEl ? actualCashEl.value : 0) || 0;
+    const actualCashInput = actualCashEl ? actualCashEl.value : "";
+    const actualCash = parseFloat(actualCashInput) || 0;
 
+    // Expected Total Cash = Starting Petty Cash + Logged Sales
     const expectedCash = startCash + systemSales;
+    
+    // Variance = Actual Physical Cash - Expected Cash
     const discrepancy = actualCash - expectedCash;
 
     const discrepancyDisplay = document.getElementById('recon-variance');
     if (discrepancyDisplay) {
-        discrepancyDisplay.innerText = `₱${discrepancy.toFixed(2)}`;
-        
+        // Handle empty input state
+        if (actualCashInput === "" || isNaN(parseFloat(actualCashInput))) {
+            discrepancyDisplay.innerText = "₱0.00 (Tally)";
+            discrepancyDisplay.className = "font-mono font-bold text-sm text-slate-600";
+            return;
+        }
+
         if (discrepancy < 0) {
+            // Cash Shortage
+            discrepancyDisplay.innerText = `-₱${Math.abs(discrepancy).toFixed(2)} (Short)`;
             discrepancyDisplay.className = "font-mono font-bold text-sm text-rose-600";
         } else if (discrepancy > 0) {
+            // Cash Overage
+            discrepancyDisplay.innerText = `+₱${discrepancy.toFixed(2)} (Over)`;
+            discrepancyDisplay.className = "font-mono font-bold text-sm text-amber-600";
+        } else {
+            // Balanced / Tally
+            discrepancyDisplay.innerText = "₱0.00 (Tally)";
             discrepancyDisplay.className = "font-mono font-bold text-sm text-emerald-600";
-        } else {
-            discrepancyDisplay.className = "font-mono font-bold text-sm text-slate-600";
         }
     }
 }
-            async function submitCloseShift() {
-    const employee = activeUser ? activeUser.name : "Employee";
-    const startCash = parseFloat(document.getElementById('start-cash').value) || 0;
-    const actualCash = parseFloat(document.getElementById('actual-cash').value) || 0;
-    
-    // Match your shift closed calculation logic
-    const systemSales = parseFloat(document.getElementById('system-sales-value')?.innerText) || 0; 
-    const expectedDrawerCash = startCash + systemSales;
-    const discrepancy = actualCash - expectedDrawerCash;
-
-    const payload = {
-        action: "closeShift",
-        employee: employee,
-        startCash: startCash,
-        systemSales: systemSales,
-        actualCash: actualCash,
-        discrepancy: discrepancy
-    };
-
-    try {
-        const response = await fetch(SCRIPT_URL, {
-            method: "POST",
-            mode: "cors",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify(payload)
-        });
-        const data = await response.json();
-
-        if (data.status === "SUCCESS") {
-            showToast("Shift closed and reconciled successfully!", "success");
-            logout(); // Log out cashier after closing shift
-        } else {
-            showToast("Error closing shift: " + data.message, "error");
-        }
-    } catch (err) {
-        console.error("Failed to close shift online:", err);
-        showToast("Network connection lost. Print receipt or retry.", "error");
-    }
-}
-
-// ==========================================
-// CONFIRM END OF SHIFT DATABASE SUBMISSION
-// ==========================================
 
 async function submitShiftReconciliation() {
     const startCashEl = document.getElementById('start-cash');
