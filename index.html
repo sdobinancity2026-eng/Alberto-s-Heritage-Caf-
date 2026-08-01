@@ -3941,82 +3941,120 @@ let activeHeldOrders = JSON.parse(localStorage.getItem('heldOrders')) || {};
 updateHeldOrdersCount();
 
 /**
- * 1. SAVE / HOLD CURRENT BASKET
+ * 1. SAVE / HOLD CURRENT ACTIVE CART
  */
 function saveAndHoldOrder() {
     const tableInput = document.getElementById('table-number-input');
     const tableNo = tableInput ? tableInput.value.trim() : "";
 
     if (!tableNo) {
-        alert("Please enter a Table Number or Identifier before holding the order.");
+        if (typeof showToast === 'function') {
+            showToast("Please enter a Table Number or Identifier before holding the order.", "warning");
+        } else {
+            alert("Please enter a Table Number or Identifier (e.g. Table 3, Takeout #12) before holding the order.");
+        }
         return;
     }
 
-    if (!basket || basket.length === 0) {
-        alert("Cannot hold an empty basket!");
+    if (typeof activeCart === 'undefined' || activeCart.length === 0) {
+        if (typeof showToast === 'function') {
+            showToast("Cannot hold an empty basket!", "warning");
+        } else {
+            alert("Cannot hold an empty basket!");
+        }
         return;
     }
 
+    // Capture order data for Kitchen Ticket
     const currentOrderData = {
         TableNo: tableNo,
-        ItemsOrdered: [...basket]
+        ItemsOrdered: [...activeCart]
     };
 
-    // Save to Held Orders state
+    // Save current active cart state into held orders object using Table Number as key
     activeHeldOrders[tableNo] = {
         tableNo: tableNo,
-        items: [...basket],
-        discountId: document.getElementById('discount-id-input')?.value || "",
+        items: [...activeCart],
+        discountId: (typeof discountID !== 'undefined' ? discountID : "") || document.getElementById('discount-id-input')?.value || "",
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
     localStorage.setItem('heldOrders', JSON.stringify(activeHeldOrders));
 
-    // Print Kitchen Ticket automatically for held/sent order
-    printKitchenTicket(currentOrderData);
+    // Print Kitchen Ticket automatically for the sent/held order
+    if (typeof printKitchenTicket === 'function') {
+        printKitchenTicket(currentOrderData);
+    }
 
+    // Clear current active cart for the next customer
     clearCurrentBasket();
     updateHeldOrdersCount();
-    showToast(`Order sent to kitchen & held for ${tableNo}`, "info");
+
+    if (typeof showToast === 'function') {
+        showToast(`Order sent to kitchen & held for ${tableNo}`, "info");
+    }
 }
 
 /**
- * 2. RESTORE A HELD ORDER BACK TO BASKET
+ * 2. RESTORE A HELD ORDER BACK TO ACTIVE CART
  */
 function restoreHeldOrder(tableNo) {
-    if (!activeHeldOrders[tableNo]) return;
+    if (!activeHeldOrders || !activeHeldOrders[tableNo]) return;
 
     const targetOrder = activeHeldOrders[tableNo];
 
-    // Load items back into active basket
-    basket = [...targetOrder.items];
-    
-    // Set table input & discount ID
-    document.getElementById('table-number-input').value = targetOrder.tableNo;
-    if (document.getElementById('discount-id-input')) {
-        document.getElementById('discount-id-input').value = targetOrder.discountId || "";
+    // Load saved items back into activeCart
+    activeCart = [...targetOrder.items];
+
+    // Restore table input & discount ID
+    const tableInput = document.getElementById('table-number-input');
+    if (tableInput) tableInput.value = targetOrder.tableNo;
+
+    if (targetOrder.discountId) {
+        if (typeof discountID !== 'undefined') discountID = targetOrder.discountId;
+        const discountInput = document.getElementById('discount-id-input');
+        if (discountInput) discountInput.value = targetOrder.discountId;
     }
 
-    // Remove from held orders list
+    // Remove from held orders list and update storage
     delete activeHeldOrders[tableNo];
     localStorage.setItem('heldOrders', JSON.stringify(activeHeldOrders));
 
-    // Update UI
-    updateBasketUI();
+    // Re-render UI
+    if (typeof renderCart === 'function') {
+        renderCart();
+    } else if (typeof updateBasketUI === 'function') {
+        updateBasketUI();
+    }
+
     updateHeldOrdersCount();
     closeHeldOrdersModal();
-    showToast(`Restored order for ${tableNo}`, "success");
+
+    if (typeof showToast === 'function') {
+        showToast(`Restored order for ${tableNo}`, "success");
+    }
 }
 
 /**
- * 3. CLEAR CURRENT BASKET
+ * 3. CLEAR CURRENT BASKET & INPUTS
  */
 function clearCurrentBasket() {
-    basket = [];
-    if (document.getElementById('table-number-input')) document.getElementById('table-number-input').value = "";
-    if (document.getElementById('discount-id-input')) document.getElementById('discount-id-input').value = "";
-    if (document.getElementById('cash-tendered')) document.getElementById('cash-tendered').value = "";
-    updateBasketUI();
+    activeCart = [];
+    if (typeof clearDiscountId === 'function') clearDiscountId();
+
+    const tableInput = document.getElementById('table-number-input');
+    const cashInput = document.getElementById('cash-tendered');
+    const refInput = document.getElementById('transaction-no');
+
+    if (tableInput) tableInput.value = "";
+    if (cashInput) cashInput.value = "";
+    if (refInput) refInput.value = "";
+
+    if (typeof renderCart === 'function') {
+        renderCart();
+    } else if (typeof updateBasketUI === 'function') {
+        updateBasketUI();
+    }
 }
 
 /**
