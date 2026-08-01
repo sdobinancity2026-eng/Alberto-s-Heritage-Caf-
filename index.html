@@ -197,20 +197,43 @@
         </div>
     </div>
 
-    <!-- Transaction Sidebar (Basket) -->
+<!-- Transaction Sidebar (Basket) -->
 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between h-auto min-h-[550px] lg:h-full overflow-hidden">
     
-    <!-- Top Header and Basket List Section -->
-    <div class="p-3 md:p-5 flex flex-col flex-1 overflow-hidden min-h-0">
-        <h3 class="text-sm md:text-md font-bold text-slate-800 mb-2 md:mb-4 flex justify-between items-center flex-shrink-0">
-            <span>Basket</span>
-            <span id="basket-counter" class="text-xs bg-slate-100 px-2 py-0.5 rounded-full text-slate-600">0</span>
-        </h3>
+    <!-- Top Header and Open Tabs Bar -->
+    <div class="p-3 md:p-4 bg-slate-50 border-b border-slate-100 flex-shrink-0 space-y-2">
+        <div class="flex justify-between items-center">
+            <h3 class="text-sm md:text-md font-bold text-slate-800 flex items-center gap-2">
+                <span>Basket</span>
+                <span id="basket-counter" class="text-xs bg-slate-200 px-2 py-0.5 rounded-full text-slate-700">0</span>
+            </h3>
+            <button type="button" onclick="openHeldOrdersModal()" class="text-xs font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 px-2.5 py-1 rounded-lg transition-all flex items-center gap-1">
+                📋 Held Orders (<span id="held-orders-count">0</span>)
+            </button>
+        </div>
 
+        <!-- Table Number Input Row -->
+        <div class="flex items-center gap-2">
+            <div class="w-1/2">
+                <label class="block text-[10px] font-bold text-slate-500 uppercase">Table / Order #</label>
+                <input type="text" id="table-number-input" placeholder="e.g. Table 5" 
+                       class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-800 focus:outline-none" />
+            </div>
+            <div class="w-1/2 flex items-end">
+                <button type="button" onclick="saveAndHoldOrder()" 
+                        class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-1 px-2 rounded-lg text-xs transition-all shadow-sm">
+                    💾 Hold Order
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Basket Body -->
+    <div class="p-3 md:p-4 flex flex-col flex-1 overflow-hidden min-h-0">
         <!-- Senior / PWD Discount Panel -->
         <div class="bg-amber-50/60 border border-amber-200 rounded-xl p-2.5 mb-2 flex-shrink-0">
             <div class="flex items-center justify-between mb-1">
-                <label class="text-[10px] md:text-[11px] font-bold text-amber-900 uppercase tracking-wide flex items-center gap-1">
+                <label class="text-[10px] md:text-[11px] font-bold text-amber-900 uppercase tracking-wide">
                     🏷️ SC / PWD ID Discount (20%)
                 </label>
                 <button type="button" onclick="clearDiscountId()" id="btn-clear-discount" class="hidden text-[10px] text-red-600 font-bold hover:underline">
@@ -220,25 +243,14 @@
             <input type="text" id="discount-id-input" placeholder="Enter Senior / PWD ID No." 
                    oninput="handleDiscountIdInput()"
                    class="w-full bg-white border border-amber-200 rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500">
-            <p id="discount-status-msg" class="text-[10px] text-amber-700 mt-1 font-medium hidden">
-                ✨ 20% discount will apply to the <strong>first item</strong> added.
-            </p>
         </div>
 
-        <!-- Basket Items List (Dynamically scrolls without overflowing) -->
+        <!-- Basket Items List -->
         <div id="basket-list" class="flex-1 space-y-2 overflow-y-auto pr-1 min-h-[100px] max-h-[180px] sm:max-h-[250px] lg:max-h-none"></div>
     </div>
 
-    <!-- Checkout Controls (Fixed to Bottom, Tightened Padding for Mobile) -->
-    <div class="border-t border-slate-100 p-3 md:p-5 bg-slate-50 flex-shrink-0 space-y-2 md:space-y-3">
-        
-        <!-- Discount Summary Row -->
-        <div id="discount-summary-row" class="hidden justify-between text-xs font-bold text-emerald-600">
-            <span>SC/PWD Discount (20% on 1st meal):</span>
-            <span id="basket-discount-amount" class="font-mono">-₱0.00</span>
-        </div>
-
-        <!-- Total Amount Display -->
+    <!-- Checkout Controls (Fixed to Bottom) -->
+    <div class="border-t border-slate-100 p-3 md:p-4 bg-slate-50 flex-shrink-0 space-y-2">
         <div class="flex justify-between text-sm md:text-md font-bold text-slate-700">
             <span>Total Amount:</span>
             <span id="basket-total" class="font-mono text-amber-950">₱0.00</span>
@@ -246,42 +258,45 @@
 
         <!-- Payment Method Selector -->
         <div class="space-y-0.5">
-            <label class="block text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wider">Payment Method</label>
-            <select id="payment-method" onchange="handlePaymentMethodChange()" class="w-full rounded-xl border border-slate-200 py-1.5 px-3 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-800">
+            <label class="block text-[10px] font-bold text-slate-500 uppercase">Payment Method</label>
+            <select id="payment-method" onchange="handlePaymentMethodChange()" class="w-full rounded-xl border border-slate-200 py-1.5 px-3 text-xs font-bold text-slate-800 bg-white">
                 <option value="Cash">Cash</option>
                 <option value="GCash">GCash</option>
                 <option value="Bank Transfer">Bank Transfer</option>
             </select>
         </div>
 
-        <!-- Dynamic Container: Cash Tendered (Cash Only) -->
+        <!-- Cash Tendered -->
         <div id="cash-payment-container" class="space-y-0.5">
-            <label class="block text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wider">Cash Received</label>
+            <label class="block text-[10px] font-bold text-slate-500 uppercase">Cash Received</label>
             <div class="relative rounded-xl shadow-sm">
                 <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                     <span class="text-slate-400 font-bold text-sm">₱</span>
                 </div>
                 <input type="number" step="any" min="0" id="cash-tendered" oninput="calculateChange()" placeholder="0.00" 
-                       class="w-full rounded-xl border border-slate-200 py-1.5 pl-7 pr-3 text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-amber-800 transition-all">
+                       class="w-full rounded-xl border border-slate-200 py-1.5 pl-7 pr-3 text-sm font-bold font-mono">
             </div>
         </div>
 
-        <!-- Dynamic Container: Reference/Transaction # (GCash / Bank Transfer) -->
-        <div id="digital-payment-container" class="space-y-0.5 hidden">
-            <label id="reference-no-label" class="block text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wider">Reference No.</label>
-            <input type="text" id="transaction-no" placeholder="Enter Ref / Trans No." 
-                   class="w-full rounded-xl border border-slate-200 py-1.5 px-3 text-xs font-bold font-mono focus:outline-none focus:ring-2 focus:ring-amber-800 bg-white">
-        </div>
-
-        <!-- Change Display Row (Cash Only) -->
-        <div id="change-due-container" class="flex justify-between items-center py-1.5 px-3 bg-white rounded-xl border border-dashed border-slate-200">
-            <span class="text-xs font-bold text-slate-500">Change Due:</span>
-            <span id="customer-change" class="text-sm font-mono font-bold text-slate-400">₱0.00</span>
-        </div>
-
-        <button onclick="placeOrder()" class="w-full bg-amber-800 text-white font-bold py-2.5 md:py-3.5 rounded-xl hover:bg-amber-900 transition-all shadow-md active:scale-[0.99]">
-            Complete Order
+        <button onclick="placeOrder()" class="w-full bg-amber-800 text-white font-bold py-3 rounded-xl hover:bg-amber-900 transition-all shadow-md">
+            Complete Order & Print Receipt
         </button>
+    </div>
+</div>
+
+<!-- Modal for Viewing Held Orders / Open Tabs -->
+<div id="held-orders-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-5 shadow-xl space-y-4">
+        <div class="flex justify-between items-center border-b pb-3">
+            <h3 class="font-bold text-lg text-slate-800">Active Open Tabs / Held Orders</h3>
+            <button onclick="closeHeldOrdersModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+        </div>
+        <div id="held-orders-list" class="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+            <!-- Dynamic open tabs rendered here -->
+        </div>
+        <div class="text-right">
+            <button onclick="closeHeldOrdersModal()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-xl text-xs">Close</button>
+        </div>
     </div>
 </div>
 </div>
@@ -1507,6 +1522,10 @@ async function placeOrder() {
         return;
     }
     
+    // 1. Extract Table Number
+    const tableInput = document.getElementById('table-number-input');
+    const tableNo = tableInput ? (tableInput.value.trim() || "TAKEOUT") : "TAKEOUT";
+
     const paymentMethod = document.getElementById('payment-method').value;
     const refInput = document.getElementById('transaction-no');
     const transactionNo = refInput ? refInput.value.trim() : "";
@@ -1550,10 +1569,12 @@ async function placeOrder() {
         btn.innerHTML = `<span class="animate-spin inline-block mr-1">⏳</span> Processing...`;
     }
 
+    // 2. Add TableNo to Payload
     const payload = {
         action: "placeOrder",
         EmployeeName: (typeof activeUser !== 'undefined' && activeUser) ? activeUser.name : "Employee",
         ShiftID: (typeof currentShiftSession !== 'undefined' && currentShiftSession.shiftId) ? currentShiftSession.shiftId : "", 
+        TableNo: tableNo,
         ItemsOrdered: activeCart, 
         SubtotalAmount: rawSubtotal,
         DiscountAmount: discountAmount,
@@ -1568,12 +1589,14 @@ async function placeOrder() {
 
     const targetUrl = (typeof SCRIPT_URL !== 'undefined') ? SCRIPT_URL : (typeof API_URL !== 'undefined' ? API_URL : "");
 
+    // 3. Updated Reset Helper (Clears Table No as well)
     const resetBasket = () => {
         activeCart = [];
         if (typeof clearDiscountId === 'function') clearDiscountId();
         const cashInput = document.getElementById('cash-tendered');
         if (cashInput) cashInput.value = "";
         if (refInput) refInput.value = "";
+        if (tableInput) tableInput.value = ""; // Reset table field
         renderCart();
     };
 
@@ -1585,14 +1608,27 @@ async function placeOrder() {
         }
     };
 
+    // Helper to handle both Customer Receipt and Kitchen Ticket printing
+    const triggerOrderPrinting = (orderPayload, orderId) => {
+        // Print Customer Thermal Receipt
+        printThermalReceipt(orderPayload, orderId);
+
+        // Optional: Print Kitchen Ticket if needed on checkout
+        if (typeof printKitchenTicket === 'function') {
+            // Short delay to avoid print popup collisions on single-printer setups
+            setTimeout(() => {
+                printKitchenTicket(orderPayload);
+            }, 300);
+        }
+    };
+
     try {
         if (typeof deductLocalStock === 'function') deductLocalStock(activeCart);
 
         if (!targetUrl || targetUrl.includes("YOUR_SCRIPT_URL_PLACEHOLDER")) {
             if (typeof showToast === 'function') showToast("Database Offline. Printing receipt locally...", "warning");
-            printThermalReceipt(payload, "LOCAL-" + Date.now());
+            triggerOrderPrinting(payload, "LOCAL-" + Date.now());
             resetBasket();
-            resetButton();
             return;
         }
 
@@ -1606,7 +1642,7 @@ async function placeOrder() {
         const data = await response.json();
 
         if (data.status === "SUCCESS") {
-            printThermalReceipt(payload, data.orderId);
+            triggerOrderPrinting(payload, data.orderId);
             if (typeof showToast === 'function') showToast("Order placed successfully!", "success");
             resetBasket();
         } else {
@@ -1614,7 +1650,7 @@ async function placeOrder() {
         }
     } catch (err) {
         if (typeof showToast === 'function') showToast("Cloud sync failed. Printing physical receipt...", "warning");
-        printThermalReceipt(payload, "OFFLINE-" + Date.now());
+        triggerOrderPrinting(payload, "OFFLINE-" + Date.now());
         resetBasket();
     } finally {
         resetButton();
@@ -1693,6 +1729,10 @@ function printThermalReceipt(payload, serverOrderId) {
         console.error("Receipt rendering element (#receipt-print-zone) not found!");
         return;
     }
+
+    // Extract Table / Order No safely
+    const tableNoInput = document.getElementById('table-number-input');
+    const tableNo = payload.TableNo || payload.tableNo || (tableNoInput ? tableNoInput.value.trim() : "") || "TAKEOUT";
 
     const itemsList = payload.ItemsOrdered || payload.items || [];
     
@@ -1794,6 +1834,8 @@ PAID AMOUNT:          ${formattedTotal}`;
 </div>
 <pre style="font-family: monospace; font-size: 11px; line-height: 1.3; margin: 0; white-space: pre-wrap;">
       ALBERTO'S HERITAGE CAFE
+================================
+TABLE / ORDER: ${tableNo.toUpperCase()}
 ================================
 Tax No. : 604-200-001322
 Staff: ${payload.EmployeeName || 'Staff'}
@@ -3891,6 +3933,223 @@ function handlePaymentMethodChange() {
         digitalContainer.classList.remove('hidden');
         if (refLabel) refLabel.innerText = `${method} Ref / Trans No.`;
     }
+}
+    // State store for held orders in memory & localStorage
+let activeHeldOrders = JSON.parse(localStorage.getItem('heldOrders')) || {};
+
+// Initialize held order badge on page load
+updateHeldOrdersCount();
+
+/**
+ * 1. SAVE / HOLD CURRENT BASKET
+ */
+function saveAndHoldOrder() {
+    const tableInput = document.getElementById('table-number-input');
+    const tableNo = tableInput ? tableInput.value.trim() : "";
+
+    if (!tableNo) {
+        alert("Please enter a Table Number or Identifier before holding the order.");
+        return;
+    }
+
+    if (!basket || basket.length === 0) {
+        alert("Cannot hold an empty basket!");
+        return;
+    }
+
+    const currentOrderData = {
+        TableNo: tableNo,
+        ItemsOrdered: [...basket]
+    };
+
+    // Save to Held Orders state
+    activeHeldOrders[tableNo] = {
+        tableNo: tableNo,
+        items: [...basket],
+        discountId: document.getElementById('discount-id-input')?.value || "",
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    localStorage.setItem('heldOrders', JSON.stringify(activeHeldOrders));
+
+    // Print Kitchen Ticket automatically for held/sent order
+    printKitchenTicket(currentOrderData);
+
+    clearCurrentBasket();
+    updateHeldOrdersCount();
+    showToast(`Order sent to kitchen & held for ${tableNo}`, "info");
+}
+
+/**
+ * 2. RESTORE A HELD ORDER BACK TO BASKET
+ */
+function restoreHeldOrder(tableNo) {
+    if (!activeHeldOrders[tableNo]) return;
+
+    const targetOrder = activeHeldOrders[tableNo];
+
+    // Load items back into active basket
+    basket = [...targetOrder.items];
+    
+    // Set table input & discount ID
+    document.getElementById('table-number-input').value = targetOrder.tableNo;
+    if (document.getElementById('discount-id-input')) {
+        document.getElementById('discount-id-input').value = targetOrder.discountId || "";
+    }
+
+    // Remove from held orders list
+    delete activeHeldOrders[tableNo];
+    localStorage.setItem('heldOrders', JSON.stringify(activeHeldOrders));
+
+    // Update UI
+    updateBasketUI();
+    updateHeldOrdersCount();
+    closeHeldOrdersModal();
+    showToast(`Restored order for ${tableNo}`, "success");
+}
+
+/**
+ * 3. CLEAR CURRENT BASKET
+ */
+function clearCurrentBasket() {
+    basket = [];
+    if (document.getElementById('table-number-input')) document.getElementById('table-number-input').value = "";
+    if (document.getElementById('discount-id-input')) document.getElementById('discount-id-input').value = "";
+    if (document.getElementById('cash-tendered')) document.getElementById('cash-tendered').value = "";
+    updateBasketUI();
+}
+
+/**
+ * 4. OPEN & RENDER HELD ORDERS MODAL
+ */
+function openHeldOrdersModal() {
+    const modal = document.getElementById('held-orders-modal');
+    const container = document.getElementById('held-orders-list');
+    if (!modal || !container) return;
+
+    const keys = Object.keys(activeHeldOrders);
+
+    if (keys.length === 0) {
+        container.innerHTML = `<p class="text-sm text-slate-500 text-center py-6">No orders currently held on tab.</p>`;
+    } else {
+        container.innerHTML = keys.map(key => {
+            const tab = activeHeldOrders[key];
+            const itemCount = tab.items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+            const total = tab.items.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
+
+            return `
+                <div class="flex items-center justify-between p-3 bg-slate-50 border rounded-xl hover:bg-slate-100 transition-all">
+                    <div>
+                        <p class="font-bold text-sm text-slate-800">${tab.tableNo}</p>
+                        <p class="text-xs text-slate-500">${itemCount} items • ₱${total.toFixed(2)} • Saved at ${tab.timestamp}</p>
+                    </div>
+                    <button onclick="restoreHeldOrder('${tab.tableNo}')" 
+                            class="px-3 py-1.5 bg-amber-800 hover:bg-amber-900 text-white font-bold text-xs rounded-lg shadow-sm">
+                        Open & Add Items
+                    </button>
+                </div>
+            `;
+        }).join('');
+    }
+
+    modal.classList.remove('hidden');
+}
+
+function closeHeldOrdersModal() {
+    document.getElementById('held-orders-modal')?.classList.add('hidden');
+}
+
+function updateHeldOrdersCount() {
+    const badge = document.getElementById('held-orders-count');
+    if (badge) {
+        badge.innerText = Object.keys(activeHeldOrders).length;
+    }
+}
+
+    /**
+ * Generates and prints a Kitchen Order Ticket (KOT)
+ * Focuses strictly on Table Number, Quantity, Item Name, and Special Instructions.
+ */
+function printKitchenTicket(orderData) {
+    const printWindow = window.open('', '_blank');
+    const tableNo = orderData.TableNo || document.getElementById('table-number-input')?.value || "Takeout";
+    const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const kotHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>KOT - ${tableNo}</title>
+          <style>
+            @media print {
+              @page { margin: 0; size: 80mm auto; }
+            }
+            body { 
+              font-family: 'Courier New', Courier, monospace; 
+              width: 280px; 
+              margin: 0 auto; 
+              padding: 10px; 
+              font-size: 13px;
+              color: #000;
+            }
+            .text-center { text-align: center; }
+            .text-right { text-align: right; }
+            .bold { font-weight: bold; }
+            .header-box { 
+              border: 2px solid #000; 
+              padding: 6px; 
+              margin-bottom: 8px;
+              text-align: center; 
+            }
+            .table-title { font-size: 18px; font-weight: bold; margin: 0; }
+            .meta-info { font-size: 11px; margin-top: 4px; }
+            .line { border-bottom: 2px dashed #000; margin: 8px 0; }
+            .item-row { 
+              display: flex; 
+              justify-content: space-between; 
+              font-size: 14px; 
+              font-weight: bold;
+              margin-bottom: 6px;
+            }
+            .item-qty { font-size: 16px; margin-right: 8px; }
+            .footer-note { font-size: 10px; margin-top: 12px; text-align: center; }
+          </style>
+        </head>
+        <body>
+          <div class="header-box">
+            <p style="margin: 0; font-size: 12px; font-weight: bold;">*** KITCHEN TICKET ***</p>
+            <h1 class="table-title">${tableNo.toUpperCase()}</h1>
+            <div class="meta-info">
+              Time: ${timeString} | Staff: ${activeUser ? activeUser.name : "Cashier"}
+            </div>
+          </div>
+
+          <div class="line"></div>
+
+          <!-- Items Ordered List -->
+          <div>
+            ${orderData.ItemsOrdered.map(item => `
+              <div class="item-row">
+                <span><span class="item-qty">[ ${item.quantity}x ]</span> ${item.name}</span>
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="line"></div>
+          <p class="footer-note">-- End of Order --</p>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(kotHtml);
+    printWindow.document.close();
+    printWindow.focus();
+    
+    // Automatically trigger print dialog
+    setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+    }, 250);
 }
 </script>
 </body>
