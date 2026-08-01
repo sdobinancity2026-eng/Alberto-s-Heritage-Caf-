@@ -159,85 +159,111 @@
             <div class="p-3 md:p-6 flex-1 overflow-y-auto h-full min-h-0">
 
                 <!-- VIEW: REGISTER -->
-                <div id="view-register" class="view-block grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 lg:h-full lg:max-h-[calc(100vh-120px)] lg:overflow-hidden">
+<div id="view-register" class="view-block grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 lg:h-full lg:max-h-[calc(100vh-120px)] lg:overflow-hidden">
 
-                    <!-- Menu Layout -->
-                    <div class="lg:col-span-2 flex flex-col min-h-0 h-[450px] lg:h-full">
-                        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col h-full overflow-hidden">
-                            <!-- Category Filter Panel -->
-                            <div class="p-4 md:p-6 pb-2 flex-shrink-0">
-                                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-3 md:mb-4">
-                                    <h2 class="text-sm md:text-md font-bold text-slate-800">Heritage Menu Selection</h2>
-                                    <span class="text-[10px] md:text-xs text-orange-600 bg-orange-50 px-3 py-1 rounded-full font-bold self-start sm:self-auto" id="low-stock-alert">Loading Stock Monitor...</span>
-                                </div>
-
-                                <!-- Horizontal Scrollable Category Tab Bar -->
-                                <div class="flex gap-2 overflow-x-auto pb-3 mb-2 scrollbar-thin border-b border-slate-100 flex-shrink-0" id="category-tab-bar">
-                                    <!-- Dynamic categories inject here -->
-                                </div>
-                            </div>
-
-                            <!-- Scrollable Menu Table Body -->
-                            <div class="flex-1 overflow-y-auto px-4 md:px-6 pb-4 md:pb-6 min-h-0">
-                                <table class="w-full text-left border-collapse text-xs md:text-sm">
-                                    <thead class="sticky top-0 bg-white z-10 border-b border-slate-200">
-                                        <tr class="text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-wider">
-                                            <th class="py-3 px-1 md:px-2">ID</th>
-                                            <th class="py-3 px-1 md:px-2">Item Name</th>
-                                            <th class="py-3 px-1 md:px-2 text-right">Price</th>
-                                            <th class="py-3 px-1 md:px-2 text-center">Stock</th>
-                                            <th class="py-3 px-1 md:px-2 text-right">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="menu-table-body" class="divide-y divide-slate-100">
-                                        <!-- Filtered items inject here -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Transaction Sidebar (Basket) -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between h-[500px] lg:h-full overflow-hidden min-h-0">
-                        <!-- Top Header and Basket List Section -->
-                        <div class="p-4 md:p-6 flex flex-col flex-1 overflow-hidden min-h-0">
-                            <h3 class="text-sm md:text-md font-bold text-slate-800 mb-3 md:mb-4 flex justify-between flex-shrink-0">
-                                <span>Basket</span>
-                                <span id="basket-counter" class="text-xs bg-slate-100 px-2 py-0.5 rounded-full text-slate-600">0</span>
-                            </h3>
-                            <div id="basket-list" class="flex-1 space-y-3 overflow-y-auto pr-1 min-h-0"></div>
-                        </div>
-
-                        <!-- Checkout Controls -->
-                        <div class="border-t border-slate-100 p-4 md:p-6 bg-slate-50 flex-shrink-0 space-y-3 md:space-y-4">
-                            <div class="flex justify-between text-sm md:text-md font-bold text-slate-700">
-                                <span>Total Amount:</span>
-                                <span id="basket-total" class="font-mono text-amber-950">₱0.00</span>
-                            </div>
-
-                            <div class="space-y-1">
-                                <label class="block text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wider">Cash Received</label>
-                                <div class="relative rounded-xl shadow-sm">
-                                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                                        <span class="text-slate-400 font-bold text-sm">₱</span>
-                                    </div>
-                                    <input type="number" step="any" min="0" id="cash-tendered" oninput="calculateChange()" placeholder="0.00" 
-                                           class="w-full rounded-xl border border-slate-200 py-2.5 pl-7 pr-3 text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-amber-800 transition-all">
-                                </div>
-                            </div>
-
-                            <div class="flex justify-between items-center py-2 px-3 bg-white rounded-xl border border-dashed border-slate-200">
-                                <span class="text-xs font-bold text-slate-500">Change Due:</span>
-                                <span id="customer-change" class="text-sm font-mono font-bold text-slate-400">₱0.00</span>
-                            </div>
-
-                            <button onclick="placeOrder()" class="w-full bg-amber-800 text-white font-bold py-3.5 rounded-xl hover:bg-amber-900 transition-all shadow-md active:scale-[0.99]">
-                                Complete Order
-                            </button>
-                        </div>
-                    </div>
+    <!-- Menu Layout -->
+    <div class="lg:col-span-2 flex flex-col min-h-0 h-[450px] lg:h-full">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col h-full overflow-hidden">
+            <!-- Category Filter Panel -->
+            <div class="p-4 md:p-6 pb-2 flex-shrink-0">
+                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-3 md:mb-4">
+                    <h2 class="text-sm md:text-md font-bold text-slate-800">Heritage Menu Selection</h2>
+                    <span class="text-[10px] md:text-xs text-orange-600 bg-orange-50 px-3 py-1 rounded-full font-bold self-start sm:self-auto" id="low-stock-alert">Loading Stock Monitor...</span>
                 </div>
 
+                <!-- Horizontal Scrollable Category Tab Bar -->
+                <div class="flex gap-2 overflow-x-auto pb-3 mb-2 scrollbar-thin border-b border-slate-100 flex-shrink-0" id="category-tab-bar">
+                    <!-- Dynamic categories inject here -->
+                </div>
+            </div>
+
+            <!-- Scrollable Menu Table Body -->
+            <div class="flex-1 overflow-y-auto px-4 md:px-6 pb-4 md:pb-6 min-h-0">
+                <table class="w-full text-left border-collapse text-xs md:text-sm">
+                    <thead class="sticky top-0 bg-white z-10 border-b border-slate-200">
+                        <tr class="text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-wider">
+                            <th class="py-3 px-1 md:px-2">ID</th>
+                            <th class="py-3 px-1 md:px-2">Item Name</th>
+                            <th class="py-3 px-1 md:px-2 text-right">Price</th>
+                            <th class="py-3 px-1 md:px-2 text-center">Stock</th>
+                            <th class="py-3 px-1 md:px-2 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="menu-table-body" class="divide-y divide-slate-100">
+                        <!-- Filtered items inject here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction Sidebar (Basket) -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between h-[500px] lg:h-full overflow-hidden min-h-0">
+        <!-- Top Header and Basket List Section -->
+        <div class="p-4 md:p-6 flex flex-col flex-1 overflow-hidden min-h-0">
+            <h3 class="text-sm md:text-md font-bold text-slate-800 mb-3 md:mb-4 flex justify-between items-center flex-shrink-0">
+                <span>Basket</span>
+                <span id="basket-counter" class="text-xs bg-slate-100 px-2 py-0.5 rounded-full text-slate-600">0</span>
+            </h3>
+
+            <!-- Senior / PWD Discount Panel -->
+            <div class="bg-amber-50/60 border border-amber-200 rounded-xl p-3 mb-3 flex-shrink-0">
+                <div class="flex items-center justify-between mb-1.5">
+                    <label class="text-[11px] font-bold text-amber-900 uppercase tracking-wide flex items-center gap-1">
+                        🏷️ SC / PWD ID Discount (20%)
+                    </label>
+                    <button type="button" onclick="clearDiscountId()" id="btn-clear-discount" class="hidden text-[10px] text-red-600 font-bold hover:underline">
+                        Clear
+                    </button>
+                </div>
+                <input type="text" id="discount-id-input" placeholder="Enter Senior / PWD ID No." 
+                       oninput="handleDiscountIdInput()"
+                       class="w-full bg-white border border-amber-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                <p id="discount-status-msg" class="text-[10px] text-amber-700 mt-1 font-medium hidden">
+                    ✨ 20% discount will apply to the <strong>first item</strong> added.
+                </p>
+            </div>
+
+            <!-- Basket Items List -->
+            <div id="basket-list" class="flex-1 space-y-3 overflow-y-auto pr-1 min-h-0"></div>
+        </div>
+
+        <!-- Checkout Controls -->
+        <div class="border-t border-slate-100 p-4 md:p-6 bg-slate-50 flex-shrink-0 space-y-3 md:space-y-4">
+            
+            <!-- Breakdown display for Discount -->
+            <div id="discount-summary-row" class="hidden justify-between text-xs font-bold text-emerald-600">
+                <span>SC/PWD Discount (20% on 1st meal):</span>
+                <span id="basket-discount-amount" class="font-mono">-₱0.00</span>
+            </div>
+
+            <div class="flex justify-between text-sm md:text-md font-bold text-slate-700">
+                <span>Total Amount:</span>
+                <span id="basket-total" class="font-mono text-amber-950">₱0.00</span>
+            </div>
+
+            <div class="space-y-1">
+                <label class="block text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wider">Cash Received</label>
+                <div class="relative rounded-xl shadow-sm">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <span class="text-slate-400 font-bold text-sm">₱</span>
+                    </div>
+                    <input type="number" step="any" min="0" id="cash-tendered" oninput="calculateChange()" placeholder="0.00" 
+                           class="w-full rounded-xl border border-slate-200 py-2.5 pl-7 pr-3 text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-amber-800 transition-all">
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center py-2 px-3 bg-white rounded-xl border border-dashed border-slate-200">
+                <span class="text-xs font-bold text-slate-500">Change Due:</span>
+                <span id="customer-change" class="text-sm font-mono font-bold text-slate-400">₱0.00</span>
+            </div>
+
+            <button onclick="placeOrder()" class="w-full bg-amber-800 text-white font-bold py-3.5 rounded-xl hover:bg-amber-900 transition-all shadow-md active:scale-[0.99]">
+                Complete Order
+            </button>
+        </div>
+    </div>
+</div>
                 <!-- CASHIER VIEW: SHIFT CASH DRAWER RECONCILIATION -->
 <div id="view-reconcile" class="view-block hidden space-y-6">
 
@@ -1277,7 +1303,10 @@ function logout() {
         renderMenu();
     }
 
-    function addToCart(id) {
+    /**
+ * Add item to basket
+ */
+function addToCart(id) {
     const item = db.inventory.find(i => i.ItemID == id);
     if (!item) return;
 
@@ -1286,14 +1315,20 @@ function logout() {
 
     // 1. Intercept Pizza category items
     if (itemCategory === "pizza") {
-        openPizzaModal(item.ItemName, item.ItemID);
+        if (typeof openPizzaModal === 'function') openPizzaModal(item.ItemName, item.ItemID);
         return;
     }
 
     // 2. Intercept Classic Aglio Olio Pasta
     if (itemName.toLowerCase().includes("aglio olio")) {
-        openPastaModal(item.ItemName, item.ItemID);
+        if (typeof openPastaModal === 'function') openPastaModal(item.ItemName, item.ItemID);
         return;
+    }
+
+    // Lock the discount input field as soon as items are added to the cart
+    const inputEl = document.getElementById('discount-id-input');
+    if (discountID && inputEl) {
+        inputEl.disabled = true;
     }
 
     // 3. Standard cart logic for all other menu items
@@ -1303,13 +1338,13 @@ function logout() {
 
     if (exist) {
         if (exist.quantity >= maxStock) {
-            showToast(`Cannot add more. Only ${maxStock} in stock.`, "warning");
+            if (typeof showToast === 'function') showToast(`Cannot add more. Only ${maxStock} in stock.`, "warning");
             return;
         }
         exist.quantity++;
     } else {
         if (maxStock <= 0) {
-            showToast("Item is out of stock.", "warning");
+            if (typeof showToast === 'function') showToast("Item is out of stock.", "warning");
             return;
         }
         activeCart.push({ 
@@ -1363,55 +1398,108 @@ function removeFromCart(index) {
     }
 }
 
-    function renderCart() {
-    const container = document.getElementById('basket-list');
-    if (!container) return;
+   /**
+ * Render Cart contents and calculate 20% SC/PWD discount on the first item unit
+ */
+function renderCart() {
+    const listEl = document.getElementById('basket-list');
+    const counterEl = document.getElementById('basket-counter');
+    const totalEl = document.getElementById('basket-total');
+    const summaryRow = document.getElementById('discount-summary-row');
+    const summaryAmount = document.getElementById('basket-discount-amount');
+    const inputEl = document.getElementById('discount-id-input');
 
-    document.getElementById('basket-counter').innerText = activeCart.reduce((sum, item) => sum + item.quantity, 0);
+    if (!listEl) return;
+    listEl.innerHTML = "";
 
     if (activeCart.length === 0) {
-        container.innerHTML = `<p class="text-slate-400 text-center py-12 text-sm">Basket is empty.</p>`;
-        document.getElementById('basket-total').innerText = "₱0.00";
+        listEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Basket is empty</p>`;
+        if (counterEl) counterEl.innerText = "0";
+        if (totalEl) totalEl.innerText = "₱0.00";
+        if (summaryRow) {
+            summaryRow.classList.add('hidden');
+            summaryRow.classList.remove('flex');
+        }
+        if (inputEl) inputEl.disabled = false; // Unlock input when empty
+        if (typeof calculateChange === 'function') calculateChange();
         return;
     }
 
-    let total = 0;
-    // 🌟 Added 'i' as second parameter in .map((item, i) => ...)
-    container.innerHTML = activeCart.map((item, i) => {
-        total += item.price * item.quantity;
-        return `
-            <div class="flex justify-between items-center bg-slate-50 p-3 rounded-lg border">
-                <div>
-                    <p class="font-semibold text-xs text-slate-800">${item.name}</p>
-                    <p class="text-[10px] text-slate-400">₱${item.price.toFixed(2)} x ${item.quantity}</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="font-mono text-xs font-semibold">₱${(item.price * item.quantity).toFixed(2)}</span>
-                    <!-- 🌟 Passes index 'i' directly -->
-                    <button onclick="removeFromCart(${i})" class="text-red-500 text-xs px-1 font-bold hover:text-red-700 transition">✕</button>
-                </div>
+    let rawSubtotal = 0;
+    let discountAmount = 0;
+    let totalQty = 0;
+
+    activeCart.forEach((item, index) => {
+        totalQty += item.quantity;
+        let itemTotal = item.price * item.quantity;
+
+        // Apply 20% discount exclusively to 1 unit of the FIRST item entry in the cart
+        if (discountID && index === 0) {
+            const unitDiscount = item.price * 0.20;
+            discountAmount += unitDiscount;
+            itemTotal -= unitDiscount;
+        }
+
+        rawSubtotal += item.price * item.quantity;
+
+        const itemRow = document.createElement('div');
+        itemRow.className = "flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs";
+        itemRow.innerHTML = `
+            <div class="flex-1 pr-2">
+                <p class="font-bold text-slate-800">${item.name}</p>
+                <p class="text-slate-400 text-[10px]">
+                    ₱${item.price.toFixed(2)} x ${item.quantity} 
+                    ${index === 0 && discountID ? '<span class="text-emerald-600 font-bold ml-1">(20% SC/PWD)</span>' : ''}
+                </p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="font-mono font-bold text-slate-800">₱${itemTotal.toFixed(2)}</span>
+                <button onclick="removeFromCart(${index})" class="text-red-500 hover:text-red-700 font-bold px-1 text-sm">×</button>
             </div>
         `;
-    }).join('');
-    document.getElementById('basket-total').innerText = `₱${total.toFixed(2)}`;
+        listEl.appendChild(itemRow);
+    });
+
+    const finalTotal = rawSubtotal - discountAmount;
+
+    if (counterEl) counterEl.innerText = totalQty;
+    if (totalEl) totalEl.innerText = `₱${finalTotal.toFixed(2)}`;
+
+    // Toggle discount line item
+    if (discountAmount > 0 && summaryRow && summaryAmount) {
+        summaryRow.classList.remove('hidden');
+        summaryRow.classList.add('flex');
+        summaryAmount.innerText = `-₱${discountAmount.toFixed(2)}`;
+    } else if (summaryRow) {
+        summaryRow.classList.add('hidden');
+        summaryRow.classList.remove('flex');
+    }
+
+    if (typeof calculateChange === 'function') calculateChange();
 }
+/**
+ * Place Order with Discount ID included in the payload
+ */
 async function placeOrder() {
-    // 1. Check if basket is empty
-    if (activeCart.length === 0) return showToast("Your basket is empty!", "warning");
+    if (activeCart.length === 0) {
+        if (typeof showToast === 'function') showToast("Your basket is empty!", "warning");
+        return;
+    }
     
-    const total = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    let rawSubtotal = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    let discountAmount = (discountID && activeCart.length > 0) ? (activeCart[0].price * 0.20) : 0;
+    const total = rawSubtotal - discountAmount;
     
-    // 2. Validate cash tendered amount
     const cashInput = document.getElementById('cash-tendered');
     const cashTendered = parseFloat(cashInput ? cashInput.value : 0) || 0;
     
     if (cashTendered < total) {
-        return showToast(`Insufficient payment! Total is ₱${total.toFixed(2)} but only ₱${cashTendered.toFixed(2)} was given.`, "warning");
+        if (typeof showToast === 'function') {
+            showToast(`Insufficient payment! Total is ₱${total.toFixed(2)} but only ₱${cashTendered.toFixed(2)} was given.`, "warning");
+        }
+        return;
     }
 
-    // ===============================================================
-    // ⏳ DISABLE BUTTON & DISPLAY LOADING STATE
-    // ===============================================================
     const btn = document.querySelector('button[onclick*="placeOrder"]') || document.getElementById('btn-complete-order');
     let originalBtnText = "Complete Order";
     if (btn) {
@@ -1423,17 +1511,18 @@ async function placeOrder() {
 
     const payload = {
         action: "placeOrder",
-        EmployeeName: activeUser ? activeUser.name : "Employee",
-        ShiftID: (typeof currentShiftSession !== 'undefined' && currentShiftSession.shiftId) ? currentShiftSession.shiftId : "", // Associates order directly with this shift
+        EmployeeName: (typeof activeUser !== 'undefined' && activeUser) ? activeUser.name : "Employee",
+        ShiftID: (typeof currentShiftSession !== 'undefined' && currentShiftSession.shiftId) ? currentShiftSession.shiftId : "", 
         ItemsOrdered: activeCart, 
         TotalAmount: total,
+        DiscountAmount: discountAmount,
+        DiscountIDNumber: discountID || "", // Sent to Backend Column G
         PaymentMethod: "Cash",
         cashTendered: cashTendered,
         change: cashTendered - total,
         Date: new Date().toISOString()
     };
 
-    // Helper to safely store local order & trigger shift sales recalculation
     const storeAndRecalculateLocally = () => {
         if (typeof db !== 'undefined') {
             if (!db.orders) db.orders = [];
@@ -1443,7 +1532,6 @@ async function placeOrder() {
         if (typeof calculateShiftSales === 'function') calculateShiftSales();
     };
 
-    // Helper to reset button back to original state
     const resetButton = () => {
         if (btn) {
             btn.disabled = false;
@@ -1453,24 +1541,25 @@ async function placeOrder() {
     };
 
     try {
-        // Deduct local stock instantly
         if (typeof deductLocalStock === 'function') deductLocalStock(activeCart);
 
-        // Safe Offline Fallback Check
         if (typeof SCRIPT_URL === 'undefined' || SCRIPT_URL === "" || SCRIPT_URL.includes("YOUR_SCRIPT_URL_PLACEHOLDER")) {
-            console.warn("SCRIPT_URL is not defined or configured. Running in Local POS Print Mode.");
-            showToast("Database Offline. Printing receipt locally...", "warning");
-            
+            if (typeof showToast === 'function') showToast("Database Offline. Printing receipt locally...", "warning");
             if (typeof printThermalReceipt === 'function') {
                 printThermalReceipt(payload, "LOCAL-" + Date.now());
             }
-
             storeAndRecalculateLocally();
+            
+            // Reset state
+            activeCart = [];
+            clearDiscountId();
+            if (cashInput) cashInput.value = "";
+            renderCart();
+            
             resetButton();
             return;
         }
 
-        // Send as a plain text post to bypass CORS preflight restrictions completely
         const response = await fetch(SCRIPT_URL, {
             method: "POST",
             mode: "cors",
@@ -1486,20 +1575,23 @@ async function placeOrder() {
             if (typeof printThermalReceipt === 'function') {
                 printThermalReceipt(payload, data.orderId);
             }
-            showToast("Order placed successfully!", "success");
+            if (typeof showToast === 'function') showToast("Order placed successfully!", "success");
+            
+            // Clear cart & reset discount input
+            activeCart = [];
+            clearDiscountId();
+            if (cashInput) cashInput.value = "";
+            renderCart();
 
             storeAndRecalculateLocally();
         } else {
             alert("Error placing order on server: " + data.message);
         }
     } catch (err) {
-        console.error("Database connection failed. Falling back to local printer...", err);
-        showToast("Cloud sync failed. Printing physical receipt...", "warning");
-        
+        if (typeof showToast === 'function') showToast("Cloud sync failed. Printing physical receipt...", "warning");
         if (typeof printThermalReceipt === 'function') {
             printThermalReceipt(payload, "OFFLINE-" + Date.now());
         }
-
         storeAndRecalculateLocally();
     } finally {
         resetButton();
@@ -2009,45 +2101,40 @@ async function submitProductUpdate() {
 
 let basketTotalSum = 0; // Tracking variable for basket totals
 
+/**
+ * Calculate change due based on cash tendered
+ */
 function calculateChange() {
     const cashInput = document.getElementById('cash-tendered');
     const changeDisplay = document.getElementById('customer-change');
-    const totalDisplay = document.getElementById('basket-total');
     
     if (!cashInput || !changeDisplay) return;
 
-    // 1. Get Cash Tendered
-    const cashValue = parseFloat(cashInput.value);
-    
-    // If no cash is entered yet, reset display to ₱0.00
-    if (isNaN(cashValue) || cashValue <= 0) {
-        changeDisplay.innerText = "₱0.00";
-        changeDisplay.className = "text-sm font-mono font-bold text-slate-400";
-        return;
-    }
+    let rawSubtotal = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    let discountAmount = (discountID && activeCart.length > 0) ? (activeCart[0].price * 0.20) : 0;
+    const total = rawSubtotal - discountAmount;
 
-    // 2. Get the Current Total (pull dynamically from basket variable OR the UI element)
-    let currentTotal = 0;
-    if (typeof activeCart !== 'undefined') {
-        // Pull directly from your active array memory (Recommended)
-        currentTotal = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    } else if (totalDisplay) {
-        // Fallback: Scraping the text on screen & removing the Currency Symbol
-        currentTotal = parseFloat(totalDisplay.innerText.replace(/[^0-9.]/g, '')) || 0;
-    }
+    const cashTendered = parseFloat(cashInput.value) || 0;
+    const change = cashTendered - total;
 
-    // 3. Compute the Difference (Cash Received - Total)
-    const difference = cashValue - currentTotal;
-    
-    // 4. Update UI styling and text dynamically
-    if (difference < 0) {
-        // If they paid less than the total, show remaining amount in RED with a minus sign
-        changeDisplay.innerText = `-₱${Math.abs(difference).toFixed(2)}`;
-        changeDisplay.className = "text-sm font-mono font-bold text-red-500";
+    if (change >= 0 && cashTendered > 0) {
+        changeDisplay.innerText = `₱${change.toFixed(2)}`;
+        changeDisplay.classList.remove('text-slate-400');
+        changeDisplay.classList.add('text-emerald-600');
     } else {
-        // If they paid enough, show the positive change in Green
-        changeDisplay.innerText = `₱${difference.toFixed(2)}`;
-        changeDisplay.className = "text-sm font-mono font-bold text-emerald-600";
+        changeDisplay.innerText = "₱0.00";
+        changeDisplay.classList.remove('text-emerald-600');
+        changeDisplay.classList.add('text-slate-400');
+    }
+}
+
+/**
+ * Helper to remove an item from the cart by index
+ */
+function removeFromCart(index) {
+    if (index >= 0 && index < activeCart.length) {
+        activeCart.splice(index, 1);
+        renderCart();
     }
 }
 
@@ -3563,6 +3650,137 @@ function confirmPastaAddToCart() {
     if (amountInput) {
         amountInput.value = existingAmount;
     }
+}
+
+    // Global variable to store current discount ID
+let discountID = "";
+
+/**
+ * Handle input in the SC/PWD ID field
+ */
+function handleDiscountIdInput() {
+    const inputEl = document.getElementById('discount-id-input');
+    const msgEl = document.getElementById('discount-status-msg');
+    const clearBtn = document.getElementById('btn-clear-discount');
+
+    if (!inputEl) return;
+    discountID = inputEl.value.trim();
+
+    if (discountID.length > 0) {
+        if (msgEl) msgEl.classList.remove('hidden');
+        if (clearBtn) clearBtn.classList.remove('hidden');
+    } else {
+        if (msgEl) msgEl.classList.add('hidden');
+        if (clearBtn) clearBtn.classList.add('hidden');
+    }
+
+    // Lock the ID input if there are already items in the cart
+    if (activeCart.length > 0) {
+        inputEl.disabled = true;
+    }
+
+    renderCart();
+}
+
+/**
+ * Clear the discount ID field & unlock input
+ */
+function clearDiscountId() {
+    const inputEl = document.getElementById('discount-id-input');
+    const msgEl = document.getElementById('discount-status-msg');
+    const clearBtn = document.getElementById('btn-clear-discount');
+
+    if (inputEl) {
+        inputEl.value = "";
+        inputEl.disabled = false;
+    }
+    discountID = "";
+
+    if (msgEl) msgEl.classList.add('hidden');
+    if (clearBtn) clearBtn.classList.add('hidden');
+
+    renderCart();
+}
+    function renderBasket() {
+    const listEl = document.getElementById('basket-list');
+    const counterEl = document.getElementById('basket-counter');
+    const totalEl = document.getElementById('basket-total');
+    const summaryRow = document.getElementById('discount-summary-row');
+    const summaryAmount = document.getElementById('basket-discount-amount');
+    const inputEl = document.getElementById('discount-id-input');
+
+    listEl.innerHTML = "";
+
+    if (basket.length === 0) {
+        listEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Basket is empty</p>`;
+        counterEl.innerText = "0";
+        totalEl.innerText = "₱0.00";
+        summaryRow.classList.add('hidden');
+        inputEl.disabled = false; // Re-enable ID input when empty
+        calculateChange();
+        return;
+    }
+
+    let rawSubtotal = 0;
+    let discountAmount = 0;
+    let totalQty = 0;
+
+    basket.forEach((item, index) => {
+        totalQty += item.qty;
+        let itemTotal = item.price * item.qty;
+        let itemDiscount = 0;
+
+        // Apply 20% discount ONLY to the 1st meal unit (index 0, first single item)
+        if (discountID && index === 0) {
+            itemDiscount = item.price * 0.20; // 20% off 1 unit of first item
+            discountAmount += itemDiscount;
+            itemTotal -= itemDiscount;
+        }
+
+        rawSubtotal += item.price * item.qty;
+
+        // Render HTML Row for Basket
+        const itemRow = document.createElement('div');
+        itemRow.className = "flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs";
+        itemRow.innerHTML = `
+            <div class="flex-1 pr-2">
+                <p class="font-bold text-slate-800">${item.name}</p>
+                <p class="text-slate-400 text-[10px]">₱${item.price.toFixed(2)} x ${item.qty} ${index === 0 && discountID ? '<span class="text-emerald-600 font-bold">(20% SC/PWD Disc applied to 1st item)</span>' : ''}</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="font-mono font-bold text-slate-800">₱${itemTotal.toFixed(2)}</span>
+                <button onclick="removeFromBasket(${index})" class="text-red-500 hover:text-red-700 font-bold px-1 text-sm">×</button>
+            </div>
+        `;
+        listEl.appendChild(itemRow);
+    });
+
+    const finalTotal = rawSubtotal - discountAmount;
+
+    counterEl.innerText = totalQty;
+    totalEl.innerText = `₱${finalTotal.toFixed(2)}`;
+
+    // Show or Hide Discount Summary Row
+    if (discountAmount > 0) {
+        summaryRow.classList.remove('hidden');
+        summaryRow.classList.add('flex');
+        summaryAmount.innerText = `-₱${discountAmount.toFixed(2)}`;
+    } else {
+        summaryRow.classList.add('hidden');
+        summaryRow.classList.remove('flex');
+    }
+
+    calculateChange();
+}
+
+// 4. Remove / Decrement from Basket
+function removeFromBasket(index) {
+    if (basket[index].qty > 1) {
+        basket[index].qty -= 1;
+    } else {
+        basket.splice(index, 1);
+    }
+    renderBasket();
 }
 </script>
 </body>
