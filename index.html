@@ -229,39 +229,59 @@
         </div>
 
         <!-- Checkout Controls -->
-        <div class="border-t border-slate-100 p-4 md:p-6 bg-slate-50 flex-shrink-0 space-y-3 md:space-y-4">
-            
-            <!-- Breakdown display for Discount -->
-            <div id="discount-summary-row" class="hidden justify-between text-xs font-bold text-emerald-600">
-                <span>SC/PWD Discount (20% on 1st meal):</span>
-                <span id="basket-discount-amount" class="font-mono">-₱0.00</span>
-            </div>
+<div class="border-t border-slate-100 p-4 md:p-6 bg-slate-50 flex-shrink-0 space-y-3 md:space-y-4">
+    
+    <!-- Discount Summary Row -->
+    <div id="discount-summary-row" class="hidden justify-between text-xs font-bold text-emerald-600">
+        <span>SC/PWD Discount (20% on 1st meal):</span>
+        <span id="basket-discount-amount" class="font-mono">-₱0.00</span>
+    </div>
 
-            <div class="flex justify-between text-sm md:text-md font-bold text-slate-700">
-                <span>Total Amount:</span>
-                <span id="basket-total" class="font-mono text-amber-950">₱0.00</span>
-            </div>
+    <!-- Total Amount Display -->
+    <div class="flex justify-between text-sm md:text-md font-bold text-slate-700">
+        <span>Total Amount:</span>
+        <span id="basket-total" class="font-mono text-amber-950">₱0.00</span>
+    </div>
 
-            <div class="space-y-1">
-                <label class="block text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wider">Cash Received</label>
-                <div class="relative rounded-xl shadow-sm">
-                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                        <span class="text-slate-400 font-bold text-sm">₱</span>
-                    </div>
-                    <input type="number" step="any" min="0" id="cash-tendered" oninput="calculateChange()" placeholder="0.00" 
-                           class="w-full rounded-xl border border-slate-200 py-2.5 pl-7 pr-3 text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-amber-800 transition-all">
-                </div>
-            </div>
+    <!-- Payment Method Selector -->
+    <div class="space-y-1">
+        <label class="block text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wider">Payment Method</label>
+        <select id="payment-method" onchange="handlePaymentMethodChange()" class="w-full rounded-xl border border-slate-200 py-2 px-3 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-800">
+            <option value="Cash">Cash</option>
+            <option value="GCash">GCash</option>
+            <option value="Bank Transfer">Bank Transfer</option>
+        </select>
+    </div>
 
-            <div class="flex justify-between items-center py-2 px-3 bg-white rounded-xl border border-dashed border-slate-200">
-                <span class="text-xs font-bold text-slate-500">Change Due:</span>
-                <span id="customer-change" class="text-sm font-mono font-bold text-slate-400">₱0.00</span>
+    <!-- Dynamic Container: Cash Tendered (Cash Only) -->
+    <div id="cash-payment-container" class="space-y-1">
+        <label class="block text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wider">Cash Received</label>
+        <div class="relative rounded-xl shadow-sm">
+            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <span class="text-slate-400 font-bold text-sm">₱</span>
             </div>
-
-            <button onclick="placeOrder()" class="w-full bg-amber-800 text-white font-bold py-3.5 rounded-xl hover:bg-amber-900 transition-all shadow-md active:scale-[0.99]">
-                Complete Order
-            </button>
+            <input type="number" step="any" min="0" id="cash-tendered" oninput="calculateChange()" placeholder="0.00" 
+                   class="w-full rounded-xl border border-slate-200 py-2.5 pl-7 pr-3 text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-amber-800 transition-all">
         </div>
+    </div>
+
+    <!-- Dynamic Container: Reference/Transaction # (GCash / Bank Transfer) -->
+    <div id="digital-payment-container" class="space-y-1 hidden">
+        <label id="reference-no-label" class="block text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wider">Reference No.</label>
+        <input type="text" id="transaction-no" placeholder="Enter Ref / Trans No." 
+               class="w-full rounded-xl border border-slate-200 py-2 px-3 text-xs font-bold font-mono focus:outline-none focus:ring-2 focus:ring-amber-800 bg-white">
+    </div>
+
+    <!-- Change Display Row (Cash Only) -->
+    <div id="change-due-container" class="flex justify-between items-center py-2 px-3 bg-white rounded-xl border border-dashed border-slate-200">
+        <span class="text-xs font-bold text-slate-500">Change Due:</span>
+        <span id="customer-change" class="text-sm font-mono font-bold text-slate-400">₱0.00</span>
+    </div>
+
+    <button onclick="placeOrder()" class="w-full bg-amber-800 text-white font-bold py-3.5 rounded-xl hover:bg-amber-900 transition-all shadow-md active:scale-[0.99]">
+        Complete Order
+    </button>
+</div>
     </div>
 </div>
                 <!-- CASHIER VIEW: SHIFT CASH DRAWER RECONCILIATION -->
@@ -1478,7 +1498,7 @@ function renderCart() {
     if (typeof calculateChange === 'function') calculateChange();
 }
 /**
- * Place Order with Discount ID included in the payload
+ * Place Order Logic with Payment Method & Reference Validation
  */
 async function placeOrder() {
     if (activeCart.length === 0) {
@@ -1486,21 +1506,41 @@ async function placeOrder() {
         return;
     }
     
+    const paymentMethod = document.getElementById('payment-method').value;
+    const refInput = document.getElementById('transaction-no');
+    const transactionNo = refInput ? refInput.value.trim() : "";
+
     let rawSubtotal = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     let discountAmount = (discountID && activeCart.length > 0) ? (activeCart[0].price * 0.20) : 0;
     const total = rawSubtotal - discountAmount;
     
-    const cashInput = document.getElementById('cash-tendered');
-    const cashTendered = parseFloat(cashInput ? cashInput.value : 0) || 0;
-    
-    if (cashTendered < total) {
-        if (typeof showToast === 'function') {
-            showToast(`Insufficient payment! Total is ₱${total.toFixed(2)} but only ₱${cashTendered.toFixed(2)} was given.`, "warning");
+    let cashTendered = 0;
+    let change = 0;
+
+    // Validate fields according to selected payment method
+    if (paymentMethod === "Cash") {
+        const cashInput = document.getElementById('cash-tendered');
+        cashTendered = parseFloat(cashInput ? cashInput.value : 0) || 0;
+        if (cashTendered < total) {
+            if (typeof showToast === 'function') {
+                showToast(`Insufficient payment! Total is ₱${total.toFixed(2)} but only ₱${cashTendered.toFixed(2)} was given.`, "warning");
+            }
+            return;
         }
-        return;
+        change = cashTendered - total;
+    } else {
+        // GCash or Bank Transfer validation
+        if (!transactionNo) {
+            if (typeof showToast === 'function') {
+                showToast(`Please enter the ${paymentMethod} Reference/Transaction number.`, "warning");
+            }
+            return;
+        }
+        cashTendered = total; // Digital payment covers exact amount
+        change = 0;
     }
 
-    const btn = document.querySelector('button[onclick*="placeOrder"]') || document.getElementById('btn-complete-order');
+    const btn = document.querySelector('button[onclick*="placeOrder"]');
     let originalBtnText = "Complete Order";
     if (btn) {
         originalBtnText = btn.innerHTML;
@@ -1514,22 +1554,26 @@ async function placeOrder() {
         EmployeeName: (typeof activeUser !== 'undefined' && activeUser) ? activeUser.name : "Employee",
         ShiftID: (typeof currentShiftSession !== 'undefined' && currentShiftSession.shiftId) ? currentShiftSession.shiftId : "", 
         ItemsOrdered: activeCart, 
-        TotalAmount: total,
+        SubtotalAmount: rawSubtotal,
         DiscountAmount: discountAmount,
-        DiscountIDNumber: discountID || "", // Sent to Backend Column G
-        PaymentMethod: "Cash",
+        TotalAmount: total,
+        DiscountIDNumber: discountID || "",
+        PaymentMethod: paymentMethod,
+        TransactionNo: transactionNo,
         cashTendered: cashTendered,
-        change: cashTendered - total,
+        change: change,
         Date: new Date().toISOString()
     };
 
-    const storeAndRecalculateLocally = () => {
-        if (typeof db !== 'undefined') {
-            if (!db.orders) db.orders = [];
-            db.orders.push(payload);
-        }
-        if (typeof finalizeLocalCheckout === 'function') finalizeLocalCheckout();
-        if (typeof calculateShiftSales === 'function') calculateShiftSales();
+    const targetUrl = (typeof SCRIPT_URL !== 'undefined') ? SCRIPT_URL : (typeof API_URL !== 'undefined' ? API_URL : "");
+
+    const resetBasket = () => {
+        activeCart = [];
+        if (typeof clearDiscountId === 'function') clearDiscountId();
+        const cashInput = document.getElementById('cash-tendered');
+        if (cashInput) cashInput.value = "";
+        if (refInput) refInput.value = "";
+        renderCart();
     };
 
     const resetButton = () => {
@@ -1543,56 +1587,34 @@ async function placeOrder() {
     try {
         if (typeof deductLocalStock === 'function') deductLocalStock(activeCart);
 
-        if (typeof SCRIPT_URL === 'undefined' || SCRIPT_URL === "" || SCRIPT_URL.includes("YOUR_SCRIPT_URL_PLACEHOLDER")) {
+        if (!targetUrl || targetUrl.includes("YOUR_SCRIPT_URL_PLACEHOLDER")) {
             if (typeof showToast === 'function') showToast("Database Offline. Printing receipt locally...", "warning");
-            if (typeof printThermalReceipt === 'function') {
-                printThermalReceipt(payload, "LOCAL-" + Date.now());
-            }
-            storeAndRecalculateLocally();
-            
-            // Reset state
-            activeCart = [];
-            clearDiscountId();
-            if (cashInput) cashInput.value = "";
-            renderCart();
-            
+            printThermalReceipt(payload, "LOCAL-" + Date.now());
+            resetBasket();
             resetButton();
             return;
         }
 
-        const response = await fetch(SCRIPT_URL, {
+        const response = await fetch(targetUrl, {
             method: "POST",
             mode: "cors",
-            headers: {
-                "Content-Type": "text/plain;charset=utf-8"
-            },
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
             body: JSON.stringify(payload)
         });
         
         const data = await response.json();
 
         if (data.status === "SUCCESS") {
-            if (typeof printThermalReceipt === 'function') {
-                printThermalReceipt(payload, data.orderId);
-            }
+            printThermalReceipt(payload, data.orderId);
             if (typeof showToast === 'function') showToast("Order placed successfully!", "success");
-            
-            // Clear cart & reset discount input
-            activeCart = [];
-            clearDiscountId();
-            if (cashInput) cashInput.value = "";
-            renderCart();
-
-            storeAndRecalculateLocally();
+            resetBasket();
         } else {
             alert("Error placing order on server: " + data.message);
         }
     } catch (err) {
         if (typeof showToast === 'function') showToast("Cloud sync failed. Printing physical receipt...", "warning");
-        if (typeof printThermalReceipt === 'function') {
-            printThermalReceipt(payload, "OFFLINE-" + Date.now());
-        }
-        storeAndRecalculateLocally();
+        printThermalReceipt(payload, "OFFLINE-" + Date.now());
+        resetBasket();
     } finally {
         resetButton();
     }
@@ -1659,7 +1681,12 @@ function deductLocalStock(itemsInCart) {
 
 
     // process printing of thermal receipt
-   function printThermalReceipt(payload, serverOrderId) {
+   /**
+ * Updated Thermal Receipt Printer
+ * - Shows Subtotal & Discount line if SC/PWD ID is present
+ * - Displays Payment Method & Reference / Transaction Number for GCash / Bank Transfer
+ */
+function printThermalReceipt(payload, serverOrderId) {
     const receipt = document.getElementById('receipt-print-zone');
     if (!receipt) {
         console.error("Receipt rendering element (#receipt-print-zone) not found!");
@@ -1674,19 +1701,15 @@ function deductLocalStock(itemsInCart) {
         let mainTitle = rawName;
         let selections = item.modifiers || [];
 
-        // Parse title and parenthesized selections: e.g., "Set A (...) (Pancit Canton, Sisig)"
         if (rawName.includes('(') && rawName.includes(')')) {
             const firstParenIndex = rawName.indexOf('(');
             const lastParenIndex = rawName.lastIndexOf(')');
             
-            // Extract base title (e.g., "Set A")
             mainTitle = rawName.substring(0, firstParenIndex).trim();
             if (!mainTitle) mainTitle = "Set Meal";
 
-            // If modifiers array isn't populated, extract choices inside parentheses
             if (!selections || selections.length === 0) {
                 const innerText = rawName.substring(firstParenIndex + 1, lastParenIndex);
-                // Check if innerText contains comma-separated selections
                 if (innerText.includes(',')) {
                     selections = innerText.split(',').map(s => s.trim());
                 } else {
@@ -1695,7 +1718,6 @@ function deductLocalStock(itemsInCart) {
             }
         }
 
-        // Format main item row
         const formattedTitle = mainTitle.padEnd(14, ' ').substring(0, 14);
         const qty = item.quantity.toString().padStart(5, ' ');
         const priceVal = Number(item.price || item.Price || 0) * Number(item.quantity);
@@ -1703,7 +1725,6 @@ function deductLocalStock(itemsInCart) {
         
         let line = `${formattedTitle}${qty}${formattedPrice}`;
 
-        // Append each selected dish as a bulleted indented sub-line
         if (selections && selections.length > 0) {
             const dishLines = selections.map(dish => `   - ${dish}`).join('\n');
             line += `\n${dishLines}`;
@@ -1713,13 +1734,45 @@ function deductLocalStock(itemsInCart) {
     }).join('\n');
 
     const finalOrderId = serverOrderId || ("ORD-" + Date.now());
+    const subtotalAmount = Number(payload.SubtotalAmount || payload.subtotal || 0);
+    const discountAmount = Number(payload.DiscountAmount || payload.discount || 0);
     const totalAmount = Number(payload.TotalAmount || payload.total || 0).toFixed(2);
-    const cashReceived = Number(payload.cashTendered || payload.cashReceived || 0).toFixed(2);
-    const changeDue = Number(payload.change || payload.changeDue || 0).toFixed(2);
+    
+    const paymentMethod = payload.PaymentMethod || "Cash";
+    const transactionNo = payload.TransactionNo || "";
+    const discountIdNo = payload.DiscountIDNumber || "";
 
+    const formattedSubtotal = `₱${subtotalAmount.toFixed(2)}`.padStart(11, ' ');
+    const formattedDiscount = `-₱${discountAmount.toFixed(2)}`.padStart(11, ' ');
     const formattedTotal = `₱${totalAmount}`.padStart(11, ' ');
-    const formattedCash = `₱${cashReceived}`.padStart(11, ' ');
-    const formattedChange = `₱${changeDue}`.padStart(11, ' ');
+
+    // Discount line section
+    let discountBlock = "";
+    if (discountAmount > 0) {
+        discountBlock = `
+SUBTOTAL:             ${formattedSubtotal}
+SC/PWD DISC (20%):    ${formattedDiscount}`;
+        if (discountIdNo) {
+            discountBlock += `\nSC/PWD ID NO:         ${discountIdNo}`;
+        }
+        discountBlock += `\n--------------------------------`;
+    }
+
+    // Payment details formatting
+    let paymentDetailsBlock = "";
+    if (paymentMethod === "Cash") {
+        const cashReceived = Number(payload.cashTendered || 0).toFixed(2);
+        const changeDue = Number(payload.change || 0).toFixed(2);
+        paymentDetailsBlock = `
+PAYMENT METHOD:       CASH
+CASH RECEIVED:        ${`₱${cashReceived}`.padStart(11, ' ')}
+CHANGE:               ${`₱${changeDue}`.padStart(11, ' ')}`;
+    } else {
+        paymentDetailsBlock = `
+PAYMENT METHOD:       ${paymentMethod.toUpperCase()}
+REF / TRANS NO:       ${transactionNo}
+PAID AMOUNT:          ${formattedTotal}`;
+    }
 
     receipt.innerHTML = `
 <style>
@@ -1739,32 +1792,32 @@ function deductLocalStock(itemsInCart) {
     <img id="receipt-logo-element" src="albertos.jpg" alt="Alberto's Logo" style="display: block; margin: 0 auto; max-width: 80px; height: auto;" />
 </div>
 <pre style="font-family: monospace; font-size: 11px; line-height: 1.3; margin: 0; white-space: pre-wrap;">
-     ALBERTO'S HERITAGE CAFE
+      ALBERTO'S HERITAGE CAFE
 ================================
-Staff: ${payload.EmployeeName || payload.employee || 'Staff'}
-Date: ${new Date().toLocaleDateString()}
+Tax No. : 604-200-001322
+Staff: ${payload.EmployeeName || 'Staff'}
+Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
 Order ID: ${finalOrderId}
 --------------------------------
 Items          Qty       Price
 --------------------------------
 ${itemLines}
---------------------------------
-TOTAL:               ${formattedTotal}
-CASH RECEIVED:       ${formattedCash}
-CHANGE:              ${formattedChange}
+--------------------------------${discountBlock}
+TOTAL:                ${formattedTotal}
+================================${paymentDetailsBlock}
 ================================
 National Highway 
 (near Cabanbanan Arch)
 Brgy. Cabanbanan, Pagsanjan
 
+For reservation please
 Contact us at: 0969 299 2006
 ================================
 
-     Savor Heritage Today.
+      Savor Heritage Today.
 </pre>
     `;
 
-    // Ensure the logo image is fully buffered before calling print dialog
     const img = document.getElementById('receipt-logo-element');
     if (img && !img.complete) {
         img.onload = () => setTimeout(() => window.print(), 100);
@@ -3844,6 +3897,28 @@ function removeFromBasket(index) {
         basket.splice(index, 1);
     }
     renderBasket();
+}
+
+    /**
+ * Switch UI between Cash & Digital Payments
+ */
+function handlePaymentMethodChange() {
+    const method = document.getElementById('payment-method').value;
+    const cashContainer = document.getElementById('cash-payment-container');
+    const digitalContainer = document.getElementById('digital-payment-container');
+    const changeContainer = document.getElementById('change-due-container');
+    const refLabel = document.getElementById('reference-no-label');
+
+    if (method === "Cash") {
+        cashContainer.classList.remove('hidden');
+        changeContainer.classList.remove('hidden');
+        digitalContainer.classList.add('hidden');
+    } else {
+        cashContainer.classList.add('hidden');
+        changeContainer.classList.add('hidden');
+        digitalContainer.classList.remove('hidden');
+        if (refLabel) refLabel.innerText = `${method} Ref / Trans No.`;
+    }
 }
 </script>
 </body>
