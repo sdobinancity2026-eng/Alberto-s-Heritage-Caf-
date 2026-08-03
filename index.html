@@ -2170,26 +2170,39 @@ let employeeStartingCashAllocations = {
 };
 
 function calculateShiftSales() {
-    // 1. Safety Guard: Check if active user exists
-    if (!activeUser) return 0;
-
-    // 2. Safety Guard: Check if shift session is initialized
-    if (typeof currentShiftSession === 'undefined' || !currentShiftSession) {
-        console.warn("Shift session not yet initialized. Skipping shift sales calculation.");
+    // 1. Safety Guard: Return 0 if activeUser or currentShiftSession is missing/null
+    if (!activeUser || !currentShiftSession) {
         const salesField = document.getElementById('recon-sales');
         if (salesField) {
             salesField.value = 0;
         }
-        calculateDrawerDiscrepancy(0);
+        if (typeof calculateDrawerDiscrepancy === 'function') {
+            calculateDrawerDiscrepancy(0);
+        }
         return 0;
     }
+
+    // 2. Safely read properties off currentShiftSession using optional chaining (?.)
+    const sessionStartTime = currentShiftSession?.startTime ? new Date(currentShiftSession.startTime) : null;
+    const sessionShiftId = currentShiftSession?.shiftId || null;
 
     // 3. Extract orders safely from global db
     const ordersList = (typeof db !== 'undefined' && db.orders) ? db.orders : [];
 
-    // 4. Filter and sum sales for current active staff member
+    // 4. Filter orders for current active staff member (and optionally within current shift time)
     const staffSales = ordersList
-        .filter(o => o && o.EmployeeName === activeUser.name)
+        .filter(o => {
+            if (!o || o.EmployeeName !== activeUser.name) return false;
+            
+            // If order has a shiftId or timestamp, ensure it matches current session
+            if (sessionShiftId && o.ShiftID) {
+                return o.ShiftID === sessionShiftId;
+            }
+            if (sessionStartTime && o.Date) {
+                return new Date(o.Date) >= sessionStartTime;
+            }
+            return true;
+        })
         .reduce((sum, o) => sum + Number(o.TotalAmount || 0), 0);
 
     // 5. Update UI field and drawer discrepancy
@@ -2198,7 +2211,9 @@ function calculateShiftSales() {
         salesField.value = staffSales;
     }
 
-    calculateDrawerDiscrepancy(staffSales);
+    if (typeof calculateDrawerDiscrepancy === 'function') {
+        calculateDrawerDiscrepancy(staffSales);
+    }
 
     return staffSales;
 }
