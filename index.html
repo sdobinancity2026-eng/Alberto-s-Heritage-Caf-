@@ -799,13 +799,17 @@
     const API_URL = "https://script.google.com/macros/s/AKfycbxulPl24lg5hJS8a_5KuXPxUH7usUHHpl-JqdASVCFHiG0PTej7GaGFZoSKNY-dOvD-Uw/exec";
     const SCRIPT_URL = API_URL;
 
-    // ==========================================
+   // ==========================================
     // 1. GLOBAL STATE & CONFIG CONSTANTS
     // ==========================================
     let db = { inventory: [], employees: [], orders: [], shifts: [] };
     let activeUser = null;
     let activeCart = [];
     let analyticsCharts = { trend: null, pie: null };
+
+    // --- VIEW & FILTER STATES (DECLARE THESE FIRST TO PREVENT TDZ ERRORS) ---
+    let currentActiveView = 'register'; // Default initial view
+    window.activeCategoryTab = window.activeCategoryTab || 'All';
 
     // --- ADDED: Pizza Modal State Trackers ---
     let activePizzaFlavor = "";
@@ -825,11 +829,11 @@
         "Hawaiian": { thin10: 299, thin12: 359, regular10: 319, regular12: 379 },
         "Pepperoni": { thin10: 299, thin12: 359, regular10: 319, regular12: 379 },
         "Veggies Galore": { thin10: 309, thin12: 359, regular10: 319, regular12: 379 },
-        "Quattro Formaggi": { thin10: 309, thin12: 359, regular10: 329, regular12: 379 },
+        "Quattro Formaggi": { thin10: 309, thin12: 329, regular12: 379 },
         "Barbecue Chicken": { thin10: 309, thin12: 369, regular10: 329, regular12: 389 },
         "All Meat Madness": { thin10: 319, thin12: 369, regular10: 339, regular12: 389 },
-        "Classic 4-Flavors-In-1": { thin12: 379, regular12: 399 }, // 12" only
-        "Signature 4-Flavors-In-1": { thin12: 399, regular12: 429 }, // 12" only
+        "Classic 4-Flavors-In-1": { thin12: 379, regular12: 399 },
+        "Signature 4-Flavors-In-1": { thin12: 399, regular12: 429 },
         "Cheeseburger Pizza": { thin10: 329, thin12: 399, regular10: 339, regular12: 429 },
         "Pizza De Alberto": { thin10: 329, thin12: 399, regular10: 339, regular12: 429 },
         "Shrimp Alfredo Pizza": { thin10: 349, thin12: 399, regular10: 369, regular12: 429 },
@@ -876,8 +880,8 @@ function checkAutoLogin() {
             document.getElementById('app-wrapper').classList.remove('hidden');
             
             // Populate Sticky Nav details
-            document.getElementById('topbar-user-name').innerText = activeUser.name;
-            document.getElementById('topbar-user-role').innerText = activeUser.role;
+            document.getElementById('topbar-user-name').innerText = activeUser.name || 'User';
+            document.getElementById('topbar-user-role').innerText = activeUser.role || '';
 
             if (activeUser.role && activeUser.role.toLowerCase() === 'admin') {
                 document.getElementById('admin-nav-links').classList.remove('hidden');
@@ -885,15 +889,24 @@ function checkAutoLogin() {
                 document.getElementById('admin-nav-links').classList.add('hidden');
             }
 
-            // Standard layout load tasks
-            // ✅ Fix: Retain current view instead of forcing 'register' on every check!
-            navigateView(currentActiveView); 
-            calculateShiftSales();
-            renderMenu();
+            // Fallback safely to 'register' if currentActiveView is undefined
+            const targetView = (typeof currentActiveView !== 'undefined' && currentActiveView) ? currentActiveView : 'register';
+
+            if (typeof navigateView === 'function') {
+                navigateView(targetView); 
+            }
+            if (typeof calculateShiftSales === 'function') {
+                calculateShiftSales();
+            }
+            if (typeof renderMenu === 'function') {
+                renderMenu();
+            }
             
         } catch (e) {
             console.error("Error parsing auto-login cache:", e);
-            logout();
+            if (typeof logout === 'function') {
+                logout();
+            }
         }
     } else {
         // Safe fallback: No user active, clean up layout states
@@ -901,7 +914,6 @@ function checkAutoLogin() {
         document.getElementById('app-wrapper').classList.add('hidden');
     }
 }
-
     function updateSystemDate() {
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         document.getElementById('header-system-date').innerText = new Date().toLocaleDateString('en-US', options);
