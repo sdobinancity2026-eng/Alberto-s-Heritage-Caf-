@@ -1235,36 +1235,48 @@ function logout() {
         document.getElementById('app-wrapper').classList.add('hidden');
         showToast("Successfully logged out.");
     }
+// Ensure active category tab defaults to 'All'
+let activeCategoryTab = activeCategoryTab || 'All';
+
 function renderMenu() {
     // 0. DYNAMICALLY BUILD CATEGORIES FROM INVENTORY DATABASE
-    // Automatically pulls all unique categories from db.inventory
     const existingCategories = (db.inventory || [])
         .map(item => item.Category || item.category || "")
-        .filter(cat => cat.trim() !== ""); // Filter out empty values
+        .filter(cat => String(cat).trim() !== ""); // Filter out blank categories
 
     // Remove duplicate category names (case-insensitive deduplication)
     const uniqueCategories = [];
     existingCategories.forEach(cat => {
-        const normalized = cat.trim();
+        const normalized = String(cat).trim();
         if (!uniqueCategories.some(c => c.toLowerCase() === normalized.toLowerCase())) {
             uniqueCategories.push(normalized);
         }
     });
 
-    // Alphabetize categories and ensure "All" is always first
+    // Alphabetize categories
     uniqueCategories.sort((a, b) => a.localeCompare(b));
-    menuCategories = ['All', ...uniqueCategories];
+
+    // Update global/outer menuCategories array in-place (prevents "Assignment to constant variable" error)
+    if (typeof menuCategories !== 'undefined') {
+        menuCategories.length = 0; // Clear existing items
+        menuCategories.push('All', ...uniqueCategories); // Safely push new list
+    }
 
     // 1. Render Category Buttons Tab Bar
     const tabContainer = document.getElementById('category-tab-bar');
     if (tabContainer) {
-        tabContainer.innerHTML = menuCategories.map(cat => {
+        const categoriesToRender = (typeof menuCategories !== 'undefined') ? menuCategories : ['All', ...uniqueCategories];
+        
+        tabContainer.innerHTML = categoriesToRender.map(cat => {
             const isActive = cat.toLowerCase() === activeCategoryTab.toLowerCase();
             const activeClasses = "bg-amber-800 text-white font-bold shadow-sm shadow-amber-800/10";
             const inactiveClasses = "bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 font-semibold border border-slate-200/60";
             
+            // Safe string escape for inline onclick
+            const safeCat = cat.replace(/'/g, "\\'");
+
             return `
-                <button onclick="setCategoryFilter('${cat.replace(/'/g, "\\'")}')" class="px-4 py-2 rounded-xl text-xs whitespace-nowrap transition-all duration-200 ${isActive ? activeClasses : inactiveClasses}">
+                <button onclick="setCategoryFilter('${safeCat}')" class="px-4 py-2 rounded-xl text-xs whitespace-nowrap transition-all duration-200 ${isActive ? activeClasses : inactiveClasses}">
                     ${cat === 'All' ? '🌐 Show All' : cat}
                 </button>
             `;
@@ -1274,9 +1286,9 @@ function renderMenu() {
     // 2. Filter Database Inventory items by Category Selection
     let filteredItems = db.inventory || [];
     if (activeCategoryTab !== "All") {
-        filteredItems = db.inventory.filter(item => {
-            const itemCat = item.Category || item.category || "";
-            return itemCat.toLowerCase().trim() === activeCategoryTab.toLowerCase().trim();
+        filteredItems = (db.inventory || []).filter(item => {
+            const itemCat = String(item.Category || item.category || "").toLowerCase().trim();
+            return itemCat === activeCategoryTab.toLowerCase().trim();
         });
     }
 
@@ -1345,7 +1357,7 @@ function renderMenu() {
         `;
     }).join('');
 
-    // Update Low Stock Indicator Counter badge
+    // 4. Update Low Stock Indicator Counter badge
     const lowCount = (db.inventory || []).filter(i => {
         const stock = i.StockQuantity !== undefined ? i.StockQuantity : (i.stock || 0);
         return Number(stock) < 10;
@@ -1355,6 +1367,12 @@ function renderMenu() {
     if (lowAlertEl) {
         lowAlertEl.innerText = `${lowCount} Low Items Flagged`;
     }
+}
+
+// Tab selection click handler
+function setCategoryFilter(categoryName) {
+    activeCategoryTab = categoryName;
+    renderMenu();
 }
 
 // Tab selection click handler
