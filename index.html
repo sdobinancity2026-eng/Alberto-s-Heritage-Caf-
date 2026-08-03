@@ -800,16 +800,16 @@
     const SCRIPT_URL = API_URL;
 
    // ==========================================
-    // 1. GLOBAL STATE & CONFIG CONSTANTS
-    // ==========================================
-    let db = { inventory: [], employees: [], orders: [], shifts: [] };
-    let activeUser = null;
-    let activeCart = [];
-    let analyticsCharts = { trend: null, pie: null };
+// 1. GLOBAL STATE & CONFIG CONSTANTS
+// ==========================================
+let db = { inventory: [], employees: [], orders: [], shifts: [] };
+let activeUser = null;
+let activeCart = [];
+let analyticsCharts = { trend: null, pie: null };
 
-    // --- VIEW & FILTER STATES (DECLARE THESE FIRST TO PREVENT TDZ ERRORS) ---
-    let currentActiveView = 'register'; // Default initial view
-    window.activeCategoryTab = window.activeCategoryTab || 'All';
+// --- VIEW & FILTER STATES (DECLARE ONCE AT THE TOP) ---
+let currentActiveView = localStorage.getItem('last_active_view') || 'register';
+window.activeCategoryTab = window.activeCategoryTab || 'All';
 
     // --- ADDED: Pizza Modal State Trackers ---
     let activePizzaFlavor = "";
@@ -1155,7 +1155,7 @@ function evaluateStartingCashAccess() {
 
 // Standard Navigation Controller
 // Track active view state across sessions and background syncs
-let currentActiveView = localStorage.getItem('last_active_view') || 'register';
+currentActiveView = localStorage.getItem('last_active_view') || 'register';
 
 // 1. Navigation Controller
 function navigateView(viewName) {
