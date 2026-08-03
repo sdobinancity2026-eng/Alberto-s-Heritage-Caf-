@@ -824,7 +824,7 @@
     const API_URL = "https://script.google.com/macros/s/AKfycbxulPl24lg5hJS8a_5KuXPxUH7usUHHpl-JqdASVCFHiG0PTej7GaGFZoSKNY-dOvD-Uw/exec";
     const SCRIPT_URL = API_URL;
 
-   // ==========================================
+  // ==========================================
 // 1. GLOBAL STATE & CONFIG CONSTANTS
 // ==========================================
 let db = { inventory: [], employees: [], orders: [], shifts: [] };
@@ -832,15 +832,18 @@ let activeUser = null;
 let activeCart = [];
 let analyticsCharts = { trend: null, pie: null };
 
-// --- VIEW & FILTER STATES (DECLARE ONCE AT THE TOP) ---
+// --- VIEW & FILTER STATES ---
 let currentActiveView = localStorage.getItem('last_active_view') || 'register';
 window.activeCategoryTab = window.activeCategoryTab || 'All';
 
-    // --- ADDED: Pizza Modal State Trackers ---
-    let activePizzaFlavor = "";
-    let activePizzaId = null;
-    let selectedCrust = "thin";
-    let selectedSize = "10";
+// --- SHIFT SESSION STATE (DECLARE HERE TO PREVENT TDZ ERRORS) ---
+let currentShiftSession = null; // <--- ADD THIS LINE HERE
+
+// --- Pizza Modal State Trackers ---
+let activePizzaFlavor = "";
+let activePizzaId = null;
+let selectedCrust = "thin";
+let selectedSize = "10";
 
     // Categories explicitly requested to match your sheets layout
     const menuCategories = [
@@ -2167,21 +2170,38 @@ let employeeStartingCashAllocations = {
 };
 
 function calculateShiftSales() {
-    if (!activeUser) return;
-    
+    // 1. Safety Guard: Check if active user exists
+    if (!activeUser) return 0;
+
+    // 2. Safety Guard: Check if shift session is initialized
+    if (typeof currentShiftSession === 'undefined' || !currentShiftSession) {
+        console.warn("Shift session not yet initialized. Skipping shift sales calculation.");
+        const salesField = document.getElementById('recon-sales');
+        if (salesField) {
+            salesField.value = 0;
+        }
+        calculateDrawerDiscrepancy(0);
+        return 0;
+    }
+
+    // 3. Extract orders safely from global db
     const ordersList = (typeof db !== 'undefined' && db.orders) ? db.orders : [];
-    
+
+    // 4. Filter and sum sales for current active staff member
     const staffSales = ordersList
         .filter(o => o && o.EmployeeName === activeUser.name)
         .reduce((sum, o) => sum + Number(o.TotalAmount || 0), 0);
-    
+
+    // 5. Update UI field and drawer discrepancy
     const salesField = document.getElementById('recon-sales');
     if (salesField) {
         salesField.value = staffSales;
     }
-    calculateDrawerDiscrepancy(staffSales);
-}
 
+    calculateDrawerDiscrepancy(staffSales);
+
+    return staffSales;
+}
 function calculateDrawerDiscrepancy(systemSales = null) {
     const salesField = document.getElementById('recon-sales');
     
