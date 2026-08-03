@@ -1235,20 +1235,41 @@ function logout() {
         document.getElementById('app-wrapper').classList.add('hidden');
         showToast("Successfully logged out.");
     }
-  function renderMenu() {
+function renderMenu() {
+    // 0. DYNAMICALLY BUILD CATEGORIES FROM INVENTORY DATABASE
+    // Automatically pulls all unique categories from db.inventory
+    const existingCategories = (db.inventory || [])
+        .map(item => item.Category || item.category || "")
+        .filter(cat => cat.trim() !== ""); // Filter out empty values
+
+    // Remove duplicate category names (case-insensitive deduplication)
+    const uniqueCategories = [];
+    existingCategories.forEach(cat => {
+        const normalized = cat.trim();
+        if (!uniqueCategories.some(c => c.toLowerCase() === normalized.toLowerCase())) {
+            uniqueCategories.push(normalized);
+        }
+    });
+
+    // Alphabetize categories and ensure "All" is always first
+    uniqueCategories.sort((a, b) => a.localeCompare(b));
+    menuCategories = ['All', ...uniqueCategories];
+
     // 1. Render Category Buttons Tab Bar
     const tabContainer = document.getElementById('category-tab-bar');
-    tabContainer.innerHTML = menuCategories.map(cat => {
-        const isActive = cat.toLowerCase() === activeCategoryTab.toLowerCase();
-        const activeClasses = "bg-amber-800 text-white font-bold shadow-sm shadow-amber-800/10";
-        const inactiveClasses = "bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 font-semibold border border-slate-200/60";
-        
-        return `
-            <button onclick="setCategoryFilter('${cat}')" class="px-4 py-2 rounded-xl text-xs whitespace-nowrap transition-all duration-200 ${isActive ? activeClasses : inactiveClasses}">
-                ${cat === 'All' ? '🌐 Show All' : cat}
-            </button>
-        `;
-    }).join('');
+    if (tabContainer) {
+        tabContainer.innerHTML = menuCategories.map(cat => {
+            const isActive = cat.toLowerCase() === activeCategoryTab.toLowerCase();
+            const activeClasses = "bg-amber-800 text-white font-bold shadow-sm shadow-amber-800/10";
+            const inactiveClasses = "bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 font-semibold border border-slate-200/60";
+            
+            return `
+                <button onclick="setCategoryFilter('${cat.replace(/'/g, "\\'")}')" class="px-4 py-2 rounded-xl text-xs whitespace-nowrap transition-all duration-200 ${isActive ? activeClasses : inactiveClasses}">
+                    ${cat === 'All' ? '🌐 Show All' : cat}
+                </button>
+            `;
+        }).join('');
+    }
 
     // 2. Filter Database Inventory items by Category Selection
     let filteredItems = db.inventory || [];
@@ -1261,6 +1282,7 @@ function logout() {
 
     // 3. Render Items into HTML Table
     const tableBody = document.getElementById('menu-table-body');
+    if (!tableBody) return;
     
     if (filteredItems.length === 0) {
         tableBody.innerHTML = `
@@ -1324,7 +1346,7 @@ function logout() {
     }).join('');
 
     // Update Low Stock Indicator Counter badge
-    const lowCount = db.inventory.filter(i => {
+    const lowCount = (db.inventory || []).filter(i => {
         const stock = i.StockQuantity !== undefined ? i.StockQuantity : (i.stock || 0);
         return Number(stock) < 10;
     }).length;
@@ -1334,11 +1356,12 @@ function logout() {
         lowAlertEl.innerText = `${lowCount} Low Items Flagged`;
     }
 }
-    // Tab selection click handler
-    function setCategoryFilter(categoryName) {
-        activeCategoryTab = categoryName;
-        renderMenu();
-    }
+
+// Tab selection click handler
+function setCategoryFilter(categoryName) {
+    activeCategoryTab = categoryName;
+    renderMenu();
+}
 
     /**
  * Add item to basket
