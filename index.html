@@ -837,16 +837,29 @@
     };
 
     // ==========================================
-    // 2. INITIALIZATION / BOOTSTRAP LOGIC
-    // ==========================================
-    async function initApp() {
+// 2. INITIALIZATION / BOOTSTRAP LOGIC
+// ==========================================
+async function initApp() {
+    try {
         updateSystemDate();
-        await fetchAllData();
-        checkAutoLogin();
-    }
 
-    // Run app initialization when script executes
-    initApp();
+        // 1. Authenticate session first
+        const isAuthenticated = checkAutoLogin();
+
+        // 2. Fetch data only if session is valid (or proceed if public page)
+        await fetchAllData();
+
+        // 3. Render UI components safely once data is available
+        if (typeof renderMenu === 'function') {
+            renderMenu();
+        }
+    } catch (error) {
+        console.error("App Initialization failed:", error);
+    }
+}
+
+// Run app initialization
+initApp();
 
     // ==========================================
     // 3. APPLICATION FUNCTIONS
