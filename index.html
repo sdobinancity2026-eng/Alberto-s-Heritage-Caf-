@@ -11,7 +11,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <style>
         button { touch-action: manipulation; }
@@ -2172,31 +2172,27 @@ let employeeStartingCashAllocations = {
 };
 
 function calculateShiftSales() {
-    // 1. Safety Guard: Return 0 if activeUser or currentShiftSession is missing/null
+    // 1. Safety Guard: Check if activeUser and currentShiftSession exist
     if (!activeUser || !currentShiftSession) {
         const salesField = document.getElementById('recon-sales');
-        if (salesField) {
-            salesField.value = 0;
-        }
+        if (salesField) salesField.value = 0;
         if (typeof calculateDrawerDiscrepancy === 'function') {
             calculateDrawerDiscrepancy(0);
         }
         return 0;
     }
 
-    // 2. Safely read properties off currentShiftSession using optional chaining (?.)
+    // 2. Safely extract startTime using optional chaining (?.)
     const sessionStartTime = currentShiftSession?.startTime ? new Date(currentShiftSession.startTime) : null;
     const sessionShiftId = currentShiftSession?.shiftId || null;
 
-    // 3. Extract orders safely from global db
+    // 3. Get orders list safely
     const ordersList = (typeof db !== 'undefined' && db.orders) ? db.orders : [];
 
-    // 4. Filter orders for current active staff member (and optionally within current shift time)
+    // 4. Calculate total for the logged-in staff
     const staffSales = ordersList
         .filter(o => {
             if (!o || o.EmployeeName !== activeUser.name) return false;
-            
-            // If order has a shiftId or timestamp, ensure it matches current session
             if (sessionShiftId && o.ShiftID) {
                 return o.ShiftID === sessionShiftId;
             }
@@ -2207,11 +2203,9 @@ function calculateShiftSales() {
         })
         .reduce((sum, o) => sum + Number(o.TotalAmount || 0), 0);
 
-    // 5. Update UI field and drawer discrepancy
+    // 5. Update UI
     const salesField = document.getElementById('recon-sales');
-    if (salesField) {
-        salesField.value = staffSales;
-    }
+    if (salesField) salesField.value = staffSales;
 
     if (typeof calculateDrawerDiscrepancy === 'function') {
         calculateDrawerDiscrepancy(staffSales);
