@@ -1232,8 +1232,10 @@ function logout() {
         document.getElementById('app-wrapper').classList.add('hidden');
         showToast("Successfully logged out.");
     }
-// Ensure active category tab defaults to 'All'
-let activeCategoryTab = activeCategoryTab || 'All';
+// Ensure activeCategoryTab is safely initialized without triggering Temporal Dead Zone
+if (typeof activeCategoryTab === 'undefined') {
+    var activeCategoryTab = 'All';
+}
 
 function renderMenu() {
     // 0. DYNAMICALLY BUILD CATEGORIES FROM INVENTORY DATABASE
@@ -1253,7 +1255,7 @@ function renderMenu() {
     // Alphabetize categories
     uniqueCategories.sort((a, b) => a.localeCompare(b));
 
-    // Update global/outer menuCategories array in-place (prevents "Assignment to constant variable" error)
+    // Update global/outer menuCategories array in-place safely
     if (typeof menuCategories !== 'undefined') {
         menuCategories.length = 0; // Clear existing items
         menuCategories.push('All', ...uniqueCategories); // Safely push new list
@@ -1371,7 +1373,6 @@ function setCategoryFilter(categoryName) {
     activeCategoryTab = categoryName;
     renderMenu();
 }
-
     /**
  * Add item to basket
  */
