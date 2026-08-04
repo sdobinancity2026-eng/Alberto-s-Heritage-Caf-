@@ -1953,31 +1953,39 @@ function renderCart() {
 /**
  * Place Order Logic with Payment Method & Reference Validation
  */
+// ==========================================
+// 2. UPDATED PLACE ORDER FUNCTION
+// ==========================================
 async function placeOrder() {
     if (activeCart.length === 0) {
         if (typeof showToast === 'function') showToast("Your basket is empty!", "warning");
         return;
     }
     
-    // 1. Extract Table Number and Order Type
     const tableInput = document.getElementById('table-number-input');
     const tableNo = tableInput ? (tableInput.value.trim() || "TAKEOUT") : "TAKEOUT";
 
     const orderTypeSelect = document.getElementById('order-type-select');
     const orderType = orderTypeSelect ? orderTypeSelect.value : "Dine In";
 
-    const paymentMethod = document.getElementById('payment-method').value;
+    const paymentMethodEl = document.getElementById('payment-method');
+    const paymentMethod = paymentMethodEl ? paymentMethodEl.value : "Cash";
+    
     const refInput = document.getElementById('transaction-no');
     const transactionNo = refInput ? refInput.value.trim() : "";
 
     let rawSubtotal = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    let discountAmount = (discountID && activeCart.length > 0) ? (activeCart[0].price * 0.20) : 0;
+    
+    let discountAmount = 0;
+    if (typeof discountID !== 'undefined' && discountID) {
+        discountAmount = activeCart.reduce((sum, item) => sum + ((item.price * item.quantity) * 0.20), 0);
+    }
+    
     const total = rawSubtotal - discountAmount;
     
     let cashTendered = 0;
     let change = 0;
 
-    // Validate fields according to selected payment method
     if (paymentMethod === "Cash") {
         const cashInput = document.getElementById('cash-tendered');
         cashTendered = parseFloat(cashInput ? cashInput.value : 0) || 0;
@@ -1989,14 +1997,13 @@ async function placeOrder() {
         }
         change = cashTendered - total;
     } else {
-        // GCash or Bank Transfer validation
         if (!transactionNo) {
             if (typeof showToast === 'function') {
                 showToast(`Please enter the ${paymentMethod} Reference/Transaction number.`, "warning");
             }
             return;
         }
-        cashTendered = total; // Digital payment covers exact amount
+        cashTendered = total;
         change = 0;
     }
 
@@ -2009,18 +2016,20 @@ async function placeOrder() {
         btn.innerHTML = `<span class="animate-spin inline-block mr-1">⏳</span> Processing...`;
     }
 
-    // 2. Add TableNo and OrderType to Payload
     const payload = {
         action: "placeOrder",
-        EmployeeName: (typeof activeUser !== 'undefined' && activeUser) ? activeUser.name : "Employee",
-        ShiftID: (typeof currentShiftSession !== 'undefined' && currentShiftSession.shiftId) ? currentShiftSession.shiftId : "", 
+        EmployeeName: (typeof activeUser !== 'undefined' && activeUser?.name) ? activeUser.name : "Employee",
+        ShiftID: (typeof currentShiftSession !== 'undefined' && currentShiftSession?.shiftId) ? currentShiftSession.shiftId : "", 
         OrderType: orderType,
         TableNo: tableNo,
-        ItemsOrdered: activeCart, 
+        ItemsOrdered: activeCart.map(item => ({
+            ...item,
+            printedQty: item.printedQty || 0 
+        })), 
         SubtotalAmount: rawSubtotal,
         DiscountAmount: discountAmount,
         TotalAmount: total,
-        DiscountIDNumber: discountID || "",
+        DiscountIDNumber: (typeof discountID !== 'undefined') ? discountID : "",
         PaymentMethod: paymentMethod,
         TransactionNo: transactionNo,
         cashTendered: cashTendered,
@@ -2028,9 +2037,8 @@ async function placeOrder() {
         Date: new Date().toISOString()
     };
 
-    const targetUrl = (typeof SCRIPT_URL !== 'undefined') ? SCRIPT_URL : (typeof API_URL !== 'undefined' ? API_URL : "");
+    const targetUrl = (typeof SCRIPT_URL !== 'undefined' && SCRIPT_URL) ? SCRIPT_URL : ((typeof API_URL !== 'undefined') ? API_URL : "");
 
-    // 3. Updated Reset Helper (Clears Table No, Search, and Order Type)
     const resetBasket = () => {
         activeCart = [];
         if (typeof clearDiscountId === 'function') clearDiscountId();
@@ -2038,7 +2046,7 @@ async function placeOrder() {
         const cashInput = document.getElementById('cash-tendered');
         if (cashInput) cashInput.value = "";
         if (refInput) refInput.value = "";
-        if (tableInput) tableInput.value = ""; // Reset table field
+        if (tableInput) tableInput.value = "";
         
         const searchInput = document.getElementById('menu-search-input');
         if (searchInput) {
@@ -2046,9 +2054,14 @@ async function placeOrder() {
             if (typeof filterMenuBySearch === 'function') filterMenuBySearch();
         }
 
-        if (orderTypeSelect) orderTypeSelect.value = "Dine In"; // Reset Order Type default
+        if (orderTypeSelect) orderTypeSelect.value = "Dine In";
         
-        renderCart();
+        if (typeof currentHeldOrderId !== 'undefined' && currentHeldOrderId) {
+            if (typeof removeHeldOrder === 'function') removeHeldOrder(currentHeldOrderId);
+            currentHeldOrderId = null;
+        }
+
+        if (typeof renderCart === 'function') renderCart();
     };
 
     const resetButton = () => {
@@ -2059,14 +2072,12 @@ async function placeOrder() {
         }
     };
 
-    // Helper to handle both Customer Receipt and Kitchen Ticket printing
     const triggerOrderPrinting = (orderPayload, orderId) => {
-        // Print Customer Thermal Receipt
-        printThermalReceipt(orderPayload, orderId);
+        if (typeof printThermalReceipt === 'function') {
+            printThermalReceipt(orderPayload, orderId);
+        }
 
-        // Optional: Print Kitchen Ticket if needed on checkout
         if (typeof printKitchenTicket === 'function') {
-            // Short delay to avoid print popup collisions on single-printer setups
             setTimeout(() => {
                 printKitchenTicket(orderPayload);
             }, 300);
@@ -2093,11 +2104,11 @@ async function placeOrder() {
         const data = await response.json();
 
         if (data.status === "SUCCESS") {
-            triggerOrderPrinting(payload, data.orderId);
+            triggerOrderPrinting(payload, data.orderId || ("ORD-" + Date.now()));
             if (typeof showToast === 'function') showToast("Order placed successfully!", "success");
             resetBasket();
         } else {
-            alert("Error placing order on server: " + data.message);
+            alert("Error placing order on server: " + (data.message || "Unknown error"));
         }
     } catch (err) {
         if (typeof showToast === 'function') showToast("Cloud sync failed. Printing physical receipt...", "warning");
@@ -2322,12 +2333,40 @@ Contact us at: 0969 299 2006
     }
 }
 
+// ==========================================
+// 1. UPDATED KITCHEN ORDER TICKET (KOT)
+// ==========================================
 function printKitchenTicket(orderData) {
-    const printWindow = window.open('', '_blank');
     const tableNo = orderData.TableNo || document.getElementById('table-number-input')?.value || "N/A";
     const orderType = orderData.OrderType || orderData.orderType || document.getElementById('order-type-select')?.value || "Dine In";
     const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const itemsList = orderData.ItemsOrdered || orderData.items || [];
+
+    // 🔍 Calculate incremental quantities (unprinted only)
+    const newItemsToPrint = [];
+
+    itemsList.forEach(item => {
+        const fullQty = Number(item.quantity || 0);
+        const prevQty = Number(item.printedQty || 0);
+        const unprintedQty = fullQty - prevQty;
+
+        if (unprintedQty > 0) {
+            newItemsToPrint.push({
+                ...item,
+                printQty: unprintedQty // Display addition quantity only
+            });
+        }
+    });
+
+    // If no new items exist, notify user and cancel print popup
+    if (newItemsToPrint.length === 0) {
+        if (typeof showToast === 'function') {
+            showToast("No new items to send to kitchen.", "info");
+        }
+        return;
+    }
+
+    const printWindow = window.open('', '_blank');
 
     const kotHtml = `
       <!DOCTYPE html>
@@ -2336,94 +2375,31 @@ function printKitchenTicket(orderData) {
           <title>KOT - ${orderType.toUpperCase()} (${tableNo})</title>
           <style>
             @media print {
-              @page { 
-                margin: 0; 
-                size: 58mm auto; 
-              }
-              body {
-                width: 100%;
-                margin: 0;
-                padding: 4px 2px;
-              }
+              @page { margin: 0; size: 58mm auto; }
+              body { width: 100%; margin: 0; padding: 4px 2px; }
             }
             body { 
               font-family: 'Courier New', Courier, monospace; 
-              width: 185px; 
-              margin: 0 auto; 
-              padding: 4px 2px; 
-              font-size: 11px;
-              color: #000;
-              line-height: 1.2;
+              width: 185px; margin: 0 auto; padding: 4px 2px; 
+              font-size: 11px; color: #000; line-height: 1.2;
             }
-            .text-center { text-align: center; }
-            .bold { font-weight: bold; }
-            .header-box { 
-              border: 2px solid #000; 
-              padding: 4px 2px; 
-              margin-bottom: 4px;
-              text-align: center; 
-            }
-            .title-tag { 
-              font-size: 10px; 
-              font-weight: bold; 
-              letter-spacing: 1px;
-            }
-            .order-type-badge {
-              font-size: 14px;
-              font-weight: bold;
-              text-transform: uppercase;
-              margin-top: 2px;
-              text-decoration: underline;
-            }
-            .table-title { 
-              font-size: 13px; 
-              font-weight: bold; 
-              margin: 2px 0; 
-              word-break: break-word;
-            }
-            .meta-info { 
-              font-size: 9px; 
-              margin-top: 2px; 
-            }
-            .line { 
-              border-bottom: 1px dashed #000; 
-              margin: 4px 0; 
-            }
-            .item-container {
-              margin-bottom: 6px;
-            }
-            .item-header { 
-              display: flex; 
-              align-items: flex-start;
-              font-size: 12px; 
-              font-weight: bold;
-            }
-            .item-qty { 
-              font-size: 13px; 
-              font-weight: bold;
-              min-width: 32px;
-              display: inline-block;
-            }
-            .item-name {
-              flex: 1;
-              word-break: break-word;
-            }
-            .modifier-line {
-              font-size: 10px;
-              padding-left: 32px;
-              font-weight: normal;
-              color: #111;
-            }
-            .footer-note { 
-              font-size: 9px; 
-              margin-top: 6px; 
-              text-align: center; 
-            }
+            .header-box { border: 2px solid #000; padding: 4px 2px; margin-bottom: 4px; text-align: center; }
+            .title-tag { font-size: 10px; font-weight: bold; letter-spacing: 1px; }
+            .order-type-badge { font-size: 14px; font-weight: bold; text-transform: uppercase; margin-top: 2px; text-decoration: underline; }
+            .table-title { font-size: 13px; font-weight: bold; margin: 2px 0; word-break: break-word; }
+            .meta-info { font-size: 9px; margin-top: 2px; }
+            .line { border-bottom: 1px dashed #000; margin: 4px 0; }
+            .item-container { margin-bottom: 6px; }
+            .item-header { display: flex; align-items: flex-start; font-size: 12px; font-weight: bold; }
+            .item-qty { font-size: 13px; font-weight: bold; min-width: 32px; display: inline-block; }
+            .item-name { flex: 1; word-break: break-word; }
+            .modifier-line { font-size: 10px; padding-left: 32px; font-weight: normal; color: #111; }
+            .footer-note { font-size: 9px; margin-top: 6px; text-align: center; }
           </style>
         </head>
         <body>
           <div class="header-box">
-            <div class="title-tag">*** KITCHEN TICKET ***</div>
+            <div class="title-tag">*** KITCHEN TICKET (ADD-ON) ***</div>
             <div class="order-type-badge">*** ${orderType.toUpperCase()} ***</div>
             <div class="table-title">TBL/ORD: ${tableNo.toUpperCase()}</div>
             <div class="meta-info">
@@ -2433,9 +2409,8 @@ function printKitchenTicket(orderData) {
 
           <div class="line"></div>
 
-          <!-- Items List -->
           <div>
-            ${itemsList.map(item => {
+            ${newItemsToPrint.map(item => {
               const rawName = item.name || item.ItemName || "";
               let mainTitle = rawName;
               let modifiers = item.modifiers || [];
@@ -2456,7 +2431,7 @@ function printKitchenTicket(orderData) {
               return `
                 <div class="item-container">
                   <div class="item-header">
-                    <span class="item-qty">[${item.quantity}x]</span>
+                    <span class="item-qty">[${item.printQty}x]</span>
                     <span class="item-name">${mainTitle}</span>
                   </div>
                   ${modifiers.map(mod => `<div class="modifier-line">- ${mod}</div>`).join('')}
@@ -2478,6 +2453,11 @@ function printKitchenTicket(orderData) {
     setTimeout(() => {
         printWindow.print();
         printWindow.close();
+
+        // 🏷️ Flag items as printed after physical ticket generates
+        itemsList.forEach(item => {
+            item.printedQty = Number(item.quantity || 0);
+        });
     }, 250);
 }
     let employeePettyCash = 0;
