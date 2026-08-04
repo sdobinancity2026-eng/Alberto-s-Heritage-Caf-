@@ -1120,15 +1120,9 @@ async function fetchAllData() {
     // Safety delay for smoother visual feedback
     await new Promise(resolve => setTimeout(resolve, 600));
 
-    // Debug log to inspect loaded employee objects in developer console
-    console.log("Validating login against employees:", db.employees);
-
     // 2. Flexible matching across common field names
     const match = db.employees.find(e => {
-        // Extract Name from all possible property keys
         const name = (e.Name || e.name || e.EmployeeName || e.employeeName || "").toString().trim().toLowerCase();
-        
-        // Extract PIN/Password from all possible property keys
         const password = (e.Password || e.password || e.PIN || e.pin || e.Passkey || e.passkey || e.Code || "").toString().trim();
 
         return name === userVal.toLowerCase() && password === passVal;
@@ -1145,16 +1139,45 @@ async function fetchAllData() {
         const matchedRole = match.Role || match.role || match.Position || "Staff";
 
         activeUser = { name: matchedName, role: matchedRole };
+        
+        // Save session persistently
         localStorage.setItem('logged_user', JSON.stringify(activeUser));
+        
+        // Transition to main app view
         authorizedSessionStart();
+        
+        // Clear sensitive inputs
+        document.getElementById('login-username').value = "";
+        document.getElementById('login-password').value = "";
+        
+        // Reset submit button state for future logins/logouts
+        submitBtn.disabled = false;
+        submitBtn.innerText = "Access Terminal";
+        submitBtn.className = "w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all";
+
         showToast("Login Successful!");
     } else {
         submitBtn.disabled = false;
         submitBtn.innerText = "Access Terminal";
         submitBtn.className = "w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all";
         showToast("Incorrect username or passkey PIN", "error");
-        
-        console.warn(`Login failed for user input: "${userVal}". Check if property names in db.employees match 'Name' and 'Password'/'PIN'.`);
+    }
+}
+    function authorizedSessionStart() {
+    // 1. Hide Login View
+    const loginScreen = document.getElementById('login-screen');
+    if (loginScreen) loginScreen.classList.add('hidden');
+
+    // 2. Display Main App Wrapper
+    const appWrapper = document.getElementById('app-wrapper');
+    if (appWrapper) appWrapper.classList.remove('hidden');
+
+    // 3. Update User Badge/Profile UI if elements exist
+    if (activeUser) {
+        const nameDisplay = document.getElementById('user-display-name');
+        const roleDisplay = document.getElementById('user-display-role');
+        if (nameDisplay) nameDisplay.textContent = activeUser.name;
+        if (roleDisplay) roleDisplay.textContent = activeUser.role;
     }
 }
 
@@ -1330,23 +1353,33 @@ function navigateView(viewName) {
     if (viewName === 'admin-reprint' && typeof renderReprintTable === 'function') renderReprintTable();
     if (viewName === 'admin-analytics' && typeof renderCharts === 'function') renderCharts();
 }
+// ==========================================
+// LOGOUT CONTROLLER
+// ==========================================
 function logout() {
-        localStorage.removeItem('logged_user');
-        activeUser = null;
-        document.getElementById('login-username').value = "";
-        document.getElementById('login-password').value = "";
+    // 1. Clear stored local session
+    localStorage.removeItem('logged_user');
+    
+    // 2. Clear inputs
+    const userElem = document.getElementById('login-username');
+    const passElem = document.getElementById('login-password');
+    if (userElem) userElem.value = "";
+    if (passElem) passElem.value = "";
 
-        // Reset Submit Button text to initial state
-        const submitBtn = document.getElementById('login-submit-btn');
+    // 3. Reset Submit Button state
+    const submitBtn = document.getElementById('login-submit-btn');
+    if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.innerText = "Access Terminal";
         submitBtn.className = "w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all";
-
-        document.getElementById('login-screen').classList.remove('hidden');
-        document.getElementById('app-wrapper').classList.add('hidden');
-        showToast("Successfully logged out.");
     }
-// Ensure activeCategoryTab is safely initialized without triggering Temporal Dead Zone
+
+    // 4. Switch visibility
+    showLoginScreen();
+    showToast("Successfully logged out.");
+}
+
+// Global scope check for Category Tab
 if (typeof activeCategoryTab === 'undefined') {
     var activeCategoryTab = 'All';
 }
@@ -3037,7 +3070,6 @@ async function submitNewConsumable() {
 }
 
 // Render dynamic raw ingredient listing
-// Render dynamic raw ingredient listing
 function renderConsumables() {
     const tbody = document.getElementById('consumables-table-body');
     if (!tbody) return;
@@ -3101,38 +3133,58 @@ function autoAssignProductID() {
     
     idInput.value = `${prefix}-${tempUniqueSuffix}`;
 }
-// Automatically checks and restores the user session on manual page reload
-// Note the addition of "async" right here before the arrow function!
+// ==========================================
+// SESSION RESTORATION ON PAGE LOAD
+// ==========================================
 window.addEventListener('DOMContentLoaded', async () => {
     const savedUser = localStorage.getItem('logged_user');
     
     if (savedUser) {
         try {
-            // Parse the stored object back into memory
+            // 1. Parse stored session back into memory
             activeUser = JSON.parse(savedUser);
             
             if (activeUser && activeUser.name) {
                 console.log(`Session restored for: ${activeUser.name} (${activeUser.role})`);
                 
-                // Trigger your existing initialization chain
+                // 2. IMMEDIATELY hide login screen & show app wrapper
                 authorizedSessionStart();
                 
-                // Pull fresh database values right away so the UI is up-to-date
+                // 3. Fetch fresh database values in background and update views
                 if (typeof fetchDatabase === 'function') {
-                    await fetchDatabase(); // Added "await" so it finishes downloading first
+                    await fetchDatabase();
                     
-                    // Automatically builds your dynamic dropdown & category filter pills
                     if (typeof populateDynamicCategories === 'function') {
                         populateDynamicCategories(); 
                     }
+                    if (typeof renderMenu === 'function') {
+                        renderMenu();
+                    }
                 }
+            } else {
+                // Invalid user object format
+                showLoginScreen();
             }
         } catch (e) {
             console.error("Failed to parse restored user session:", e);
-            localStorage.removeItem('logged_user'); // Clean up corrupt data
+            localStorage.removeItem('logged_user'); // Clean corrupt data
+            showLoginScreen();
         }
+    } else {
+        // No saved session found -> Show login screen
+        showLoginScreen();
     }
 });
+
+// Helper to ensure screen states stay synchronized
+function showLoginScreen() {
+    activeUser = null;
+    const loginScreen = document.getElementById('login-screen');
+    const appWrapper = document.getElementById('app-wrapper');
+    
+    if (loginScreen) loginScreen.classList.remove('hidden');
+    if (appWrapper) appWrapper.classList.add('hidden');
+}
  function populateDynamicCategories() {
     console.log("Populating dynamic categories... Current DB keys:", db ? Object.keys(db) : "None");
 
