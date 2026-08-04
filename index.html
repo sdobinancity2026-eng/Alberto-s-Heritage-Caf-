@@ -2064,8 +2064,8 @@ async function placeOrder() {
     };
 
     try {
-        // ❌ REMOVED: Stock deduction on order completion removed to prevent double-deduction.
-        // Stock is now deducted strictly inside printKitchenTicket().
+        // ❌ Stock is NOT deducted here anymore.
+        // It is handled strictly inside printKitchenTicket().
 
         if (!targetUrl || targetUrl.includes("YOUR_SCRIPT_URL_PLACEHOLDER")) {
             if (typeof showToast === 'function') showToast("Database Offline. Printing receipt locally...", "warning");
@@ -2322,7 +2322,7 @@ function printKitchenTicket(orderData) {
     const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const itemsList = orderData.ItemsOrdered || orderData.items || [];
 
-    // 🔍 Calculate incremental quantities (unprinted only)
+    // 🔍 1. Calculate incremental quantities (unprinted only)
     const newItemsToPrint = [];
 
     itemsList.forEach(item => {
@@ -2333,12 +2333,12 @@ function printKitchenTicket(orderData) {
         if (unprintedQty > 0) {
             newItemsToPrint.push({
                 ...item,
-                printQty: unprintedQty // Display addition quantity only
+                printQty: unprintedQty // Quantity printed in this round
             });
         }
     });
 
-    // If no new items exist, notify user and cancel print popup
+    // If no new items exist, cancel operation
     if (newItemsToPrint.length === 0) {
         if (typeof showToast === 'function') {
             showToast("No new items to send to kitchen.", "info");
@@ -2346,15 +2346,33 @@ function printKitchenTicket(orderData) {
         return;
     }
 
-    // 📦 DEDUCT STOCK HERE FOR ONLY THE NEWLY PRINTED ITEMS
+    // 📦 2. Deduct local stock for newly printed items
+    const itemsToDeduct = newItemsToPrint.map(item => ({
+        ...item,
+        quantity: item.printQty
+    }));
+
     if (typeof deductLocalStock === 'function') {
-        const itemsToDeduct = newItemsToPrint.map(item => ({
-            ...item,
-            quantity: item.printQty // Deduct exact unprinted delta
-        }));
         deductLocalStock(itemsToDeduct);
     }
 
+    // 🌐 3. Send cloud sync request so Google Sheets backend records the stock deduction
+    const targetUrl = (typeof SCRIPT_URL !== 'undefined' && SCRIPT_URL) ? SCRIPT_URL : ((typeof API_URL !== 'undefined') ? API_URL : "");
+    if (targetUrl && !targetUrl.includes("YOUR_SCRIPT_URL_PLACEHOLDER")) {
+        fetch(targetUrl, {
+            method: "POST",
+            mode: "cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({
+                action: "deductStock",
+                items: itemsToDeduct
+            })
+        }).catch(err => {
+            console.warn("Stock cloud sync warning:", err);
+        });
+    }
+
+    // 🖨️ 4. Build and print the KOT ticket
     const printWindow = window.open('', '_blank');
 
     const kotHtml = `
@@ -2443,7 +2461,7 @@ function printKitchenTicket(orderData) {
         printWindow.print();
         printWindow.close();
 
-        // 🏷️ Flag items as printed after physical ticket generates
+        // 🏷️ Flag items as printed after printing finishes
         itemsList.forEach(item => {
             item.printedQty = Number(item.quantity || 0);
         });
