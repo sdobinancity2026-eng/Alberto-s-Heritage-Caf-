@@ -851,6 +851,30 @@
 
 
 <script>
+
+    var syncInterval = null; // Using var prevents Temporal Dead Zone errors across function calls
+
+function startRealtimeSync() {
+    if (syncInterval) clearInterval(syncInterval);
+    syncInterval = setInterval(async () => {
+        if (activeUser && typeof fetchDatabase === 'function') {
+            try {
+                await fetchDatabase();
+                if (typeof renderMenu === 'function') renderMenu();
+                if (typeof updateOrdersUI === 'function') updateOrdersUI();
+            } catch (err) {
+                console.warn("Background sync failed:", err);
+            }
+        }
+    }, 5000);
+}
+
+function stopRealtimeSync() {
+    if (syncInterval) {
+        clearInterval(syncInterval);
+        syncInterval = null;
+    }
+}
             // Silence background extension promise rejections when tab is idle
         window.addEventListener('unhandledrejection', function(event) {
             if (event.reason && event.reason.message && event.reason.message.includes('message channel closed')) {
@@ -938,24 +962,42 @@ initApp();
     // 3. APPLICATION FUNCTIONS
     // ==========================================
 
-function checkAutoLogin() {
+async function checkAutoLogin() {
     const saved = localStorage.getItem('logged_user');
     if (saved) {
         try {
             activeUser = JSON.parse(saved);
             
-            // Re-sync states
-            document.getElementById('login-screen').classList.add('hidden');
-            document.getElementById('app-wrapper').classList.remove('hidden');
+            // Re-sync UI states
+            const loginScreen = document.getElementById('login-screen');
+            const appWrapper = document.getElementById('app-wrapper');
+            if (loginScreen) loginScreen.classList.add('hidden');
+            if (appWrapper) appWrapper.classList.remove('hidden');
             
             // Populate Sticky Nav details
-            document.getElementById('topbar-user-name').innerText = activeUser.name || 'User';
-            document.getElementById('topbar-user-role').innerText = activeUser.role || '';
+            const userNameElem = document.getElementById('topbar-user-name');
+            const userRoleElem = document.getElementById('topbar-user-role');
+            const adminNavElem = document.getElementById('admin-nav-links');
 
-            if (activeUser.role && activeUser.role.toLowerCase() === 'admin') {
-                document.getElementById('admin-nav-links').classList.remove('hidden');
-            } else {
-                document.getElementById('admin-nav-links').classList.add('hidden');
+            if (userNameElem) userNameElem.innerText = activeUser.name || 'User';
+            if (userRoleElem) userRoleElem.innerText = activeUser.role || '';
+
+            if (adminNavElem) {
+                if (activeUser.role && activeUser.role.toLowerCase() === 'admin') {
+                    adminNavElem.classList.remove('hidden');
+                } else {
+                    adminNavElem.classList.add('hidden');
+                }
+            }
+
+            // IMPORTANT: Fetch database FIRST before running views or sales calculations
+            if (typeof fetchDatabase === 'function') {
+                await fetchDatabase();
+            }
+
+            // Dynamic Category rendering
+            if (typeof populateDynamicCategories === 'function') {
+                populateDynamicCategories();
             }
 
             // Fallback safely to 'register' if currentActiveView is undefined
@@ -972,15 +1014,17 @@ function checkAutoLogin() {
             }
             
         } catch (e) {
-            console.error("Error parsing auto-login cache:", e);
+            console.error("Error parsing auto-login cache or restoring session:", e);
             if (typeof logout === 'function') {
                 logout();
             }
         }
     } else {
-        // Safe fallback: No user active, clean up layout states
-        document.getElementById('login-screen').classList.remove('hidden');
-        document.getElementById('app-wrapper').classList.add('hidden');
+        // Safe fallback: No active user, clean up layout states
+        const loginScreen = document.getElementById('login-screen');
+        const appWrapper = document.getElementById('app-wrapper');
+        if (loginScreen) loginScreen.classList.remove('hidden');
+        if (appWrapper) appWrapper.classList.add('hidden');
     }
 }
     function updateSystemDate() {
@@ -2316,9 +2360,20 @@ let employeeStartingCashAllocations = {
     "Employee": 500.00
 };
 
+// Drawer Reconciliation Module
+// ==========================================
+// SALES & DISCREPANCY ARITHMETIC
+// ==========================================
+
+// Dictionary tracking starting cash allocations in memory
+let employeeStartingCashAllocations = {
+    "Kristine Reyes": 1000.00,
+    "Employee": 500.00
+};
+
 function calculateShiftSales() {
     // 1. Safety Guard: Check if activeUser and currentShiftSession exist
-    if (!activeUser || !currentShiftSession) {
+    if (!activeUser || !currentShiftSession || typeof currentShiftSession !== 'object') {
         const salesField = document.getElementById('recon-sales');
         if (salesField) salesField.value = 0;
         if (typeof calculateDrawerDiscrepancy === 'function') {
@@ -2327,26 +2382,49 @@ function calculateShiftSales() {
         return 0;
     }
 
-    // 2. Safely extract startTime using optional chaining (?.)
-    const sessionStartTime = currentShiftSession?.startTime ? new Date(currentShiftSession.startTime) : null;
-    const sessionShiftId = currentShiftSession?.shiftId || null;
+    // 2. Safely extract and parse startTime using optional chaining (?.)
+    const rawStartTime = currentShiftSession?.startTime || currentShiftSession?.start_time || currentShiftSession?.Date || null;
+    let sessionStartTime = null;
+
+    if (rawStartTime) {
+        const parsedDate = new Date(rawStartTime);
+        // Verify the date object is valid before assigning
+        if (!isNaN(parsedDate.getTime())) {
+            sessionStartTime = parsedDate;
+        }
+    }
+
+    const sessionShiftId = currentShiftSession?.shiftId || currentShiftSession?.ShiftID || null;
 
     // 3. Get orders list safely
-    const ordersList = (typeof db !== 'undefined' && db.orders) ? db.orders : [];
+    const ordersList = (typeof db !== 'undefined' && Array.isArray(db.orders)) ? db.orders : [];
 
     // 4. Calculate total for the logged-in staff
     const staffSales = ordersList
         .filter(o => {
-            if (!o || o.EmployeeName !== activeUser.name) return false;
+            if (!o || !o.EmployeeName || !activeUser.name) return false;
+            
+            // Check employee match
+            if (o.EmployeeName.toString().trim().toLowerCase() !== activeUser.name.toString().trim().toLowerCase()) {
+                return false;
+            }
+
+            // Filter by Shift ID if available
             if (sessionShiftId && o.ShiftID) {
                 return o.ShiftID === sessionShiftId;
             }
+
+            // Filter by Start Time threshold if Shift ID isn't matched
             if (sessionStartTime && o.Date) {
-                return new Date(o.Date) >= sessionStartTime;
+                const orderDate = new Date(o.Date);
+                if (!isNaN(orderDate.getTime())) {
+                    return orderDate >= sessionStartTime;
+                }
             }
+
             return true;
         })
-        .reduce((sum, o) => sum + Number(o.TotalAmount || 0), 0);
+        .reduce((sum, o) => sum + (parseFloat(o.TotalAmount || o.total) || 0), 0);
 
     // 5. Update UI
     const salesField = document.getElementById('recon-sales');
