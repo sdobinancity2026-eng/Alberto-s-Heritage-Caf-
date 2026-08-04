@@ -1163,7 +1163,38 @@ async function fetchAllData() {
         showToast("Incorrect username or passkey PIN", "error");
     }
 }
-    function authorizedSessionStart() {
+    let syncInterval = null;
+
+function startRealtimeSync() {
+    // Stop any existing timer to prevent duplicates
+    if (syncInterval) clearInterval(syncInterval);
+
+    // Poll every 5 seconds (5000ms)
+    syncInterval = setInterval(async () => {
+        // Only sync if user is logged in
+        if (activeUser && typeof fetchDatabase === 'function') {
+            try {
+                await fetchDatabase(); // Fetch latest data from Google Apps Script
+                
+                // Re-render components that depend on live data
+                if (typeof renderMenu === 'function') renderMenu();
+                if (typeof updateOrdersUI === 'function') updateOrdersUI();
+                if (typeof populateDynamicCategories === 'function') populateDynamicCategories();
+                
+            } catch (err) {
+                console.warn("Background sync failed:", err);
+            }
+        }
+    }, 5000); // Adjust interval time as needed (5000ms = 5s)
+}
+
+function stopRealtimeSync() {
+    if (syncInterval) {
+        clearInterval(syncInterval);
+        syncInterval = null;
+    }
+}
+   function authorizedSessionStart() {
     // 1. Hide Login View
     const loginScreen = document.getElementById('login-screen');
     if (loginScreen) loginScreen.classList.add('hidden');
@@ -1179,6 +1210,9 @@ async function fetchAllData() {
         if (nameDisplay) nameDisplay.textContent = activeUser.name;
         if (roleDisplay) roleDisplay.textContent = activeUser.role;
     }
+
+    // 4. Start background real-time sync across devices
+    startRealtimeSync();
 }
 
    // ==========================================
@@ -1357,16 +1391,17 @@ function navigateView(viewName) {
 // LOGOUT CONTROLLER
 // ==========================================
 function logout() {
-    // 1. Clear stored local session
-    localStorage.removeItem('logged_user');
-    
-    // 2. Clear inputs
-    const userElem = document.getElementById('login-username');
-    const passElem = document.getElementById('login-password');
-    if (userElem) userElem.value = "";
-    if (passElem) passElem.value = "";
+    // 1. Stop background sync
+    stopRealtimeSync();
 
-    // 3. Reset Submit Button state
+    // 2. Clear local session
+    localStorage.removeItem('logged_user');
+    activeUser = null;
+
+    // 3. Reset form and screens
+    document.getElementById('login-username').value = "";
+    document.getElementById('login-password').value = "";
+
     const submitBtn = document.getElementById('login-submit-btn');
     if (submitBtn) {
         submitBtn.disabled = false;
@@ -1374,8 +1409,11 @@ function logout() {
         submitBtn.className = "w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all";
     }
 
-    // 4. Switch visibility
-    showLoginScreen();
+    const loginScreen = document.getElementById('login-screen');
+    const appWrapper = document.getElementById('app-wrapper');
+    if (loginScreen) loginScreen.classList.remove('hidden');
+    if (appWrapper) appWrapper.classList.add('hidden');
+
     showToast("Successfully logged out.");
 }
 
@@ -1383,6 +1421,21 @@ function logout() {
 if (typeof activeCategoryTab === 'undefined') {
     var activeCategoryTab = 'All';
 }
+
+    document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        // Tab inactive / screen locked -> stop polling
+        stopRealtimeSync();
+    } else {
+        // Tab active -> resume polling & refresh data immediately
+        if (activeUser) {
+            fetchDatabase().then(() => {
+                if (typeof renderMenu === 'function') renderMenu();
+            });
+            startRealtimeSync();
+        }
+    }
+});
 
 function renderMenu() {
     // 0. DYNAMICALLY BUILD CATEGORIES FROM INVENTORY DATABASE
