@@ -69,9 +69,7 @@
                     </div>
                 </div>
 
-                <button id="login-submit-btn" onclick="handleLogin()" class="w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3.5 rounded-xl shadow-lg hover:shadow-amber-900/20 active:scale-[0.98] transition-all flex justify-center items-center gap-2">
-                    Access Terminal
-                </button>
+               <button id="access-terminal-btn" type="button" class="btn btn-primary" onclick="handleLogin()" disabled> Connecting to Database...</button>
             </div>
         </div>
     </div>
@@ -4880,31 +4878,67 @@ function closeLowStockModal() {
 }
 
 async function fetchDatabase() {
+    const loginBtn = document.getElementById('access-terminal-btn'); // Change ID to match your button
+    const originalBtnText = loginBtn ? loginBtn.innerText : "Access Terminal";
+
     try {
-        const res = await fetch(API_URL);
-        const data = await res.json();
-        
+        // 1. Disable button & update text to notify employee
+        if (loginBtn) {
+            loginBtn.disabled = true;
+            loginBtn.innerText = "Syncing Database... Please Wait";
+            loginBtn.classList.add("loading"); // Optional CSS class
+        }
+
+        // 2. Fetch data from Google Apps Script (MUST include action parameter & redirect follow)
+        const response = await fetch(`${API_URL}?action=getInitialData`, {
+            method: "GET",
+            redirect: "follow",
+            headers: {
+                "Content-Type": "text/plain;charset=utf-8" // Helps avoid strict CORS preflight issues with Apps Script
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server returned HTTP status ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // 3. Update global db object
         db.inventory = data.inventory || [];
         db.employees = data.employees || [];
         db.orders = data.orders || [];
         db.shifts = data.shifts || [];
-        
-        // SYNC HELD ORDERS FROM GOOGLE SHEETS
+        db.consumables = data.consumables || [];
+
+        // Update held orders
         if (data.heldOrders) {
             let remoteHeld = {};
             data.heldOrders.forEach(order => {
                 remoteHeld[order.tableNo] = order;
             });
-            
             activeHeldOrders = remoteHeld;
             localStorage.setItem('heldOrders', JSON.stringify(activeHeldOrders));
-            updateHeldOrdersCount();
+            if (typeof updateHeldOrdersCount === 'function') updateHeldOrdersCount();
         }
+
+        // 4. Re-enable login button on success
+        if (loginBtn) {
+            loginBtn.disabled = false;
+            loginBtn.innerText = originalBtnText;
+            loginBtn.classList.remove("loading");
+        }
+
     } catch (err) {
         console.error("Database sync failed:", err);
+        
+        // Show error state on button if fetch fails
+        if (loginBtn) {
+            loginBtn.innerText = "Sync Failed - Tap to Retry";
+            loginBtn.disabled = false; // Allow manual retry click
+        }
     }
 }
-    
 </script>
 </body>
 </html>
