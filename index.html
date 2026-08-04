@@ -1931,9 +1931,7 @@ function renderCart() {
 
     if (typeof calculateChange === 'function') calculateChange();
 }
-/**
- * Place Order Logic with Payment Method & Reference Validation
- */
+
 // ==========================================
 // 2. UPDATED PLACE ORDER FUNCTION
 // ==========================================
@@ -2066,7 +2064,8 @@ async function placeOrder() {
     };
 
     try {
-        if (typeof deductLocalStock === 'function') deductLocalStock(activeCart);
+        // ❌ REMOVED: Stock deduction on order completion removed to prevent double-deduction.
+        // Stock is now deducted strictly inside printKitchenTicket().
 
         if (!targetUrl || targetUrl.includes("YOUR_SCRIPT_URL_PLACEHOLDER")) {
             if (typeof showToast === 'function') showToast("Database Offline. Printing receipt locally...", "warning");
@@ -2345,6 +2344,15 @@ function printKitchenTicket(orderData) {
             showToast("No new items to send to kitchen.", "info");
         }
         return;
+    }
+
+    // 📦 DEDUCT STOCK HERE FOR ONLY THE NEWLY PRINTED ITEMS
+    if (typeof deductLocalStock === 'function') {
+        const itemsToDeduct = newItemsToPrint.map(item => ({
+            ...item,
+            quantity: item.printQty // Deduct exact unprinted delta
+        }));
+        deductLocalStock(itemsToDeduct);
     }
 
     const printWindow = window.open('', '_blank');
