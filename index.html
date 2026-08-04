@@ -899,21 +899,21 @@ function stopRealtimeSync() {
         syncInterval = null;
     }
 }
-            // Silence background extension promise rejections when tab is idle
-        window.addEventListener('unhandledrejection', function(event) {
-            if (event.reason && event.reason.message && event.reason.message.includes('message channel closed')) {
-                event.preventDefault(); // Suppress Chrome extension background noise
-            }
-        });
-    
-    // This style avoids "Identifier already declared" syntax errors entirely!
-    window.employeeStartingCashAllocations = window.employeeStartingCashAllocations || JSON.parse(localStorage.getItem('caf_cash_allocations')) || {};
 
-    
-    const API_URL = "https://script.google.com/macros/s/AKfycbxulPl24lg5hJS8a_5KuXPxUH7usUHHpl-JqdASVCFHiG0PTej7GaGFZoSKNY-dOvD-Uw/exec";
-    const SCRIPT_URL = API_URL;
+// Silence background extension promise rejections when tab is idle
+window.addEventListener('unhandledrejection', function(event) {
+    if (event.reason && event.reason.message && event.reason.message.includes('message channel closed')) {
+        event.preventDefault(); // Suppress Chrome extension background noise
+    }
+});
 
-  // ==========================================
+// Window-scoped state preservation
+window.employeeStartingCashAllocations = window.employeeStartingCashAllocations || JSON.parse(localStorage.getItem('caf_cash_allocations')) || {};
+
+const API_URL = "https://script.google.com/macros/s/AKfycbxulPl24lg5hJS8a_5KuXPxUH7usUHHpl-JqdASVCFHiG0PTej7GaGFZoSKNY-dOvD-Uw/exec";
+const SCRIPT_URL = API_URL;
+
+// ==========================================
 // 1. GLOBAL STATE & CONFIG CONSTANTS
 // ==========================================
 let db = { inventory: [], employees: [], orders: [], shifts: [] };
@@ -925,8 +925,9 @@ let analyticsCharts = { trend: null, pie: null };
 let currentActiveView = localStorage.getItem('last_active_view') || 'register';
 window.activeCategoryTab = window.activeCategoryTab || 'All';
 
-// --- SHIFT SESSION STATE (DECLARE HERE TO PREVENT TDZ ERRORS) ---
-let currentShiftSession = null; // <--- ADD THIS LINE HERE
+// --- SHIFT SESSION STATE ---
+// Restore active shift from local cache if page was reloaded mid-shift
+let currentShiftSession = JSON.parse(localStorage.getItem('caf_active_shift')) || null;
 
 // --- Pizza Modal State Trackers ---
 let activePizzaFlavor = "";
@@ -934,53 +935,69 @@ let activePizzaId = null;
 let selectedCrust = "thin";
 let selectedSize = "10";
 
-    // Categories explicitly requested to match your sheets layout
-    const menuCategories = [
-        "All", "Appetizer", "Soup", "Salad", "AllDayBfast", 
-        "FilipinoSetMeals", "Beverages", "Dessert", "Sandwiches", 
-        "Pizza", "Pasta", "MainCourse", "BestSeller"
-    ];
+// Categories explicitly requested to match your sheets layout
+const menuCategories = [
+    "All", "Appetizer", "Soup", "Salad", "AllDayBfast", 
+    "FilipinoSetMeals", "Beverages", "Dessert", "Sandwiches", 
+    "Pizza", "Pasta", "MainCourse", "BestSeller"
+];
 
-    // Complete Pricing Data Mapping based on your menu
-    const PIZZA_PRICING_DATABASE = {
-        "Hawaiian": { thin10: 299, thin12: 359, regular10: 319, regular12: 379 },
-        "Pepperoni": { thin10: 299, thin12: 359, regular10: 319, regular12: 379 },
-        "Veggies Galore": { thin10: 309, thin12: 359, regular10: 319, regular12: 379 },
-        "Quattro Formaggi": { thin10: 309, thin12: 329, regular12: 379 },
-        "Barbecue Chicken": { thin10: 309, thin12: 369, regular10: 329, regular12: 389 },
-        "All Meat Madness": { thin10: 319, thin12: 369, regular10: 339, regular12: 389 },
-        "Classic 4-Flavors-In-1": { thin12: 379, regular12: 399 },
-        "Signature 4-Flavors-In-1": { thin12: 399, regular12: 429 },
-        "Cheeseburger Pizza": { thin10: 329, thin12: 399, regular10: 339, regular12: 429 },
-        "Pizza De Alberto": { thin10: 329, thin12: 399, regular10: 339, regular12: 429 },
-        "Shrimp Alfredo Pizza": { thin10: 349, thin12: 399, regular10: 369, regular12: 429 },
-        "Meat & Veggies Pizza": { thin10: 349, thin12: 399, regular10: 369, regular12: 429 }
-    };
+// Complete Pricing Data Mapping based on your menu
+const PIZZA_PRICING_DATABASE = {
+    "Hawaiian": { thin10: 299, thin12: 359, regular10: 319, regular12: 379 },
+    "Pepperoni": { thin10: 299, thin12: 359, regular10: 319, regular12: 379 },
+    "Veggies Galore": { thin10: 309, thin12: 359, regular10: 319, regular12: 379 },
+    "Quattro Formaggi": { thin10: 309, thin12: 329, regular12: 379 },
+    "Barbecue Chicken": { thin10: 309, thin12: 369, regular10: 329, regular12: 389 },
+    "All Meat Madness": { thin10: 319, thin12: 369, regular10: 339, regular12: 389 },
+    "Classic 4-Flavors-In-1": { thin12: 379, regular12: 399 },
+    "Signature 4-Flavors-In-1": { thin12: 399, regular12: 429 },
+    "Cheeseburger Pizza": { thin10: 329, thin12: 399, regular10: 339, regular12: 429 },
+    "Pizza De Alberto": { thin10: 329, thin12: 399, regular10: 339, regular12: 429 },
+    "Shrimp Alfredo Pizza": { thin10: 349, thin12: 399, regular10: 369, regular12: 429 },
+    "Meat & Veggies Pizza": { thin10: 349, thin12: 399, regular10: 369, regular12: 429 }
+};
 
-    // ==========================================
+// ==========================================
 // 2. INITIALIZATION / BOOTSTRAP LOGIC
 // ==========================================
 async function initApp() {
     try {
-        updateSystemDate();
+        if (typeof updateSystemDate === 'function') {
+            updateSystemDate();
+        }
 
-        // 1. Authenticate session first
-        const isAuthenticated = checkAutoLogin();
+        // 1. Authenticate session first (AWAITED to prevent race conditions)
+        if (typeof checkAutoLogin === 'function') {
+            await checkAutoLogin();
+        }
 
-        // 2. Fetch data only if session is valid (or proceed if public page)
-        await fetchAllData();
+        // 2. Fetch all data if checkAutoLogin didn't already trigger a database fetch
+        if (typeof fetchAllData === 'function') {
+            await fetchAllData();
+        } else if (typeof fetchDatabase === 'function' && (!db.inventory || db.inventory.length === 0)) {
+            await fetchDatabase();
+        }
 
         // 3. Render UI components safely once data is available
         if (typeof renderMenu === 'function') {
             renderMenu();
         }
+
+        // 4. Start background polling if user is logged in
+        if (activeUser && typeof startRealtimeSync === 'function') {
+            startRealtimeSync();
+        }
+
     } catch (error) {
         console.error("App Initialization failed:", error);
     }
 }
 
-// Run app initialization
-initApp();
+// Run app initialization on DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+    initApp();
+});
 
     // ==========================================
     // 3. APPLICATION FUNCTIONS
@@ -988,67 +1005,69 @@ initApp();
 
 async function checkAutoLogin() {
     const saved = localStorage.getItem('logged_user');
-    if (saved) {
-        try {
-            activeUser = JSON.parse(saved);
-            
-            // Re-sync UI states
-            const loginScreen = document.getElementById('login-screen');
-            const appWrapper = document.getElementById('app-wrapper');
-            if (loginScreen) loginScreen.classList.add('hidden');
-            if (appWrapper) appWrapper.classList.remove('hidden');
-            
-            // Populate Sticky Nav details
-            const userNameElem = document.getElementById('topbar-user-name');
-            const userRoleElem = document.getElementById('topbar-user-role');
-            const adminNavElem = document.getElementById('admin-nav-links');
-
-            if (userNameElem) userNameElem.innerText = activeUser.name || 'User';
-            if (userRoleElem) userRoleElem.innerText = activeUser.role || '';
-
-            if (adminNavElem) {
-                if (activeUser.role && activeUser.role.toLowerCase() === 'admin') {
-                    adminNavElem.classList.remove('hidden');
-                } else {
-                    adminNavElem.classList.add('hidden');
-                }
-            }
-
-            // IMPORTANT: Fetch database FIRST before running views or sales calculations
-            if (typeof fetchDatabase === 'function') {
-                await fetchDatabase();
-            }
-
-            // Dynamic Category rendering
-            if (typeof populateDynamicCategories === 'function') {
-                populateDynamicCategories();
-            }
-
-            // Fallback safely to 'register' if currentActiveView is undefined
-            const targetView = (typeof currentActiveView !== 'undefined' && currentActiveView) ? currentActiveView : 'register';
-
-            if (typeof navigateView === 'function') {
-                navigateView(targetView); 
-            }
-            if (typeof calculateShiftSales === 'function') {
-                calculateShiftSales();
-            }
-            if (typeof renderMenu === 'function') {
-                renderMenu();
-            }
-            
-        } catch (e) {
-            console.error("Error parsing auto-login cache or restoring session:", e);
-            if (typeof logout === 'function') {
-                logout();
-            }
-        }
-    } else {
-        // Safe fallback: No active user, clean up layout states
+    if (!saved) {
+        // Safe fallback: No active user, show login screen
         const loginScreen = document.getElementById('login-screen');
         const appWrapper = document.getElementById('app-wrapper');
         if (loginScreen) loginScreen.classList.remove('hidden');
         if (appWrapper) appWrapper.classList.add('hidden');
+        return;
+    }
+
+    try {
+        activeUser = JSON.parse(saved);
+        
+        // Re-sync UI states
+        const loginScreen = document.getElementById('login-screen');
+        const appWrapper = document.getElementById('app-wrapper');
+        if (loginScreen) loginScreen.classList.add('hidden');
+        if (appWrapper) appWrapper.classList.remove('hidden');
+        
+        // Populate Sticky Nav details
+        const userNameElem = document.getElementById('topbar-user-name');
+        const userRoleElem = document.getElementById('topbar-user-role');
+        const adminNavElem = document.getElementById('admin-nav-links');
+
+        if (userNameElem) userNameElem.innerText = activeUser.name || 'User';
+        if (userRoleElem) userRoleElem.innerText = activeUser.role || '';
+
+        if (adminNavElem) {
+            if (activeUser.role && activeUser.role.toLowerCase() === 'admin') {
+                adminNavElem.classList.remove('hidden');
+            } else {
+                adminNavElem.classList.add('hidden');
+            }
+        }
+
+        // IMPORTANT: Fetch database FIRST before running views or calculations
+        if (typeof fetchDatabase === 'function') {
+            await fetchDatabase();
+        }
+
+        // Dynamic Category rendering
+        if (typeof populateDynamicCategories === 'function') {
+            populateDynamicCategories();
+        }
+
+        // Fallback safely to 'register' if currentActiveView is undefined
+        const targetView = (typeof currentActiveView !== 'undefined' && currentActiveView) ? currentActiveView : 'register';
+
+        if (typeof navigateView === 'function') {
+            navigateView(targetView); 
+        }
+        if (typeof calculateShiftSales === 'function') {
+            calculateShiftSales();
+        }
+        if (typeof renderMenu === 'function') {
+            renderMenu();
+        }
+        
+    } catch (e) {
+        console.error("Error restoring session:", e);
+        // Only call logout if parsing the user token explicitly failed
+        if (!activeUser || !activeUser.name) {
+            if (typeof logout === 'function') logout();
+        }
     }
 }
     function updateSystemDate() {
@@ -1376,7 +1395,7 @@ function navigateView(viewName) {
     currentActiveView = viewName;
     localStorage.setItem('last_active_view', viewName);
 
-    // Toggle visibility of all main view blocks (Hides everything including Petty Cash)
+    // Toggle visibility of all main view blocks
     document.querySelectorAll('.view-block').forEach(el => el.classList.add('hidden'));
     const targetView = document.getElementById(`view-${viewName}`);
     if (targetView) targetView.classList.remove('hidden');
@@ -1416,9 +1435,13 @@ function navigateView(viewName) {
         populateDynamicCategories();
     }
 
-    // Recalculate sales figures
+    // Safely recalculate sales figures
     if (typeof calculateShiftSales === 'function') {
-        calculateShiftSales();
+        try {
+            calculateShiftSales();
+        } catch (err) {
+            console.warn("Shift sales calculation deferred until shift data loads:", err);
+        }
     }
 
     // Get Active User Role
