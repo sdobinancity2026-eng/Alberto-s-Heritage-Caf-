@@ -3312,27 +3312,22 @@ function showLoginScreen() {
         return;
     }
 
-    // 1. Collect all tab categories from the database keys or active inventory
+    // 1. Collect all tab categories from inventory database
     let allTabs = [];
     if (Array.isArray(db.inventory)) {
-        // If your database structure stores categories inside the inventory objects:
         allTabs = [...new Set(db.inventory.map(item => item.Category || item.category))];
     } else {
-        // Fallback to general database keys
         allTabs = Object.keys(db);
     }
     
-    // 2. Define the administrative blocklist (all lowercase)
+    // 2. Define administrative blocklist
     const excludedTabs = ['orders', 'inventory', 'employees', 'shift', 'shifts', 'consumables', 'saleslog', 'settings'];
     
-    // Filter out empty rows and anything matching our admin list
     const uniqueCategories = allTabs.filter(tab => {
         if (!tab) return false;
         const lowerTab = tab.toLowerCase().trim();
         return lowerTab !== "" && !excludedTabs.includes(lowerTab);
     }).sort();
-    
-    console.log("Verified food categories to display:", uniqueCategories);
 
     // 3. POPULATE DROPDOWN (Input Inventory View)
     const selectEl = document.getElementById('catalog-category-select');
@@ -3349,22 +3344,26 @@ function showLoginScreen() {
     // 4. POPULATE HORIZONTAL PILLS (Menu Register View)
     const filterContainer = document.getElementById('category-tab-bar');
     if (filterContainer) {
-        let filterFuncName = 'filterCategory'; 
-        if (typeof filterMenu === 'function') filterFuncName = 'filterMenu';
-        else if (typeof updateMenuDisplay === 'function') filterFuncName = 'updateMenuDisplay';
-        else if (typeof renderMenuTable === 'function') filterFuncName = 'renderMenuTable';
+        // ALWAYS use setCategoryFilter to match your actual handler function
+        const currentActive = (typeof activeCategoryTab !== 'undefined') ? activeCategoryTab : 'All';
 
         filterContainer.innerHTML = `
-            <button onclick="${filterFuncName}('all')" class="bg-amber-800 text-white font-semibold px-4 py-2 rounded-full text-xs transition-all shadow-md shrink-0">
+            <button onclick="setCategoryFilter('All')" 
+                class="${currentActive.toLowerCase() === 'all' ? 'bg-amber-800 text-white font-bold shadow-md' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold'} px-4 py-2 rounded-full text-xs transition-all shrink-0">
                 🌐 Show All
             </button>
         `;
 
         uniqueCategories.forEach(cat => {
             const btn = document.createElement('button');
-            btn.className = "bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-full text-xs transition-all shrink-0 shadow-sm";
-            btn.setAttribute('onclick', `${filterFuncName}('${cat}')`);
+            const isActive = cat.toLowerCase() === currentActive.toLowerCase();
+            btn.className = `${isActive ? 'bg-amber-800 text-white font-bold shadow-md' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold'} px-4 py-2 rounded-full text-xs transition-all shrink-0`;
+            
+            // Fixed function call name:
+            const safeCat = cat.replace(/'/g, "\\'");
+            btn.setAttribute('onclick', `setCategoryFilter('${safeCat}')`);
             btn.textContent = cat;
+            
             filterContainer.appendChild(btn);
         });
     }
