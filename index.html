@@ -88,8 +88,10 @@
     <!-- MAIN APP WRAPPER -->
     <div id="app-wrapper" class="hidden h-screen w-screen flex flex-col md:flex-row overflow-hidden relative">
 
-        <!-- ================= SIDE NAV BAR (RESPONSIVE OVERLAY ON MOBILE) ================= -->
+      <!-- ================= SIDE NAV BAR (RESPONSIVE OVERLAY ON MOBILE) ================= -->
         <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out bg-slate-900 text-slate-100 w-64 flex flex-col border-r border-slate-800 flex-shrink-0 h-full">
+            
+            <!-- Top Bar Header -->
             <div class="p-4 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
                 <div class="flex items-center gap-2">
                     <img src="albertos.jpg" class="w-8 h-8 rounded-full object-cover">
@@ -101,8 +103,8 @@
                     <button onclick="toggleMobileSidebar(false)" class="md:hidden text-slate-400 hover:text-white text-lg p-1">✕</button>
                 </div>
             </div>
-
-            <!-- Switch tabs links -->
+        
+            <!-- Navigation Links -->
             <nav class="flex-1 p-4 space-y-1 text-sm overflow-y-auto">
                 <!-- Employee Nav Items -->
                 <div class="space-y-1" id="emp-nav-links">
@@ -114,7 +116,7 @@
                         💵 End Shift / Drawer
                     </button>
                 </div>
-
+        
                 <!-- Admin Dynamic Navigation Links -->
                 <div class="space-y-1 pt-4 hidden" id="admin-nav-links">
                     <p class="text-xs font-bold text-slate-500 uppercase tracking-wider px-2 py-1">Administration</p>
@@ -129,6 +131,29 @@
                     <button onclick="navigateView('admin-analytics')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-analytics">📈 Charts & Analytics</button>
                 </div>
             </nav>
+        
+            <!-- ================= OFFLINE USB BACKUP TOOLS (ADDED AT BOTTOM OF SIDEBAR) ================= -->
+            <div class="p-4 border-t border-slate-800 bg-slate-900/50 flex-shrink-0">
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Offline Data Backup</p>
+                <div class="flex flex-col gap-2">
+                    <!-- Export Button -->
+                    <button 
+                        type="button" 
+                        onclick="exportOfflineQueueToFile()" 
+                        class="w-full bg-amber-700/80 hover:bg-amber-700 text-white text-xs font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        Save Backup to USB
+                    </button>
+        
+                    <!-- Upload Button -->
+                    <label class="w-full bg-emerald-700/80 hover:bg-emerald-700 text-white text-xs font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-2 cursor-pointer transition-all">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                        Upload Backup from USB
+                        <input type="file" accept=".posdata" onchange="importOfflineQueueFromFile(event)" class="hidden">
+                    </label>
+                </div>
+            </div>
+        
         </aside>
 
         <!-- ================= MAIN CORE DISPLAY ZONE ================= -->
@@ -876,6 +901,12 @@
         </div>
     </div>
 </div>
+
+    <!-- Offline Feedback to users -->
+    <div id="offline-badge" class="hidden bg-amber-500 text-white text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+    <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+    <span id="pending-count">0</span> Pending Sync
+    </div>
 
     <!-- Hidden Printable Node Container for Thermal Output -->
     <div id="receipt-print-zone" class="hidden"></div>
@@ -4966,6 +4997,237 @@ async function fetchDatabase() {
             statusMsg.innerHTML = `${ERROR_SVG} <span>Sync failed. Working offline.</span>`;
         }
     }
+}
+    // Retrieve existing offline queue or initialize empty array
+function getOfflineQueue() {
+    return JSON.parse(localStorage.getItem('pos_offline_queue') || '[]');
+}
+
+function saveOfflineQueue(queue) {
+    localStorage.setItem('pos_offline_queue', JSON.stringify(queue));
+    updateOfflineBadge();
+}
+
+// Universal function to post data to Sheets with Offline support
+async function sendToSheet(payload) {
+    // If browser is offline, store immediately
+    if (!navigator.onLine) {
+        queueOfflineAction(payload);
+        return { status: "OFFLINE", message: "Saved locally. Will sync when online." };
+    }
+
+    try {
+        const response = await fetch(API_URL, {
+            method: "POST",
+            redirect: "follow",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) throw new Error("Network response was not ok");
+        return await response.json();
+
+    } catch (err) {
+        console.warn("Network request failed. Saving payload offline.", err);
+        queueOfflineAction(payload);
+        return { status: "OFFLINE", message: "Saved locally due to connection error." };
+    }
+}
+
+// Append item to queue
+function queueOfflineAction(payload) {
+    const queue = getOfflineQueue();
+    // Add client-side timestamp to ensure order accuracy
+    payload.clientTimestamp = new Date().toISOString(); 
+    queue.push(payload);
+    saveOfflineQueue(queue);
+}
+    // Sync queued requests to Google Sheets
+async function syncOfflineQueue() {
+    const queue = getOfflineQueue();
+    if (queue.length === 0) return;
+
+    console.log(`Syncing ${queue.length} offline transactions...`);
+    const remainingQueue = [...queue];
+
+    for (let i = 0; i < queue.length; i++) {
+        const item = queue[i];
+        try {
+            const response = await fetch(API_URL, {
+                method: "POST",
+                redirect: "follow",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify(item)
+            });
+
+            if (response.ok) {
+                // Remove successfully uploaded item
+                remainingQueue.shift();
+                saveOfflineQueue(remainingQueue);
+            } else {
+                break; // Stop loop if server error occurs
+            }
+        } catch (err) {
+            console.error("Failed to sync item, stopping sync process until next attempt:", err);
+            break; // Stop loop if connection fails mid-sync
+        }
+    }
+
+    if (remainingQueue.length === 0) {
+        console.log("All offline data successfully synced to Google Sheets!");
+    }
+}
+
+// Auto-trigger sync when back online
+window.addEventListener('online', () => {
+    console.log("Internet reconnected. Triggering sync...");
+    syncOfflineQueue();
+});
+
+// Also attempt sync when app starts
+document.addEventListener('DOMContentLoaded', () => {
+    if (navigator.onLine) {
+        syncOfflineQueue();
+    }
+});
+
+    function updateOfflineBadge() {
+    const queue = getOfflineQueue();
+    const badge = document.getElementById('offline-badge');
+    const countSpan = document.getElementById('pending-count');
+
+    if (badge && countSpan) {
+        if (queue.length > 0) {
+            countSpan.innerText = queue.length;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+}
+    // Simple secret key for basic checksum protection
+const CHECKSUM_KEY = "ALBERTO_CAF_SECURE_KEY";
+
+// Generate a simple hash to verify file integrity
+function generateChecksum(dataStr) {
+    let hash = 0;
+    const str = dataStr + CHECKSUM_KEY;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = (hash << 5) - hash + char;
+        hash |= 0; // Convert to 32bit integer
+    }
+    return hash.toString(36);
+}
+
+// Export Offline Queue to Flash Drive (.posdata file)
+function exportOfflineQueueToFile() {
+    const queue = getOfflineQueue();
+
+    if (queue.length === 0) {
+        alert("No pending offline data to export!");
+        return;
+    }
+
+    // 1. Prepare raw JSON string
+    const rawData = JSON.stringify(queue);
+
+    // 2. Wrap data with a checksum to detect edits
+    const payloadPackage = {
+        checksum: generateChecksum(rawData),
+        exportedAt: new Date().toISOString(),
+        totalRecords: queue.length,
+        // Base64 encode the payload so it's not plain readable text
+        data: btoa(unescape(encodeURIComponent(rawData))) 
+    };
+
+    // 3. Create blob and download trigger
+    const fileContent = JSON.stringify(payloadPackage, null, 2);
+    const blob = new Blob([fileContent], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const filename = `POS_Backup_${dateStr}_${Date.now()}.posdata`;
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    alert(`Successfully exported ${queue.length} transaction(s) to ${filename}. You can now save this file to your flash drive.`);
+}
+    // Import & Sync File from Flash Drive
+function importOfflineQueueFromFile(fileInputEvent) {
+    const file = fileInputEvent.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = async function(e) {
+        try {
+            const importedPackage = JSON.parse(e.target.result);
+
+            // Validate basic structure
+            if (!importedPackage.data || !importedPackage.checksum) {
+                throw new Error("Invalid file format. This is not a valid POS backup file.");
+            }
+
+            // Decode Base64 content
+            const decodedData = decodeURIComponent(escape(atob(importedPackage.data)));
+
+            // Checksum validation to detect manual edits
+            const calculatedChecksum = generateChecksum(decodedData);
+            if (calculatedChecksum !== importedPackage.checksum) {
+                alert("❌ FILE TAMPERED WITH! The uploaded file has been edited or corrupted and cannot be synced.");
+                return;
+            }
+
+            const importedQueue = JSON.parse(decodedData);
+
+            if (!Array.isArray(importedQueue) || importedQueue.length === 0) {
+                alert("No valid transaction records found in the file.");
+                return;
+            }
+
+            // Merge imported records into current local queue (avoiding duplicate client IDs)
+            const currentQueue = getOfflineQueue();
+            let addedCount = 0;
+
+            importedQueue.forEach(importedItem => {
+                const exists = currentQueue.some(
+                    item => item.clientTimestamp === importedItem.clientTimestamp || 
+                            (item.orderId && item.orderId === importedItem.orderId)
+                );
+                if (!exists) {
+                    currentQueue.push(importedItem);
+                    addedCount++;
+                }
+            });
+
+            saveOfflineQueue(currentQueue);
+            alert(`✅ Successfully imported ${addedCount} pending transaction(s) to the local sync queue.`);
+
+            // Clear file input element
+            fileInputEvent.target.value = "";
+
+            // Automatically attempt sync to Google Sheets if online
+            if (navigator.onLine) {
+                alert("Internet connection active! Syncing imported records to Google Sheets now...");
+                syncOfflineQueue();
+            } else {
+                alert("Working offline. Records will sync automatically once internet returns.");
+            }
+
+        } catch (err) {
+            console.error("Failed to import file:", err);
+            alert("❌ Import failed: File is invalid or corrupted.");
+        }
+    };
+
+    reader.readAsText(file);
 }
 </script>
 </body>
