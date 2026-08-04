@@ -577,32 +577,53 @@
                     </div>
                 </div>
 
-                <!-- VIEW: UPDATE PRODUCT -->
+               <!-- VIEW: UPDATE PRODUCT -->
                 <div id="view-admin-update" class="view-block hidden max-w-lg mx-auto bg-white p-6 rounded-2xl shadow-sm border">
                     <h2 class="text-lg font-bold text-slate-800 mb-4">Edit Product Inventory Data</h2>
+                    
+                    <!-- Product Metadata Search Bar -->
+                    <div class="mb-4">
+                        <div class="relative w-full">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 text-xs">
+                                🔍
+                            </span>
+                            <input 
+                                type="text" 
+                                id="metadata-search-input" 
+                                onkeyup="searchAndPopulateProduct()" 
+                                placeholder="Type item name or ID to search and edit..." 
+                                class="w-full pl-8 pr-3 py-2 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-800/20 focus:border-amber-800 transition-all placeholder:text-slate-400"
+                            />
+                        </div>
+                    </div>
+                
                     <div class="space-y-4">
                         <div>
                             <label class="block text-xs font-semibold text-slate-500 mb-1">Select Product to Edit</label>
-                            <select id="edit-select-prod" onchange="populateEditForm()" class="w-full p-3 rounded-lg border"></select>
+                            <select id="edit-select-prod" onchange="populateEditForm()" class="w-full p-3 rounded-lg border text-xs md:text-sm bg-slate-50 font-medium"></select>
                         </div>
+                
                         <div id="edit-form-fields" class="hidden space-y-4 border-t pt-4">
+                            <!-- Hidden input to hold the item ID for database commits (hidden from user display) -->
+                            <input type="hidden" id="edit-inv-id" />
+                
                             <div>
                                 <label class="block text-xs font-semibold text-slate-500 mb-1">Item Name</label>
-                                <input type="text" id="edit-inv-name" class="w-full p-3 rounded-lg border">
+                                <input type="text" id="edit-inv-name" class="w-full p-3 rounded-lg border text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-500 mb-1">Category</label>
-                                <input type="text" id="edit-inv-cat" class="w-full p-3 rounded-lg border">
+                                <input type="text" id="edit-inv-cat" class="w-full p-3 rounded-lg border text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-500 mb-1">Price (₱)</label>
-                                <input type="number" id="edit-inv-price" class="w-full p-3 rounded-lg border font-mono">
+                                <input type="number" step="0.01" id="edit-inv-price" class="w-full p-3 rounded-lg border font-mono text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-500 mb-1">Stock Level Count</label>
-                                <input type="number" id="edit-inv-stock" class="w-full p-3 rounded-lg border font-mono">
+                                <input type="number" id="edit-inv-stock" class="w-full p-3 rounded-lg border font-mono text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
                             </div>
-                            <button onclick="submitProductUpdate()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition">Commit Database Updates</button>
+                            <button onclick="submitProductUpdate()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition shadow-sm">Commit Database Updates</button>
                         </div>
                     </div>
                 </div>
@@ -628,36 +649,54 @@
                     </div>
                 </div>
 
-                                <!-- ADMIN VIEW: CONSUMABLES INVENTORY PANEL -->
-                <div id="view-admin-consumables" class="view-block hidden max-w-4xl mx-auto bg-white p-6 rounded-2xl shadow-sm border">
-                    <div class="flex justify-between items-center mb-6">
-                        <div>
-                            <h2 class="text-xl font-bold text-slate-800">Consumables Inventory</h2>
-                            <p class="text-xs text-slate-500">Track raw ingredients and storage stock quantities.</p>
+                  <!-- ADMIN VIEW: CONSUMABLES INVENTORY PANEL -->
+                        <div id="view-admin-consumables" class="view-block hidden max-w-4xl mx-auto bg-white p-6 rounded-2xl shadow-sm border">
+                            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+                                <div>
+                                    <h2 class="text-xl font-bold text-slate-800">Consumables Inventory</h2>
+                                    <p class="text-xs text-slate-500">Track raw ingredients and storage stock quantities.</p>
+                                </div>
+                                
+                                <!-- Trigger Open Modal to Add Ingredient -->
+                                <button onclick="openConsumableModal()" class="bg-blue-600 text-white px-4 py-2 text-xs font-bold rounded-xl hover:bg-blue-700 transition self-start sm:self-auto">
+                                    ➕ Add Consumable
+                                </button>
+                            </div>
+                        
+                            <!-- Consumables / Raw Materials Search Bar -->
+                            <div class="mb-4">
+                                <div class="relative max-w-sm">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 text-xs">
+                                        🔍
+                                    </span>
+                                    <input 
+                                        type="text" 
+                                        id="raw-stock-search-input" 
+                                        onkeyup="filterRawStockTable()" 
+                                        placeholder="Search raw material or inventory item..." 
+                                        class="w-full pl-8 pr-3 py-2 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-800/20 focus:border-amber-800 transition-all placeholder:text-slate-400"
+                                    />
+                                </div>
+                            </div>
+                        
+                            <!-- Storage Table -->
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse text-sm">
+                                    <thead>
+                                        <tr class="border-b border-slate-100 text-slate-400 font-semibold text-xs uppercase">
+                                            <th class="py-3 px-4">Item ID</th>
+                                            <th class="py-3 px-4">Consumable Name</th>
+                                            <th class="py-3 px-4">Current Stock</th>
+                                            <th class="py-3 px-4">Stock Unit</th>
+                                            <th class="py-3 px-4 text-right">Action</th> <!-- ✏️ ADDED ACTION COLUMN -->
+                                        </tr>
+                                    </thead>
+                                    <tbody id="consumables-table-body" class="divide-y divide-slate-50 text-slate-700 font-medium">
+                                        <!-- Programmatically populated by renderConsumables() -->
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                        <!-- Trigger Open Modal to Add Ingredient -->
-                        <button onclick="openConsumableModal()" class="bg-blue-600 text-white px-4 py-2 text-xs font-bold rounded-xl hover:bg-blue-700 transition">
-                            ➕ Add Consumable
-                        </button>
-                    </div>
-
-                        <!-- Storage Table -->
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse text-sm">
-                                <thead>
-                                    <tr class="border-b border-slate-100 text-slate-400 font-semibold">
-                                        <th class="py-3 px-4">Item ID</th>
-                                        <th class="py-3 px-4">Consumable Name</th>
-                                        <th class="py-3 px-4">Current Stock</th>
-                                        <th class="py-3 px-4">Stock Unit</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="consumables-table-body" class="divide-y divide-slate-50 text-slate-700 font-medium">
-                                    <!-- Programmatically populated by renderConsumables() -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
                         <!-- FLOATING MODAL: ADD CONSUMABLE -->
                         <div id="consumable-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center hidden">
                             <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-xl border m-4">
@@ -1056,48 +1095,68 @@ async function fetchAllData() {
         }
     }
 
-    async function handleLogin() {
-        const userVal = document.getElementById('login-username').value.trim();
-        const passVal = document.getElementById('login-password').value.trim();
-        const submitBtn = document.getElementById('login-submit-btn');
+   async function handleLogin() {
+    const userVal = document.getElementById('login-username').value.trim();
+    const passVal = document.getElementById('login-password').value.trim();
+    const submitBtn = document.getElementById('login-submit-btn');
 
-        if (!userVal || !passVal) {
-            showToast("Please enter both username and password.", "warning");
-            return;
-        }
-
-        // Update UI feedback on access button
-        submitBtn.disabled = true;
-        submitBtn.innerText = "Verifying credentials...";
-        submitBtn.className = "w-full bg-slate-700 text-white font-bold py-3.5 rounded-xl transition-all cursor-not-allowed";
-
-        // Safety delay for smoother visual feedback
-        await new Promise(resolve => setTimeout(resolve, 800));
-
-        // Validate against local/cloud cached database
-        const match = db.employees.find(e => {
-            const name = e.Name || e.name || "";
-            const password = e.Password || e.password || "";
-            return name.toLowerCase() === userVal.toLowerCase() && password.toString() === passVal;
-        });
-
-        if (match) {
-            submitBtn.innerText = "Access Granted!";
-            submitBtn.className = "w-full bg-emerald-600 text-white font-bold py-3.5 rounded-xl transition-all";
-            
-            await new Promise(resolve => setTimeout(resolve, 600));
-
-            activeUser = { name: (match.Name || match.name), role: (match.Role || match.role) };
-            localStorage.setItem('logged_user', JSON.stringify(activeUser));
-            authorizedSessionStart();
-            showToast("Login Successful!");
-        } else {
-            submitBtn.disabled = false;
-            submitBtn.innerText = "Access Terminal";
-            submitBtn.className = "w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all";
-            showToast("Incorrect username or passkey PIN", "error");
-        }
+    if (!userVal || !passVal) {
+        showToast("Please enter both username and password.", "warning");
+        return;
     }
+
+    // 1. Guard against uninitialized or empty employees database
+    if (!db || !db.employees || !Array.isArray(db.employees) || db.employees.length === 0) {
+        showToast("Employee database is still loading. Please wait a moment...", "warning");
+        console.warn("Login blocked: db.employees is empty or not loaded yet.", db);
+        return;
+    }
+
+    // Update UI feedback on access button
+    submitBtn.disabled = true;
+    submitBtn.innerText = "Verifying credentials...";
+    submitBtn.className = "w-full bg-slate-700 text-white font-bold py-3.5 rounded-xl transition-all cursor-not-allowed";
+
+    // Safety delay for smoother visual feedback
+    await new Promise(resolve => setTimeout(resolve, 600));
+
+    // Debug log to inspect loaded employee objects in developer console
+    console.log("Validating login against employees:", db.employees);
+
+    // 2. Flexible matching across common field names
+    const match = db.employees.find(e => {
+        // Extract Name from all possible property keys
+        const name = (e.Name || e.name || e.EmployeeName || e.employeeName || "").toString().trim().toLowerCase();
+        
+        // Extract PIN/Password from all possible property keys
+        const password = (e.Password || e.password || e.PIN || e.pin || e.Passkey || e.passkey || e.Code || "").toString().trim();
+
+        return name === userVal.toLowerCase() && password === passVal;
+    });
+
+    if (match) {
+        submitBtn.innerText = "Access Granted!";
+        submitBtn.className = "w-full bg-emerald-600 text-white font-bold py-3.5 rounded-xl transition-all";
+        
+        await new Promise(resolve => setTimeout(resolve, 400));
+
+        // Standardize properties on match
+        const matchedName = match.Name || match.name || match.EmployeeName || userVal;
+        const matchedRole = match.Role || match.role || match.Position || "Staff";
+
+        activeUser = { name: matchedName, role: matchedRole };
+        localStorage.setItem('logged_user', JSON.stringify(activeUser));
+        authorizedSessionStart();
+        showToast("Login Successful!");
+    } else {
+        submitBtn.disabled = false;
+        submitBtn.innerText = "Access Terminal";
+        submitBtn.className = "w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all";
+        showToast("Incorrect username or passkey PIN", "error");
+        
+        console.warn(`Login failed for user input: "${userVal}". Check if property names in db.employees match 'Name' and 'Password'/'PIN'.`);
+    }
+}
 
    // ==========================================
 // GLOBALS & RECONCILIATION INITIALIZATION
@@ -4407,6 +4466,155 @@ window.filterMenuBySearch = function() {
         }
     });
 };
+/**
+ *  fucntion to search items on Consumables & Raw Storage Stock
+ */
+    window.filterRawStockTable = function() {
+    const query = (document.getElementById('raw-stock-search-input')?.value || '').toLowerCase().trim();
+    // Target rows in your inventory / raw storage table body
+    const rows = document.querySelectorAll('#raw-stock-table-body tr, #inventory-table-body tr');
+
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+    });
+};
+
+    // Filter Consumables Table Rows directly inside the table
+function filterRawStockTable() {
+    const query = (document.getElementById('raw-stock-search-input')?.value || '').toLowerCase().trim();
+    const rows = document.querySelectorAll('#consumables-table-body tr');
+
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+    });
+}
+
+// Example Render Function for Consumables Table (Includes the Edit Button on the last column)
+function renderConsumablesTable(items) {
+    const tbody = document.getElementById('consumables-table-body');
+    if (!tbody) return;
+
+    const list = items || (db && db.inventory ? db.inventory : []);
+
+    if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-slate-400 text-xs">No consumables found.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = list.map(item => `
+        <tr class="hover:bg-slate-50/80 transition-colors">
+            <td class="py-3 px-4 text-slate-500 font-mono text-xs">${item.id || item.ID || '-'}</td>
+            <td class="py-3 px-4 font-semibold text-slate-800">${item.name || item.ItemName || item.ConsumableName || 'Unnamed'}</td>
+            <td class="py-3 px-4 font-mono">${item.stock || item.Stock || 0}</td>
+            <td class="py-3 px-4 text-slate-500 text-xs">${item.unit || item.Unit || 'pcs'}</td>
+            <td class="py-3 px-4 text-right">
+                <button onclick="editConsumableItem('${item.id || item.ID}')" class="px-3 py-1 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg text-xs font-bold transition">
+                    ✏️ Edit
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+    
+    /**
+ *  fucntion to search items on Edit Product Inventory Data
+ */
+    window.filterMetadataTable = function() {
+    const query = (document.getElementById('metadata-search-input')?.value || '').toLowerCase().trim();
+    // Target rows in your edit metadata table/container body
+    const rows = document.querySelectorAll('#metadata-table-body tr, #product-management-body tr');
+
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+    });
+};
+
+    // Real-time Search & Auto-Populate for Product Metadata
+function searchAndPopulateProduct() {
+    const query = (document.getElementById('metadata-search-input')?.value || '').toLowerCase().trim();
+    const select = document.getElementById('edit-select-prod');
+    const formFields = document.getElementById('edit-form-fields');
+
+    if (!select) return;
+
+    if (!query) {
+        // If search is cleared, select empty choice and hide form
+        select.value = "";
+        if (formFields) formFields.classList.add('hidden');
+        return;
+    }
+
+    // Search through db.inventory or options inside select
+    const items = (typeof db !== 'undefined' && db.inventory) ? db.inventory : [];
+    
+    const matchedItem = items.find(item => {
+        const id = (item.id || item.ID || '').toString().toLowerCase();
+        const name = (item.name || item.ItemName || item.Name || '').toString().toLowerCase();
+        return id === query || name.includes(query);
+    });
+
+    if (matchedItem) {
+        const targetId = matchedItem.id || matchedItem.ID;
+        select.value = targetId;
+        
+        // Auto-fill form and unhide
+        populateEditForm(matchedItem);
+    }
+}
+
+// Function to populate edit form fields (Hides ID completely from display)
+function populateEditForm(selectedObj = null) {
+    const select = document.getElementById('edit-select-prod');
+    const formFields = document.getElementById('edit-form-fields');
+    
+    let item = selectedObj;
+
+    if (!item && select && select.value) {
+        const items = (typeof db !== 'undefined' && db.inventory) ? db.inventory : [];
+        item = items.find(i => String(i.id || i.ID) === String(select.value));
+    }
+
+    if (!item) {
+        if (formFields) formFields.classList.add('hidden');
+        return;
+    }
+
+    // Set hidden ID field for form submission
+    const idInput = document.getElementById('edit-inv-id');
+    if (idInput) idInput.value = item.id || item.ID || '';
+
+    // Populate editable fields (Item Name, Category, Price, Stock)
+    document.getElementById('edit-inv-name').value = item.name || item.ItemName || item.Name || '';
+    document.getElementById('edit-inv-cat').value = item.category || item.Category || '';
+    document.getElementById('edit-inv-price').value = item.price || item.Price || 0;
+    document.getElementById('edit-inv-stock').value = item.stock || item.Stock || 0;
+
+    // Reveal form fields
+    if (formFields) formFields.classList.remove('hidden');
+}
+
+     /**
+ *  fucntion to clear input field on search
+ */
+    function clearAllSearchInputs() {
+    const searchIDs = ['menu-search-input', 'raw-stock-search-input', 'metadata-search-input'];
+    searchIDs.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.value = '';
+        }
+    });
+
+    // Reset table visibility
+    if (typeof filterMenuBySearch === 'function') filterMenuBySearch();
+    if (typeof filterRawStockTable === 'function') filterRawStockTable();
+    if (typeof filterMetadataTable === 'function') filterMetadataTable();
+}
+
+    
 </script>
 </body>
 </html>
