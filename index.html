@@ -1815,6 +1815,7 @@ function addToCart(id) {
             return;
         }
         exist.quantity++;
+        // 🔑 NOTE: exist.printedQty remains untouched so only the newly added quantity is printed
     } else {
         if (maxStock <= 0) {
             if (typeof showToast === 'function') showToast("Item is out of stock.", "warning");
@@ -1825,31 +1826,11 @@ function addToCart(id) {
             name: item.ItemName, 
             price: Number(item.Price) || 0, 
             category: item.Category || item.category || "General", 
-            quantity: 1 
+            quantity: 1,
+            printedQty: 0 // 🔑 Track initial printed quantity as 0
         });
     }
     renderCart();
-}
-function openPizzaModal(flavorName, itemId) {
-    activePizzaFlavor = flavorName;
-    activePizzaId = itemId;
-    document.getElementById('pizza-modal-title').textContent = flavorName;
-    
-    // Check if flavor only supports 12" size
-    const pizzaData = PIZZA_PRICING_DATABASE[flavorName];
-    const size10Btn = document.getElementById('size-10-btn');
-    
-    if (pizzaData && !pizzaData.thin10 && !pizzaData.regular10) {
-        size10Btn.classList.add('hidden');
-        selectedSize = "12";
-    } else {
-        size10Btn.classList.remove('hidden');
-        selectedSize = "10";
-    }
-
-    selectedCrust = "thin";
-    updateModalUI();
-    document.getElementById('pizza-modal').classList.remove('hidden');
 }
 
     // Remove a specific item index from the active order basket
@@ -4332,6 +4313,7 @@ function confirmPizzaAddToCart() {
             return;
         }
         exist.quantity++;
+        // 🔑 NOTE: exist.printedQty remains untouched so only the added unit prints on KOT
     } else {
         if (maxStock <= 0) {
             if (typeof showToast === 'function') showToast("Item is out of stock.", "warning");
@@ -4343,7 +4325,8 @@ function confirmPizzaAddToCart() {
             name: formattedName, 
             price: price, 
             category: "Pizza", 
-            quantity: 1 
+            quantity: 1,
+            printedQty: 0 // 🔑 Track initial printed count as 0 for KOT
         });
     }
 
@@ -4635,23 +4618,29 @@ async function saveAndHoldOrder() {
         return;
     }
 
+    // 1. Print Kitchen Ticket (printKitchenTicket handles filtered unprinted items)
+    if (typeof printKitchenTicket === 'function') {
+        printKitchenTicket({ TableNo: tableNo, ItemsOrdered: [...activeCart] });
+    }
+
+    // 🔑 UPDATE: Ensure printedQty equals quantity now that KOT has printed
+    const itemsToSave = activeCart.map(item => ({
+        ...item,
+        printedQty: item.quantity // Mark all current items as printed
+    }));
+
     const heldPayload = {
-        action: "saveHeldOrder", // Route handler in Apps Script doPost
+        action: "saveHeldOrder",
         tableNo: tableNo,
-        items: [...activeCart],
+        items: itemsToSave,
         discountId: (typeof discountID !== 'undefined' ? discountID : "") || document.getElementById('discount-id-input')?.value || "",
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
-    // 1. Instant local optimistic update (so UI feels instant)
+    // 2. Instant local optimistic update
     activeHeldOrders[tableNo] = heldPayload;
     localStorage.setItem('heldOrders', JSON.stringify(activeHeldOrders));
     updateHeldOrdersCount();
-
-    // 2. Print Kitchen Ticket locally
-    if (typeof printKitchenTicket === 'function') {
-        printKitchenTicket({ TableNo: tableNo, ItemsOrdered: [...activeCart] });
-    }
 
     clearCurrentBasket();
 
@@ -4675,13 +4664,16 @@ async function restoreHeldOrder(tableNo) {
 
     const targetOrder = activeHeldOrders[tableNo];
 
-    // Load items back into cart
-    activeCart = [...targetOrder.items];
+    // 🔑 Ensure items keep their printedQty state when restored
+    activeCart = targetOrder.items.map(item => ({
+        ...item,
+        printedQty: item.printedQty !== undefined ? item.printedQty : item.quantity
+    }));
 
     const tableInput = document.getElementById('table-number-input');
     if (tableInput) tableInput.value = targetOrder.tableNo;
 
-    // Delete locally
+    // Delete locally from held list since it is now active in cart
     delete activeHeldOrders[tableNo];
     localStorage.setItem('heldOrders', JSON.stringify(activeHeldOrders));
 
