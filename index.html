@@ -916,7 +916,7 @@ const SCRIPT_URL = API_URL;
 // ==========================================
 // 1. GLOBAL STATE & CONFIG CONSTANTS
 // ==========================================
-let db = { inventory: [], employees: [], orders: [], shifts: [] };
+let db = { inventory: [], employees: [], orders: [], shifts: [], heldOrders: [] };
 let activeUser = null;
 let activeCart = [];
 let analyticsCharts = { trend: null, pie: null };
@@ -4878,9 +4878,6 @@ function closeLowStockModal() {
     const modal = document.getElementById('low-stock-modal');
     if (modal) modal.classList.add('hidden');
 }
-
-// Global State Definition
-let db = { inventory: [], employees: [], orders: [], shifts: [], heldOrders: [] };
 
 async function fetchDatabase() {
     try {
