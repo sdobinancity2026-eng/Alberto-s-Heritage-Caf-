@@ -3664,6 +3664,7 @@ function populateAdminPettyCashDropdown() {
     });
 }
 // 2. Load amount when selecting an employee in Admin Panel
+// 2. Load amount when selecting an employee in Admin Panel
 async function saveAdminPettyCashAllocation() {
     // 1. Role verification
     const currentUserRole = (typeof activeUser !== 'undefined' && activeUser && activeUser.role) 
@@ -3717,6 +3718,10 @@ async function saveAdminPettyCashAllocation() {
         if (result && (result.status === "SUCCESS" || result.status === "success" || result.success)) {
             showToast(`Assigned ₱${amount.toFixed(2)} petty cash to ${empName}`, "success");
             
+            // 🧹 CLEAR FIELDS AUTOMATICALLY UPON SUCCESS:
+            if (dropdown) dropdown.value = "";
+            if (amountInput) amountInput.value = "";
+
             // Re-fetch database to sync db.shifts
             if (typeof fetchAllData === 'function') {
                 await fetchAllData();
