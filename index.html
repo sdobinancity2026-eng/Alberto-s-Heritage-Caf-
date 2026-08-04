@@ -681,6 +681,75 @@
                             <canvas id="pieChart"></canvas>
                         </div>
                     </div>
+                    <!-- Payment Method Sales Analytics Breakdown -->
+                    <div class="mt-6 bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                            <div>
+                                <h3 class="text-base font-bold text-slate-800">Sales by Payment Method</h3>
+                                <p class="text-xs text-slate-400">Total revenue filtered by Cash, GCash, and Bank Transfer</p>
+                            </div>
+                            
+                            <!-- Period Filter Selector -->
+                            <div class="inline-flex bg-slate-100 p-1 rounded-xl text-xs font-semibold text-slate-600">
+                                <button id="pm-filter-daily" onclick="filterPaymentMethodSales('daily')" class="px-3 py-1.5 rounded-lg bg-white text-slate-900 shadow-sm transition">Daily</button>
+                                <button id="pm-filter-weekly" onclick="filterPaymentMethodSales('weekly')" class="px-3 py-1.5 rounded-lg hover:text-slate-900 transition">Weekly</button>
+                                <button id="pm-filter-monthly" onclick="filterPaymentMethodSales('monthly')" class="px-3 py-1.5 rounded-lg hover:text-slate-900 transition">Monthly</button>
+                            </div>
+                        </div>
+                    
+                        <!-- Analytics Stat Cards -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <!-- Cash Card -->
+                            <div class="p-4 rounded-xl bg-amber-50/50 border border-amber-100/80 flex items-center justify-between">
+                                <div>
+                                    <div class="flex items-center gap-1.5 text-amber-800 font-bold text-xs uppercase tracking-wider mb-1">
+                                        <span class="w-2 h-2 rounded-full bg-amber-500"></span> Cash
+                                    </div>
+                                    <div id="payment-cash-total" class="text-2xl font-black text-slate-800">₱0.00</div>
+                                    <div id="payment-cash-count" class="text-[11px] text-slate-400 font-medium mt-0.5">0 transactions</div>
+                                </div>
+                                <div class="w-10 h-10 rounded-xl bg-amber-100/80 text-amber-800 flex items-center justify-center text-lg font-bold">💵</div>
+                            </div>
+                    
+                            <!-- GCash Card -->
+                            <div class="p-4 rounded-xl bg-blue-50/50 border border-blue-100/80 flex items-center justify-between">
+                                <div>
+                                    <div class="flex items-center gap-1.5 text-blue-800 font-bold text-xs uppercase tracking-wider mb-1">
+                                        <span class="w-2 h-2 rounded-full bg-blue-500"></span> GCash
+                                    </div>
+                                    <div id="payment-gcash-total" class="text-2xl font-black text-slate-800">₱0.00</div>
+                                    <div id="payment-gcash-count" class="text-[11px] text-slate-400 font-medium mt-0.5">0 transactions</div>
+                                </div>
+                                <div class="w-10 h-10 rounded-xl bg-blue-100/80 text-blue-800 flex items-center justify-center text-lg font-bold">📱</div>
+                            </div>
+                    
+                            <!-- Bank Transfer Card -->
+                            <div class="p-4 rounded-xl bg-emerald-50/50 border border-emerald-100/80 flex items-center justify-between">
+                                <div>
+                                    <div class="flex items-center gap-1.5 text-emerald-800 font-bold text-xs uppercase tracking-wider mb-1">
+                                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Bank Transfer
+                                    </div>
+                                    <div id="payment-bank-total" class="text-2xl font-black text-slate-800">₱0.00</div>
+                                    <div id="payment-bank-count" class="text-[11px] text-slate-400 font-medium mt-0.5">0 transactions</div>
+                                </div>
+                                <div class="w-10 h-10 rounded-xl bg-emerald-100/80 text-emerald-800 flex items-center justify-center text-lg font-bold">🏦</div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Payment Method Stacked Bar Chart -->
+                    <div class="mt-4 bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h4 class="text-sm font-bold text-slate-800">Payment Channel Share</h4>
+                                <p class="text-xs text-slate-400">Visual comparison of revenue sources</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Chart Canvas -->
+                        <div class="relative h-64 w-full">
+                            <canvas id="paymentMethodChart"></canvas>
+                        </div>
+                    </div>
                 </div>
 
                   <!-- ADMIN VIEW: CONSUMABLES INVENTORY PANEL -->
@@ -5313,6 +5382,175 @@ async function saveConsumableUpdateToSheet(itemId, updatedItem) {
     } else {
         console.warn("sendToSheet helper not found. Updated in memory only.");
     }
+}
+
+    let currentPaymentPeriod = 'daily';
+
+function filterPaymentMethodSales(period = 'daily') {
+    currentPaymentPeriod = period;
+
+    // 1. Update active UI button tab styles
+    ['daily', 'weekly', 'monthly'].forEach(p => {
+        const btn = document.getElementById(`pm-filter-${p}`);
+        if (btn) {
+            if (p === period) {
+                btn.className = "px-3 py-1.5 rounded-lg bg-white text-slate-900 shadow-sm transition";
+            } else {
+                btn.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition";
+            }
+        }
+    });
+
+    if (typeof db === 'undefined' || !db.orders) return;
+
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
+
+    // Helper to calculate start of the week (Sunday/Monday)
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    let totals = {
+        cash: { amount: 0, count: 0 },
+        gcash: { amount: 0, count: 0 },
+        bank: { amount: 0, count: 0 }
+    };
+
+    db.orders.forEach(order => {
+        if (!order || !order.date) return;
+
+        const orderDate = new Date(order.date);
+        const orderDateStr = orderDate.toISOString().slice(0, 10);
+        let matchesFilter = false;
+
+        // Date Filter Logic
+        if (period === 'daily') {
+            matchesFilter = (orderDateStr === todayStr);
+        } else if (period === 'weekly') {
+            matchesFilter = (orderDate >= startOfWeek);
+        } else if (period === 'monthly') {
+            matchesFilter = (orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear());
+        }
+
+        if (matchesFilter) {
+            const method = String(order.paymentMethod || order.payment_method || order.Type || "").toLowerCase();
+            const total = parseFloat(order.totalAmount || order.total || order.GrandTotal || 0) || 0;
+
+            if (method.includes('cash') && !method.includes('g-cash') && !method.includes('gcash')) {
+                totals.cash.amount += total;
+                totals.cash.count++;
+            } else if (method.includes('gcash') || method.includes('g-cash') || method.includes('g cash')) {
+                totals.gcash.amount += total;
+                totals.gcash.count++;
+            } else if (method.includes('bank') || method.includes('transfer') || method.includes('card')) {
+                totals.bank.amount += total;
+                totals.bank.count++;
+            } else {
+                // Default fallback if unspecified cash
+                totals.cash.amount += total;
+                totals.cash.count++;
+            }
+        }
+    });
+
+    // Render calculated totals to cards
+    document.getElementById('payment-cash-total').textContent = `₱${totals.cash.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    document.getElementById('payment-cash-count').textContent = `${totals.cash.count} transaction${totals.cash.count === 1 ? '' : 's'}`;
+
+    document.getElementById('payment-gcash-total').textContent = `₱${totals.gcash.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    document.getElementById('payment-gcash-count').textContent = `${totals.gcash.count} transaction${totals.gcash.count === 1 ? '' : 's'}`;
+
+    document.getElementById('payment-bank-total').textContent = `₱${totals.bank.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    document.getElementById('payment-bank-count').textContent = `${totals.bank.count} transaction${totals.bank.count === 1 ? '' : 's'}`;
+}
+
+// Automatically load daily payment metrics when switching to Analytics view
+document.addEventListener('DOMContentLoaded', () => {
+    filterPaymentMethodSales('daily');
+});
+
+    let paymentChartInstance = null; // Holds the Chart.js instance reference
+
+function updatePaymentMethodChart(totals) {
+    const ctx = document.getElementById('paymentMethodChart');
+    if (!ctx) return;
+
+    // Data for the 3 payment categories
+    const chartData = {
+        labels: ['Revenue Breakdown'],
+        datasets: [
+            {
+                label: 'Cash',
+                data: [totals.cash.amount],
+                backgroundColor: '#f59e0b', // Amber-500
+                borderRadius: 6,
+            },
+            {
+                label: 'GCash',
+                data: [totals.gcash.amount],
+                backgroundColor: '#3b82f6', // Blue-500
+                borderRadius: 6,
+            },
+            {
+                label: 'Bank Transfer',
+                data: [totals.bank.amount],
+                backgroundColor: '#10b981', // Emerald-500
+                borderRadius: 6,
+            }
+        ]
+    };
+
+    // If chart already exists, update its datasets
+    if (paymentChartInstance) {
+        paymentChartInstance.data = chartData;
+        paymentChartInstance.update();
+        return;
+    }
+
+    // Initialize new Stacked Bar Chart instance
+    paymentChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: chartData,
+        options: {
+            indexAxis: 'y', // Horizontal stacked bar chart for clean layout
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        font: { family: 'Inter, sans-serif', size: 12, weight: '600' },
+                        usePointStyle: true,
+                        boxWidth: 8
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const val = context.parsed.x || 0;
+                            return `${context.dataset.label}: ₱${val.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    stacked: true,
+                    grid: { color: '#f1f5f9' },
+                    ticks: {
+                        callback: function(value) {
+                            return '₱' + value.toLocaleString();
+                        }
+                    }
+                },
+                y: {
+                    stacked: true,
+                    grid: { display: false }
+                }
+            }
+        }
+    });
 }
 </script>
 </body>
