@@ -5243,6 +5243,72 @@ function importOfflineQueueFromFile(fileInputEvent) {
 
     reader.readAsText(file);
 }
+    // Function to handle editing a consumable item
+function editConsumable(itemId) {
+    if (typeof db === 'undefined' || !db.consumables) {
+        alert("Database is not loaded yet.");
+        return;
+    }
+
+    // 1. Find the item in the local db
+    const item = db.consumables.find(c => {
+        const id = c.id || c.ItemID || c.Item_ID || c["Item ID"];
+        return id === itemId;
+    });
+
+    if (!item) {
+        alert("Consumable item not found!");
+        return;
+    }
+
+    const currentName = item.name || item.ItemName || item["Consumable Name"] || item.ConsumableName || "";
+    const currentStock = item.stock ?? item.StockLevel ?? item.Stock ?? item["Current Stock"] ?? 0;
+    const currentUnit = item.unit || item.UnitType || item.Unit || item.StockUnit || item["Stock Unit"] || "pcs";
+
+    // 2. Prompt user for updated stock quantity (or replace with your custom modal)
+    const newStockInput = prompt(`Edit Stock Level for ${currentName} (${currentUnit}):`, currentStock);
+
+    // If user clicked cancel
+    if (newStockInput === null) return;
+
+    const newStock = parseFloat(newStockInput);
+    if (isNaN(newStock) || newStock < 0) {
+        alert("Please enter a valid stock number.");
+        return;
+    }
+
+    // 3. Update the item in local DB memory
+    if ('stock' in item) item.stock = newStock;
+    else if ('StockLevel' in item) item.StockLevel = newStock;
+    else if ('Stock' in item) item.Stock = newStock;
+    else item["Current Stock"] = newStock;
+
+    // 4. Re-render table to reflect changes immediately in UI
+    renderConsumables();
+
+    // 5. Save/Sync changes to Google Sheet or Local Queue
+    saveConsumableUpdateToSheet(itemId, item);
+}
+
+// Helper to push update to backend or queue if offline
+async function saveConsumableUpdateToSheet(itemId, updatedItem) {
+    const payload = {
+        action: "updateConsumable",
+        itemId: itemId,
+        updatedData: updatedItem
+    };
+
+    if (typeof sendToSheet === 'function') {
+        const res = await sendToSheet(payload);
+        if (res.status === "OFFLINE") {
+            alert("Updated locally! Sync will happen automatically once online.");
+        } else {
+            console.log("Stock successfully updated on Google Sheet.");
+        }
+    } else {
+        console.warn("sendToSheet helper not found. Updated in memory only.");
+    }
+}
 </script>
 </body>
 </html>
