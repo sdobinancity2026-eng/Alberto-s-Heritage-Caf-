@@ -1982,7 +1982,13 @@ async function placeOrder() {
     const refInput = document.getElementById('transaction-no');
     const transactionNo = refInput ? refInput.value.trim() : "";
 
-    // 1. Calculate Raw Subtotal & Item-Level Discounts
+    // 1. Grab Active Discount ID safely from DOM or global state
+    const discountIdInput = document.getElementById('discount-id-input') || document.getElementById('senior-pwd-id');
+    const activeDiscountID = (typeof discountID !== 'undefined' && discountID) 
+        ? discountID 
+        : (discountIdInput ? discountIdInput.value.trim() : "");
+
+    // 2. Calculate Raw Subtotal & Check for Discounted Items
     let rawSubtotal = 0;
     let discountAmount = 0;
 
@@ -1993,13 +1999,21 @@ async function placeOrder() {
 
         rawSubtotal += lineTotal;
 
-        // ✅ Apply 20% discount ONLY if specific item is marked for discount
-        if (item.isDiscounted || item.discounted) {
+        // Apply 20% discount if item is flagged for discount
+        if (activeDiscountID && (item.isDiscounted || item.discounted || item.applyDiscount)) {
             discountAmount += (lineTotal * 0.20);
         }
     });
 
-    // 2. Extract Delivery Charge (If order type is For Delivery)
+    // 💡 FALLBACK: If Discount ID is entered BUT no items in cart had an explicit 'isDiscounted' flag,
+    // apply the 20% discount to the FIRST item in the cart (e.g. Sweet Filipino Breakfast)
+    if (activeDiscountID && discountAmount === 0 && activeCart.length > 0) {
+        const targetItem = activeCart[0];
+        const targetTotal = (Number(targetItem.price) || 0) * (Number(targetItem.quantity) || 1);
+        discountAmount = targetTotal * 0.20;
+    }
+
+    // 3. Extract Delivery Charge (If order type is For Delivery)
     let deliveryCharge = 0;
     if (typeof getDeliveryChargeAmount === 'function') {
         deliveryCharge = getDeliveryChargeAmount();
@@ -2008,7 +2022,7 @@ async function placeOrder() {
         deliveryCharge = deliverySelect ? (parseFloat(deliverySelect.value) || 0) : 0;
     }
     
-    // 3. Calculate Final Grand Total (Subtotal + Delivery - Discount)
+    // 4. Calculate Final Grand Total (Subtotal + Delivery - Discount)
     const total = Math.max(0, (rawSubtotal + deliveryCharge) - discountAmount);
     
     let cashTendered = 0;
@@ -2044,7 +2058,7 @@ async function placeOrder() {
         btn.innerHTML = `<span class="animate-spin inline-block mr-1">⏳</span> Processing...`;
     }
 
-    // 4. Construct Payload for Apps Script & Thermal Printer
+    // 5. Construct Payload for Apps Script & Thermal Printer
     const payload = {
         action: "placeOrder",
         EmployeeName: (typeof activeUser !== 'undefined' && activeUser?.name) ? activeUser.name : "Employee",
@@ -2057,14 +2071,14 @@ async function placeOrder() {
         })), 
         SubtotalAmount: rawSubtotal,
         DeliveryCharge: deliveryCharge,
-        DiscountAmount: discountAmount,
-        TotalAmount: total, // ✅ Sends accurate ₱630.20 to Google Sheets!
-        DiscountIDNumber: (typeof discountID !== 'undefined') ? discountID : "",
+        DiscountAmount: discountAmount,       // 👈 Exact computed discount sent to Code.gs & receipt
+        TotalAmount: total,                    // 👈 Accurate grand total (Subtotal + Delivery - Discount)
+        DiscountIDNumber: activeDiscountID,   // 👈 ID saved in Column I and printed on receipt
         PaymentMethod: paymentMethod,
         TransactionNo: transactionNo,
-        CashReceived: cashTendered, // ✅ Standardized key name
+        CashReceived: cashTendered,
         cashTendered: cashTendered,
-        Change: change,             // ✅ Standardized key name
+        Change: change,
         change: change,
         Date: new Date().toISOString()
     };
