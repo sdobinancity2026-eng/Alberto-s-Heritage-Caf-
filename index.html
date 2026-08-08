@@ -2956,29 +2956,44 @@ function populateEditForm() {
 async function submitProductUpdate() {
     // 1. Validate Form Fields & Element Existence
     const selectEl = document.getElementById('edit-select-prod');
+    const hiddenIdEl = document.getElementById('edit-prod-id') || document.getElementById('edit-inv-id');
     const nameEl = document.getElementById('edit-inv-name');
     const catEl = document.getElementById('edit-inv-cat');
     const priceEl = document.getElementById('edit-inv-price');
     const stockEl = document.getElementById('edit-inv-stock');
 
-    if (!selectEl || !nameEl || !catEl || !priceEl || !stockEl) {
+    if (!nameEl || !catEl || !priceEl || !stockEl) {
         console.error("One or more form elements are missing in the DOM.");
         if (typeof showToast === 'function') showToast("Form elements not found!", "error");
         return;
     }
 
-    const id = selectEl.value;
     const name = nameEl.value.trim();
     const category = catEl.value.trim();
     const price = Number(priceEl.value);
     const stock = Number(stockEl.value);
 
+    // 2. Multi-Fallback ID Resolution (Dropdown -> Hidden ID Field -> Search Match in Global Inventory)
+    let id = (selectEl ? selectEl.value : "") || (hiddenIdEl ? hiddenIdEl.value : "");
+
+    // Fallback: If ID is still empty, search for product ID by matching name from global dataset
+    if (!id && name) {
+        const productList = (typeof inventory !== 'undefined' && Array.isArray(inventory)) 
+            ? inventory 
+            : ((typeof menuData !== 'undefined' && Array.isArray(menuData)) ? menuData : []);
+        
+        const match = productList.find(p => (p.name || p.ItemName || "").toLowerCase() === name.toLowerCase());
+        if (match) {
+            id = match.id || match.ID || match.code || match.ItemCode;
+        }
+    }
+
     if (!id) {
-        if (typeof showToast === 'function') showToast("Please select a product to update.", "warning");
+        if (typeof showToast === 'function') showToast("Product ID not found. Please select or search a valid product.", "warning");
         return;
     }
 
-    // 2. Check API Endpoint
+    // 3. Check API Endpoint
     const targetUrl = (typeof API_URL !== 'undefined' && API_URL) ? API_URL : ((typeof SCRIPT_URL !== 'undefined') ? SCRIPT_URL : "");
     if (!targetUrl) {
         console.error("API_URL / SCRIPT_URL is not defined!");
@@ -2986,7 +3001,7 @@ async function submitProductUpdate() {
         return;
     }
 
-    // 3. UI Button Loading State Feedback
+    // 4. UI Button Loading State Feedback
     const btn = document.querySelector('button[onclick*="submitProductUpdate"]');
     let originalText = "Commit Database Updates";
     if (btn) {
@@ -2999,7 +3014,7 @@ async function submitProductUpdate() {
     const payload = { action: "updateProduct", id, name, category, price, stock };
 
     try {
-        // 4. Send POST request with text/plain header to bypass CORS issues on Apps Script
+        // 5. Send POST request
         const response = await fetch(targetUrl, { 
             method: "POST", 
             mode: "cors",
@@ -3012,7 +3027,6 @@ async function submitProductUpdate() {
         if (res.status === "SUCCESS") {
             if (typeof showToast === 'function') showToast("Metadata committed successfully.", "success");
             
-            // Safe calls to refresh UI
             if (typeof fetchAllData === 'function') await fetchAllData();
             if (typeof renderMenu === 'function') renderMenu();
             if (typeof navigateView === 'function') navigateView('register');
@@ -3024,7 +3038,7 @@ async function submitProductUpdate() {
         console.error("Update Product Error:", e);
         if (typeof showToast === 'function') showToast("Product updates failed: Network Error", "error"); 
     } finally {
-        // 5. Restore Button State
+        // 6. Restore Button State
         if (btn) {
             btn.disabled = false;
             btn.classList.remove('opacity-60', 'cursor-not-allowed');
