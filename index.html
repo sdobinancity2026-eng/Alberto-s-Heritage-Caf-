@@ -1982,9 +1982,23 @@ async function placeOrder() {
     const refInput = document.getElementById('transaction-no');
     const transactionNo = refInput ? refInput.value.trim() : "";
 
-    // 1. Calculate Raw Subtotal
-    let rawSubtotal = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    
+    // 1. Calculate Raw Subtotal & Item-Level Discounts
+    let rawSubtotal = 0;
+    let discountAmount = 0;
+
+    activeCart.forEach(item => {
+        const qty = Number(item.quantity) || 1;
+        const price = Number(item.price) || 0;
+        const lineTotal = price * qty;
+
+        rawSubtotal += lineTotal;
+
+        // ✅ Apply 20% discount ONLY if specific item is marked for discount
+        if (item.isDiscounted || item.discounted) {
+            discountAmount += (lineTotal * 0.20);
+        }
+    });
+
     // 2. Extract Delivery Charge (If order type is For Delivery)
     let deliveryCharge = 0;
     if (typeof getDeliveryChargeAmount === 'function') {
@@ -1993,14 +2007,8 @@ async function placeOrder() {
         const deliverySelect = document.getElementById('delivery-charge-select');
         deliveryCharge = deliverySelect ? (parseFloat(deliverySelect.value) || 0) : 0;
     }
-
-    // 3. Calculate Senior / PWD Discount (20%)
-    let discountAmount = 0;
-    if (typeof discountID !== 'undefined' && discountID) {
-        discountAmount = activeCart.reduce((sum, item) => sum + ((item.price * item.quantity) * 0.20), 0);
-    }
     
-    // 4. Calculate Final Grand Total (Subtotal + Delivery - Discount)
+    // 3. Calculate Final Grand Total (Subtotal + Delivery - Discount)
     const total = Math.max(0, (rawSubtotal + deliveryCharge) - discountAmount);
     
     let cashTendered = 0;
@@ -2036,7 +2044,7 @@ async function placeOrder() {
         btn.innerHTML = `<span class="animate-spin inline-block mr-1">⏳</span> Processing...`;
     }
 
-    // 5. Construct Payload for Apps Script & Thermal Printer
+    // 4. Construct Payload for Apps Script & Thermal Printer
     const payload = {
         action: "placeOrder",
         EmployeeName: (typeof activeUser !== 'undefined' && activeUser?.name) ? activeUser.name : "Employee",
@@ -2048,13 +2056,15 @@ async function placeOrder() {
             printedQty: item.printedQty || 0 
         })), 
         SubtotalAmount: rawSubtotal,
-        DeliveryCharge: deliveryCharge, // 👈 ADDED DELIVERY FEE TO PAYLOAD
+        DeliveryCharge: deliveryCharge,
         DiscountAmount: discountAmount,
-        TotalAmount: total,
+        TotalAmount: total, // ✅ Sends accurate ₱630.20 to Google Sheets!
         DiscountIDNumber: (typeof discountID !== 'undefined') ? discountID : "",
         PaymentMethod: paymentMethod,
         TransactionNo: transactionNo,
+        CashReceived: cashTendered, // ✅ Standardized key name
         cashTendered: cashTendered,
+        Change: change,             // ✅ Standardized key name
         change: change,
         Date: new Date().toISOString()
     };
@@ -2078,7 +2088,7 @@ async function placeOrder() {
 
         if (orderTypeSelect) {
             orderTypeSelect.value = "Dine In";
-            if (typeof toggleDeliveryCharge === 'function') toggleDeliveryCharge(); // Reset delivery field visibility
+            if (typeof toggleDeliveryCharge === 'function') toggleDeliveryCharge();
         }
         
         if (typeof currentHeldOrderId !== 'undefined' && currentHeldOrderId) {
@@ -2225,7 +2235,10 @@ function printThermalReceipt(payload, serverOrderId) {
 
     const itemsList = payload.ItemsOrdered || payload.items || [];
     
-    // Process items and extract nested selections
+    let calculatedSubtotal = 0;
+    let calculatedDiscount = 0;
+
+    // Process items, calculate per-item price and item-specific discounts
     const itemLines = itemsList.map(item => {
         const rawName = item.name || item.ItemName || "";
         let mainTitle = rawName;
@@ -2248,12 +2261,25 @@ function printThermalReceipt(payload, serverOrderId) {
             }
         }
 
-        const formattedTitle = mainTitle.padEnd(14, ' ').substring(0, 14);
-        const qty = item.quantity.toString().padStart(5, ' ');
-        const priceVal = Number(item.price || item.Price || 0) * Number(item.quantity);
-        const formattedPrice = `₱${priceVal.toFixed(2)}`.padStart(11, ' ');
+        const qty = Number(item.quantity) || 1;
         
-        let line = `${formattedTitle}${qty}${formattedPrice}`;
+        // Check for item original vs discounted price
+        const originalUnitPrice = Number(item.originalPrice || item.price || item.Price || 0);
+        const actualUnitPrice = (item.isDiscounted || item.discounted) 
+            ? (originalUnitPrice * 0.80) 
+            : originalUnitPrice;
+
+        const originalItemTotal = originalUnitPrice * qty;
+        const actualItemTotal = actualUnitPrice * qty;
+
+        calculatedSubtotal += originalItemTotal;
+        calculatedDiscount += (originalItemTotal - actualItemTotal);
+
+        const formattedTitle = mainTitle.padEnd(14, ' ').substring(0, 14);
+        const formattedQty = qty.toString().padStart(5, ' ');
+        const formattedPrice = `₱${originalItemTotal.toFixed(2)}`.padStart(11, ' ');
+        
+        let line = `${formattedTitle}${formattedQty}${formattedPrice}`;
 
         if (selections && selections.length > 0) {
             const dishLines = selections.map(dish => `   - ${dish}`).join('\n');
@@ -2264,26 +2290,26 @@ function printThermalReceipt(payload, serverOrderId) {
     }).join('\n');
 
     const finalOrderId = serverOrderId || ("ORD-" + Date.now());
-    const subtotalAmount = Number(payload.SubtotalAmount || payload.subtotal || 0);
-    const discountAmount = Number(payload.DiscountAmount || payload.discount || 0);
-    const deliveryCharge = Number(payload.DeliveryCharge || payload.deliveryCharge || getDeliveryChargeAmount() || 0);
-    const totalAmount = Number(payload.TotalAmount || payload.total || 0).toFixed(2);
+    const deliveryCharge = Number(payload.DeliveryCharge || payload.deliveryCharge || (typeof getDeliveryChargeAmount === 'function' ? getDeliveryChargeAmount() : 0));
     
-    const paymentMethod = payload.PaymentMethod || "Cash";
-    const transactionNo = payload.TransactionNo || "";
-    const discountIdNo = payload.DiscountIDNumber || "";
+    // Final grand total calculation
+    const grandTotal = Math.max(0, (calculatedSubtotal + deliveryCharge) - calculatedDiscount);
 
-    const formattedSubtotal = `₱${subtotalAmount.toFixed(2)}`.padStart(11, ' ');
-    const formattedDiscount = `-₱${discountAmount.toFixed(2)}`.padStart(11, ' ');
+    const paymentMethod = payload.PaymentMethod || payload.paymentMethod || "Cash";
+    const transactionNo = payload.TransactionNo || payload.transactionNo || "";
+    const discountIdNo = payload.DiscountIDNumber || payload.discountID || document.getElementById('discount-id-input')?.value || "";
+
+    const formattedSubtotal = `₱${calculatedSubtotal.toFixed(2)}`.padStart(11, ' ');
+    const formattedDiscount = `-₱${calculatedDiscount.toFixed(2)}`.padStart(11, ' ');
     const formattedDelivery = `₱${deliveryCharge.toFixed(2)}`.padStart(11, ' ');
-    const formattedTotal = `₱${totalAmount}`.padStart(11, ' ');
+    const formattedTotal = `₱${grandTotal.toFixed(2)}`.padStart(11, ' ');
 
     // Subtotal, Discount & Delivery Line Section
     let calculationsBlock = "";
-    if (discountAmount > 0 || deliveryCharge > 0) {
-        calculationsBlock = `SUBTOTAL:              ${formattedSubtotal}\n`;
+    if (calculatedDiscount > 0 || deliveryCharge > 0) {
+        calculationsBlock = `SUBTOTAL:               ${formattedSubtotal}\n`;
 
-        if (discountAmount > 0) {
+        if (calculatedDiscount > 0) {
             calculationsBlock += `SC/PWD DISC (20%):    ${formattedDiscount}\n`;
             if (discountIdNo) {
                 calculationsBlock += `SC/PWD ID NO:         ${discountIdNo}\n`;
@@ -2297,15 +2323,22 @@ function printThermalReceipt(payload, serverOrderId) {
         calculationsBlock += `--------------------------------\n`;
     }
 
-    // Payment details formatting
+    // Cash Tendered & Change Formatting (Extracts from DOM if payload property is missing)
     let paymentDetailsBlock = "";
-    if (paymentMethod === "Cash") {
-        const cashReceived = Number(payload.cashTendered || 0).toFixed(2);
-        const changeDue = Number(payload.change || 0).toFixed(2);
+    if (paymentMethod.toLowerCase() === "cash") {
+        const cashInput = document.getElementById('cash-tendered') || document.getElementById('cash-received-input');
+        const rawCash = payload.CashReceived || payload.cashTendered || payload.cash || (cashInput ? cashInput.value : 0);
+        
+        const cashReceived = Number(rawCash) || 0;
+        const changeDue = Math.max(0, cashReceived - grandTotal);
+
+        const formattedCash = `₱${cashReceived.toFixed(2)}`.padStart(11, ' ');
+        const formattedChange = `₱${changeDue.toFixed(2)}`.padStart(11, ' ');
+
         paymentDetailsBlock = `
 PAYMENT METHOD:        CASH
-CASH RECEIVED:        ${`₱${cashReceived}`.padStart(11, ' ')}
-CHANGE:                ${`₱${changeDue}`.padStart(11, ' ')}`;
+CASH RECEIVED:        ${formattedCash}
+CHANGE:                ${formattedChange}`;
     } else {
         paymentDetailsBlock = `
 PAYMENT METHOD:        ${paymentMethod.toUpperCase()}
@@ -2341,11 +2374,11 @@ Staff: ${payload.EmployeeName || (typeof activeUser !== 'undefined' && activeUse
 Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
 Order ID: ${finalOrderId}
 --------------------------------
-Items         Qty       Price
+Items         Qty     Price
 --------------------------------
 ${itemLines}
 --------------------------------
-${calculationsBlock}TOTAL:                ${formattedTotal}
+${calculationsBlock}TOTAL:                 ${formattedTotal}
 ================================${paymentDetailsBlock}
 ================================
 National Highway 
@@ -2368,7 +2401,6 @@ Contact us at: 0969 299 2006
         setTimeout(() => window.print(), 100);
     }
 }
-
 // ==========================================
 // 1. UPDATED KITCHEN ORDER TICKET (KOT)
 // ==========================================
