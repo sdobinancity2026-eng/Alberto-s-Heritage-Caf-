@@ -3262,12 +3262,25 @@ function renderCharts() {
 /**
  * Helper function to update payment method DOM elements safely
  */
-function updatePaymentCard(type, total, count) {
-    const totalEl = document.getElementById(`${type}-total-amount`) || document.getElementById(`pay-${type}-total`);
-    const countEl = document.getElementById(`${type}-transaction-count`) || document.getElementById(`pay-${type}-count`);
+function updatePaymentCard(type, amount, count) {
+    const cardMap = {
+        'cash': { amountId: 'cash-sales-amount', countId: 'cash-sales-count' },
+        'gcash': { amountId: 'gcash-sales-amount', countId: 'gcash-sales-count' },
+        'bank': { amountId: 'bank-sales-amount', countId: 'bank-sales-count' }
+    };
 
-    if (totalEl) totalEl.innerText = `₱${total.toFixed(2)}`;
-    if (countEl) countEl.innerText = `${count} Transactions`;
+    const target = cardMap[type.toLowerCase()];
+    if (!target) return;
+
+    const amountEl = document.getElementById(target.amountId);
+    const countEl = document.getElementById(target.countId);
+
+    if (amountEl) {
+        amountEl.innerText = `₱${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    if (countEl) {
+        countEl.innerText = `${count} transactions`;
+    }
 }
 window.onload = initApp;
 
