@@ -5785,7 +5785,44 @@ function getDeliveryChargeAmount() {
     }
     return 0;
 }
+function calculatePaymentMethodTotals(orders) {
+    let cashTotal = 0, cashCount = 0;
+    let gcashTotal = 0, gcashCount = 0;
+    let bankTotal = 0, bankCount = 0;
 
+    orders.forEach(order => {
+        // Parse total amount safely
+        const total = parseFloat(order.TotalAmount || order.total || 0) || 0;
+        
+        // Normalize payment method string (lowercase, trimmed)
+        const method = (order.PaymentMethod || order.paymentMethod || '').toString().toLowerCase().trim();
+
+        if (method === 'cash') {
+            cashTotal += total;
+            cashCount++;
+        } else if (method === 'gcash') {
+            gcashTotal += total;
+            gcashCount++;
+        } else if (method.includes('bank')) { // Catches 'Bank Transfer', 'banktransfer', 'Bank', etc.
+            bankTotal += total;
+            bankCount++;
+        }
+    });
+
+    // Update UI Cards
+    updatePaymentCard('cash', cashTotal, cashCount);
+    updatePaymentCard('gcash', gcashTotal, gcashCount);
+    updatePaymentCard('bank', bankTotal, bankCount);
+}
+
+function updatePaymentCard(type, total, count) {
+    // Select elements based on your DOM naming convention
+    const totalEl = document.getElementById(`${type}-total-amount`);
+    const countEl = document.getElementById(`${type}-transaction-count`);
+
+    if (totalEl) totalEl.innerText = `₱${total.toFixed(2)}`;
+    if (countEl) countEl.innerText = `${count} Transactions`;
+}
 
 </script>
 </body>
