@@ -2954,24 +2954,83 @@ function populateEditForm() {
 }
 
 async function submitProductUpdate() {
-    const id = document.getElementById('edit-select-prod').value;
-    const name = document.getElementById('edit-inv-name').value.trim();
-    const category = document.getElementById('edit-inv-cat').value.trim();
-    const price = Number(document.getElementById('edit-inv-price').value);
-    const stock = Number(document.getElementById('edit-inv-stock').value);
+    // 1. Validate Form Fields & Element Existence
+    const selectEl = document.getElementById('edit-select-prod');
+    const nameEl = document.getElementById('edit-inv-name');
+    const catEl = document.getElementById('edit-inv-cat');
+    const priceEl = document.getElementById('edit-inv-price');
+    const stockEl = document.getElementById('edit-inv-stock');
+
+    if (!selectEl || !nameEl || !catEl || !priceEl || !stockEl) {
+        console.error("One or more form elements are missing in the DOM.");
+        if (typeof showToast === 'function') showToast("Form elements not found!", "error");
+        return;
+    }
+
+    const id = selectEl.value;
+    const name = nameEl.value.trim();
+    const category = catEl.value.trim();
+    const price = Number(priceEl.value);
+    const stock = Number(stockEl.value);
+
+    if (!id) {
+        if (typeof showToast === 'function') showToast("Please select a product to update.", "warning");
+        return;
+    }
+
+    // 2. Check API Endpoint
+    const targetUrl = (typeof API_URL !== 'undefined' && API_URL) ? API_URL : ((typeof SCRIPT_URL !== 'undefined') ? SCRIPT_URL : "");
+    if (!targetUrl) {
+        console.error("API_URL / SCRIPT_URL is not defined!");
+        if (typeof showToast === 'function') showToast("API URL missing!", "error");
+        return;
+    }
+
+    // 3. UI Button Loading State Feedback
+    const btn = document.querySelector('button[onclick*="submitProductUpdate"]');
+    let originalText = "Commit Database Updates";
+    if (btn) {
+        originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.classList.add('opacity-60', 'cursor-not-allowed');
+        btn.innerHTML = `<span class="animate-spin inline-block mr-1">⏳</span> Committing...`;
+    }
 
     const payload = { action: "updateProduct", id, name, category, price, stock };
 
     try {
-        const response = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+        // 4. Send POST request with text/plain header to bypass CORS issues on Apps Script
+        const response = await fetch(targetUrl, { 
+            method: "POST", 
+            mode: "cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(payload) 
+        });
+
         const res = await response.json();
+
         if (res.status === "SUCCESS") {
-            showToast("Metadata committed successfully.");
-            await fetchAllData();
-            renderMenu();
-            navigateView('register');
+            if (typeof showToast === 'function') showToast("Metadata committed successfully.", "success");
+            
+            // Safe calls to refresh UI
+            if (typeof fetchAllData === 'function') await fetchAllData();
+            if (typeof renderMenu === 'function') renderMenu();
+            if (typeof navigateView === 'function') navigateView('register');
+        } else {
+            console.error("Server returned error:", res);
+            if (typeof showToast === 'function') showToast("Failed: " + (res.message || "Unknown error"), "error");
         }
-    } catch(e) { showToast("Product updates failed.", "error"); }
+    } catch(e) { 
+        console.error("Update Product Error:", e);
+        if (typeof showToast === 'function') showToast("Product updates failed: Network Error", "error"); 
+    } finally {
+        // 5. Restore Button State
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-60', 'cursor-not-allowed');
+            btn.innerHTML = originalText;
+        }
+    }
 }
 
 let basketTotalSum = 0; // Tracking variable for basket totals
