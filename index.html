@@ -2099,46 +2099,50 @@ async function placeOrder() {
     }
 }
 // Helper function to safely update your frontend database array
-function deductLocalStock(itemsInCart) {
-    if (typeof db === 'undefined' || !itemsInCart || itemsInCart.length === 0) return;
+function deductLocalStock(itemsToDeduct) {
+    if (!itemsToDeduct || !Array.isArray(itemsToDeduct)) return;
 
-    // 1. Target local stock storage (handles both db.inventory and db.menu)
-    const menuList = db.inventory || db.menu || [];
+    itemsToDeduct.forEach(orderedItem => {
+        const qtyOrdered = Number(orderedItem.quantity || orderedItem.printQty || 0);
+        const itemId = String(orderedItem.id || "");
+        const itemName = (orderedItem.name || "").toLowerCase().trim();
 
-    if (menuList.length > 0) {
-        itemsInCart.forEach(orderedItem => {
-            const orderedId = String(orderedItem.id || orderedItem.ItemID);
+        // 1. Deduct Main Menu Item Stock
+        if (typeof db !== 'undefined' && db.inventory) {
+            const menuItem = db.inventory.find(i => 
+                (i.id && String(i.id) === itemId) || 
+                (i.name && i.name.toLowerCase().trim() === itemName)
+            );
+            if (menuItem && menuItem.stock !== undefined) {
+                menuItem.stock = Math.max(0, menuItem.stock - qtyOrdered);
+            }
+        }
 
-            // Find matching menu item in local memory
-            const localItem = menuList.find(item => 
-                String(item.id || item.ItemID) === orderedId
+        // 2. Lookup Recipe and Deduct Consumables
+        if (typeof db !== 'undefined' && db.recipes && db.consumables) {
+            // Find all ingredients for this menu item in local recipes
+            const matchingRecipes = db.recipes.filter(r => 
+                (r.MenuItemID && String(r.MenuItemID) === itemId) ||
+                (r.MenuName && r.MenuName.toLowerCase().trim() === itemName)
             );
 
-            if (localItem) {
-                // Safely parse current stock quantity across potential naming conventions
-                const currentStock = parseInt(
-                    localItem.stock ?? localItem.Stock ?? localItem.StockQuantity ?? 0, 
-                    10
+            matchingRecipes.forEach(recipe => {
+                const conItem = db.consumables.find(c => 
+                    (recipe.ConsumableID && String(c.id) === String(recipe.ConsumableID)) || 
+                    (recipe.ConsumableName && c.name.toLowerCase().trim() === recipe.ConsumableName.toLowerCase().trim())
                 );
-                
-                const newStock = Math.max(0, currentStock - orderedItem.quantity);
 
-                // Update all property variations so any renderer picks up the new value
-                localItem.stock = newStock;
-                localItem.Stock = newStock;
-                localItem.StockQuantity = newStock;
-            }
-        });
-
-        // 2. Refresh UI cards instantly based on whichever render function your POS uses
-        if (typeof renderMenu === 'function') {
-            renderMenu();
-        } else if (typeof displayMenu === 'function') {
-            displayMenu();
-        } else if (typeof renderProducts === 'function') {
-            renderProducts();
+                if (conItem && conItem.stock !== undefined) {
+                    const qtyPerOrder = Number(recipe.QtyPerOrder || 1);
+                    conItem.stock = Math.max(0, conItem.stock - (qtyPerOrder * qtyOrdered));
+                }
+            });
         }
-    }
+    });
+
+    // Re-render views
+    if (typeof renderMenu === 'function') renderMenu();
+    if (typeof renderConsumables === 'function') renderConsumables();
 }
     // Clean UI after successful printing (either online or offline)
     function finalizeLocalCheckout() {
@@ -3291,7 +3295,9 @@ function getNextConsumableID() {
     return "CO" + String(maxNum + 1).padStart(4, '0');
 }
 
-// Send the newly tracked raw item to Google Sheets database
+// Keep track of edited item ID globally (null = creating new item)
+let editingConsumableId = null; 
+
 async function submitNewConsumable() {
     const name = document.getElementById('con-name').value.trim();
     const stock = parseInt(document.getElementById('con-stock').value, 10);
@@ -3302,11 +3308,11 @@ async function submitNewConsumable() {
         return;
     }
 
-    const nextId = getNextConsumableID();
-
+    // Prepare payload. 
+    // If editing, pass the existing ID. If NEW, omit the ID so Apps Script auto-generates C0000X.
     const payload = {
         action: "addConsumable",
-        id: nextId,
+        id: editingConsumableId ? editingConsumableId : "", 
         name: name,
         stock: stock,
         unit: unit
@@ -3322,9 +3328,14 @@ async function submitNewConsumable() {
         const data = await response.json();
 
         if (data.status === "SUCCESS") {
-            showToast("Consumable item added successfully!", "success");
+            const successMessage = editingConsumableId 
+                ? "Consumable updated successfully!" 
+                : `Consumable added! Assigned ID: ${data.id}`;
+                
+            showToast(successMessage, "success");
             closeConsumableModal();
-            // Refetch database to update the view panel list 
+            
+            // Refetch database to sync state
             if (typeof fetchDatabase === 'function') await fetchDatabase();
         } else {
             showToast("Failed to save ingredient: " + data.message, "error");
@@ -3335,7 +3346,46 @@ async function submitNewConsumable() {
     }
 }
 
-// Render dynamic raw ingredient listing
+// Function to populate modal when Edit button is clicked
+function editConsumable(id) {
+    if (!typeof db !== 'undefined' || !db.consumables) return;
+
+    const item = db.consumables.find(c => 
+        (c.id || c.ItemID || c["Item ID"]) === id
+    );
+
+    if (item) {
+        editingConsumableId = id; // Set active ID for edit mode
+        
+        document.getElementById('con-name').value = item.name || item.ConsumableName || '';
+        document.getElementById('con-stock').value = item.stock ?? item.StockLevel ?? 0;
+        document.getElementById('con-unit').value = item.unit || item.StockUnit || 'pcs';
+        
+        // Change Modal Title if needed
+        const modalTitle = document.getElementById('consumable-modal-title');
+        if (modalTitle) modalTitle.innerText = "Edit Raw Consumable";
+
+        openConsumableModal(); // Open your modal wrapper
+    }
+}
+
+// Reset state when closing modal
+function closeConsumableModal() {
+    editingConsumableId = null; // Clear edit state
+    
+    document.getElementById('con-name').value = "";
+    document.getElementById('con-stock').value = "";
+    document.getElementById('con-unit').value = "";
+    
+    const modalTitle = document.getElementById('consumable-modal-title');
+    if (modalTitle) modalTitle.innerText = "Add Raw Consumable";
+
+    // Hide modal logic (e.g., add 'hidden' class)
+    const modal = document.getElementById('consumable-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+// Render dynamic raw ingredient listing (Your render logic - unchanged)
 function renderConsumables() {
     const tbody = document.getElementById('consumables-table-body');
     if (!tbody) return;
@@ -3344,12 +3394,9 @@ function renderConsumables() {
 
     if (typeof db !== 'undefined' && db.consumables && db.consumables.length > 0) {
         db.consumables.forEach(item => {
-            // Safe property checks for all field variations
             const itemId = item.id || item.ItemID || item.Item_ID || item["Item ID"] || "-";
             const itemName = item.name || item.ItemName || item["Consumable Name"] || item.ConsumableName || "-";
             const stockLevel = item.stock ?? item.StockLevel ?? item.Stock ?? item["Current Stock"] ?? 0;
-            
-            // Check all common variations for the Stock Unit column
             const unitType = item.unit || item.UnitType || item.Unit || item.StockUnit || item["Stock Unit"] || "pcs";
 
             const row = document.createElement('tr');
@@ -3359,8 +3406,6 @@ function renderConsumables() {
                 <td class="py-3 px-4 text-slate-800">${itemName}</td>
                 <td class="py-3 px-4 font-semibold text-slate-900">${stockLevel}</td>
                 <td class="py-3 px-4 text-xs text-slate-500">${unitType}</td>
-                
-                <!-- ✏️ ADDED ACTION COLUMN TD -->
                 <td class="py-3 px-4 text-right">
                     <button 
                         type="button" 
@@ -3376,9 +3421,20 @@ function renderConsumables() {
             tbody.appendChild(row);
         });
     } else {
-        // Updated colspan from 4 to 5 to span across all headers including Action
         tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400 text-xs">No consumables currently tracked.</td></tr>`;
     }
+}
+
+    // Example data loading function
+async function loadAppData() {
+    const response = await fetch(SCRIPT_URL + "?action=getInitialData");
+    const data = await response.json();
+    
+    db.inventory = data.inventory || [];
+    db.consumables = data.consumables || [];
+    db.recipes = data.recipes || []; // 👈 Make sure recipes are stored here!
+
+    renderConsumables();
 }
     // Helper to get the active category value
 function getSelectedCategory() {
