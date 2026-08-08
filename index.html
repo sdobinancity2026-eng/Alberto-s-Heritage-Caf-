@@ -333,35 +333,16 @@
         </div>
 
         <!-- Payment Method Selector -->
-<div class="space-y-0.5">
-    <label class="block text-[10px] font-bold text-slate-500 uppercase">Payment Method</label>
-    <select id="payment-method" onchange="handlePaymentMethodChange()" class="w-full rounded-xl border border-slate-200 py-1.5 px-3 text-xs font-bold text-slate-800 bg-white">
-        <option value="Cash">Cash</option>
-        <option value="GCash">GCash</option>
-        <option value="Bank Transfer">Bank Transfer</option>
-    </select>
-</div>
-
-<!-- Cash Tendered Container (Visible for Cash) -->
-<div id="cash-payment-container" class="space-y-0.5">
-    <label class="block text-[10px] font-bold text-slate-500 uppercase">Cash Received</label>
-    <div class="relative rounded-xl shadow-sm">
-        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-            <span class="text-slate-400 font-bold text-sm">₱</span>
+        <div class="space-y-0.5">
+            <label class="block text-[10px] font-bold text-slate-500 uppercase">Payment Method</label>
+            <select id="payment-method" onchange="handlePaymentMethodChange()" class="w-full rounded-xl border border-slate-200 py-1.5 px-3 text-xs font-bold text-slate-800 bg-white">
+                <option value="Cash">Cash</option>
+                <option value="GCash">GCash</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+            </select>
         </div>
-        <input type="number" step="any" min="0" id="cash-tendered" oninput="calculateChange()" placeholder="0.00" 
-               class="w-full rounded-xl border border-slate-200 py-1.5 pl-7 pr-3 text-sm font-bold font-mono">
-    </div>
-</div>
 
-<!-- 🆕 Transaction / Reference No. Container (Hidden by Default) -->
-<div id="reference-no-container" class="space-y-0.5 hidden">
-    <label id="ref-label" class="block text-[10px] font-bold text-slate-500 uppercase">Reference / Ref No.</label>
-    <input type="text" id="transaction-no" placeholder="e.g. 1002938481" 
-           class="w-full rounded-xl border border-slate-200 py-1.5 px-3 text-xs font-bold text-slate-800 bg-white focus:ring-2 focus:ring-amber-800 focus:outline-none">
-</div>
-
-        <!-- Cash Tendered -->
+        <!-- 1. Cash Tendered Container -->
         <div id="cash-payment-container" class="space-y-0.5">
             <label class="block text-[10px] font-bold text-slate-500 uppercase">Cash Received</label>
             <div class="relative rounded-xl shadow-sm">
@@ -371,6 +352,19 @@
                 <input type="number" step="any" min="0" id="cash-tendered" oninput="calculateChange()" placeholder="0.00" 
                        class="w-full rounded-xl border border-slate-200 py-1.5 pl-7 pr-3 text-sm font-bold font-mono">
             </div>
+        </div>
+
+        <!-- 2. Digital Payment Container (Hidden by Default) -->
+        <div id="digital-payment-container" class="space-y-0.5 hidden">
+            <label id="reference-no-label" class="block text-[10px] font-bold text-slate-500 uppercase">GCash Ref / Trans No.</label>
+            <input type="text" id="transaction-no" placeholder="e.g. 1002938481" 
+                   class="w-full rounded-xl border border-slate-200 py-1.5 px-3 text-xs font-bold text-slate-800 bg-white focus:ring-2 focus:ring-amber-800 focus:outline-none">
+        </div>
+
+        <!-- 3. Change Due Container -->
+        <div id="change-due-container" class="flex justify-between items-center text-xs font-bold text-slate-600 pt-1">
+            <span>Change Due:</span>
+            <span id="change-amount" class="font-mono text-slate-800">₱0.00</span>
         </div>
 
         <button onclick="placeOrder()" class="w-full bg-amber-800 text-white font-bold py-3 rounded-xl hover:bg-amber-900 transition-all shadow-md">
