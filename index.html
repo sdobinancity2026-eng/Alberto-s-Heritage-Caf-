@@ -2236,9 +2236,8 @@ function printThermalReceipt(payload, serverOrderId) {
     const itemsList = payload.ItemsOrdered || payload.items || [];
     
     let calculatedSubtotal = 0;
-    let calculatedDiscount = 0;
 
-    // Process items, calculate per-item price and item-specific discounts
+    // Process items list
     const itemLines = itemsList.map(item => {
         const rawName = item.name || item.ItemName || "";
         let mainTitle = rawName;
@@ -2262,18 +2261,10 @@ function printThermalReceipt(payload, serverOrderId) {
         }
 
         const qty = Number(item.quantity) || 1;
-        
-        // Check for item original vs discounted price
-        const originalUnitPrice = Number(item.originalPrice || item.price || item.Price || 0);
-        const actualUnitPrice = (item.isDiscounted || item.discounted) 
-            ? (originalUnitPrice * 0.80) 
-            : originalUnitPrice;
-
+        const originalUnitPrice = Number(item.price || item.Price || 0);
         const originalItemTotal = originalUnitPrice * qty;
-        const actualItemTotal = actualUnitPrice * qty;
 
         calculatedSubtotal += originalItemTotal;
-        calculatedDiscount += (originalItemTotal - actualItemTotal);
 
         const formattedTitle = mainTitle.padEnd(14, ' ').substring(0, 14);
         const formattedQty = qty.toString().padStart(5, ' ');
@@ -2290,26 +2281,31 @@ function printThermalReceipt(payload, serverOrderId) {
     }).join('\n');
 
     const finalOrderId = serverOrderId || ("ORD-" + Date.now());
+
+    // 1. SAFELY READ ALL NUMERIC VALUES FROM PAYLOAD
+    const subtotalAmount = Number(payload.SubtotalAmount || payload.subtotal || calculatedSubtotal);
+    const discountAmount = Number(payload.DiscountAmount || payload.discount || 0);
     const deliveryCharge = Number(payload.DeliveryCharge || payload.deliveryCharge || (typeof getDeliveryChargeAmount === 'function' ? getDeliveryChargeAmount() : 0));
     
-    // Final grand total calculation
-    const grandTotal = Math.max(0, (calculatedSubtotal + deliveryCharge) - calculatedDiscount);
+    // Explicitly calculate Grand Total from Subtotal + Delivery - Discount
+    const grandTotal = Number(payload.TotalAmount || payload.total || Math.max(0, (subtotalAmount + deliveryCharge) - discountAmount));
 
     const paymentMethod = payload.PaymentMethod || payload.paymentMethod || "Cash";
     const transactionNo = payload.TransactionNo || payload.transactionNo || "";
-    const discountIdNo = payload.DiscountIDNumber || payload.discountID || document.getElementById('discount-id-input')?.value || "";
+    const discountIdNo = payload.DiscountIDNumber || payload.discountID || (typeof discountID !== 'undefined' ? discountID : "");
 
-    const formattedSubtotal = `₱${calculatedSubtotal.toFixed(2)}`.padStart(11, ' ');
-    const formattedDiscount = `-₱${calculatedDiscount.toFixed(2)}`.padStart(11, ' ');
+    // 2. FORMAT MONETARY VALUES FOR THERMAL ALIGNMENT
+    const formattedSubtotal = `₱${subtotalAmount.toFixed(2)}`.padStart(11, ' ');
+    const formattedDiscount = `-₱${discountAmount.toFixed(2)}`.padStart(11, ' ');
     const formattedDelivery = `₱${deliveryCharge.toFixed(2)}`.padStart(11, ' ');
     const formattedTotal = `₱${grandTotal.toFixed(2)}`.padStart(11, ' ');
 
-    // Subtotal, Discount & Delivery Line Section
+    // 3. FORCE CALCULATIONS BLOCK IF DISCOUNT / DELIVERY / DISCOUNT ID EXISTS
     let calculationsBlock = "";
-    if (calculatedDiscount > 0 || deliveryCharge > 0) {
+    if (discountAmount > 0 || deliveryCharge > 0 || discountIdNo) {
         calculationsBlock = `SUBTOTAL:               ${formattedSubtotal}\n`;
 
-        if (calculatedDiscount > 0) {
+        if (discountAmount > 0 || discountIdNo) {
             calculationsBlock += `SC/PWD DISC (20%):    ${formattedDiscount}\n`;
             if (discountIdNo) {
                 calculationsBlock += `SC/PWD ID NO:         ${discountIdNo}\n`;
@@ -2323,14 +2319,14 @@ function printThermalReceipt(payload, serverOrderId) {
         calculationsBlock += `--------------------------------\n`;
     }
 
-    // Cash Tendered & Change Formatting (Extracts from DOM if payload property is missing)
+    // 4. CASH & CHANGE DETAILS
     let paymentDetailsBlock = "";
     if (paymentMethod.toLowerCase() === "cash") {
         const cashInput = document.getElementById('cash-tendered') || document.getElementById('cash-received-input');
         const rawCash = payload.CashReceived || payload.cashTendered || payload.cash || (cashInput ? cashInput.value : 0);
         
         const cashReceived = Number(rawCash) || 0;
-        const changeDue = Math.max(0, cashReceived - grandTotal);
+        const changeDue = Number(payload.Change || payload.change || Math.max(0, cashReceived - grandTotal));
 
         const formattedCash = `₱${cashReceived.toFixed(2)}`.padStart(11, ' ');
         const formattedChange = `₱${changeDue.toFixed(2)}`.padStart(11, ' ');
