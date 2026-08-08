@@ -1264,16 +1264,17 @@ async function fetchAllData() {
 }
 
     // Safe JSON Parsing helper to protect reprint flows
-    function safeParseJSON(data) {
-        if (!data) return [];
-        if (typeof data === 'object') return data;
-        try {
-            return JSON.parse(data);
-        } catch (e) {
-            console.error("JSON Parsing failed for data:", data, e);
-            return [];
-        }
+   function safeParseJSON(data) {
+    if (!data) return [];
+    if (typeof data === 'object') return data; // Already an object/array
+
+    try {
+        return JSON.parse(data);
+    } catch (e) {
+        // If it's a plain string (like "Dine In" or "For Delivery"), return fallback empty array
+        return [];
     }
+}
 
     // Modern UI Toast Engine
     function showToast(message, type = "success") {
@@ -3067,14 +3068,54 @@ function reprintOrder(id) {
 
 function renderCharts() {
     const categories = {};
-    db.orders.forEach(o => {
-        const items = safeParseJSON(o.ItemsOrdered);
-        items.forEach(i => {
-            const catName = i.Category || i.category || "General";
-            categories[catName] = (categories[catName] || 0) + (Number(i.price) * Number(i.quantity));
-        });
+
+    // Tracking variables for Payment Method Totals
+    let cashTotal = 0, cashCount = 0;
+    let gcashTotal = 0, gcashCount = 0;
+    let bankTotal = 0, bankCount = 0;
+
+    (db.orders || []).forEach(o => {
+        // -----------------------------------------------------------------
+        // 1. SAFELY PARSE AND ITERATE ITEMS FOR CATEGORY CHART
+        // -----------------------------------------------------------------
+        let items = safeParseJSON(o.ItemsOrdered);
+        
+        // Ensure items is an array before looping
+        if (Array.isArray(items)) {
+            items.forEach(i => {
+                const catName = i.Category || i.category || "General";
+                categories[catName] = (categories[catName] || 0) + (Number(i.price || 0) * Number(i.quantity || 1));
+            });
+        }
+
+        // -----------------------------------------------------------------
+        // 2. CALCULATE SALES BY PAYMENT METHOD
+        // -----------------------------------------------------------------
+        const total = Number(o.TotalAmount || o.total || 0);
+        const method = (o.PaymentMethod || o.paymentMethod || '').toString().toLowerCase().trim();
+
+        if (method === 'cash') {
+            cashTotal += total;
+            cashCount++;
+        } else if (method === 'gcash') {
+            gcashTotal += total;
+            gcashCount++;
+        } else if (method.includes('bank')) {
+            bankTotal += total;
+            bankCount++;
+        }
     });
 
+    // -----------------------------------------------------------------
+    // 3. UPDATE SALES BY PAYMENT METHOD UI CARDS
+    // -----------------------------------------------------------------
+    updatePaymentCard('cash', cashTotal, cashCount);
+    updatePaymentCard('gcash', gcashTotal, gcashCount);
+    updatePaymentCard('bank', bankTotal, bankCount);
+
+    // -----------------------------------------------------------------
+    // 4. RENDER CATEGORY PIE/DOUGHNUT CHART
+    // -----------------------------------------------------------------
     const pieCanvas = document.getElementById('pieChart');
     if (pieCanvas) {
         const pieCtx = pieCanvas.getContext('2d');
@@ -3092,6 +3133,9 @@ function renderCharts() {
         });
     }
 
+    // -----------------------------------------------------------------
+    // 5. RENDER REVENUE TIMELINE TREND CHART
+    // -----------------------------------------------------------------
     const trendCanvas = document.getElementById('trendChart');
     if (trendCanvas) {
         const trendCtx = trendCanvas.getContext('2d');
@@ -3099,10 +3143,10 @@ function renderCharts() {
         analyticsCharts.trend = new Chart(trendCtx, {
             type: 'line',
             data: {
-                labels: db.orders.map(o => new Date(o.Timestamp).toLocaleDateString()),
+                labels: (db.orders || []).map(o => o.Timestamp ? new Date(o.Timestamp).toLocaleDateString() : ''),
                 datasets: [{
                     label: 'Revenue Timeline',
-                    data: db.orders.map(o => Number(o.TotalAmount)),
+                    data: (db.orders || []).map(o => Number(o.TotalAmount || 0)),
                     borderColor: '#92400e',
                     fill: false
                 }]
@@ -3112,6 +3156,16 @@ function renderCharts() {
     }
 }
 
+/**
+ * Helper function to update payment method DOM elements safely
+ */
+function updatePaymentCard(type, total, count) {
+    const totalEl = document.getElementById(`${type}-total-amount`) || document.getElementById(`pay-${type}-total`);
+    const countEl = document.getElementById(`${type}-transaction-count`) || document.getElementById(`pay-${type}-count`);
+
+    if (totalEl) totalEl.innerText = `₱${total.toFixed(2)}`;
+    if (countEl) countEl.innerText = `${count} Transactions`;
+}
 window.onload = initApp;
 
 // 1. Populates the Employee dropdown list dynamically
@@ -5815,14 +5869,6 @@ function calculatePaymentMethodTotals(orders) {
     updatePaymentCard('bank', bankTotal, bankCount);
 }
 
-function updatePaymentCard(type, total, count) {
-    // Select elements based on your DOM naming convention
-    const totalEl = document.getElementById(`${type}-total-amount`);
-    const countEl = document.getElementById(`${type}-transaction-count`);
-
-    if (totalEl) totalEl.innerText = `₱${total.toFixed(2)}`;
-    if (countEl) countEl.innerText = `${count} Transactions`;
-}
 
 </script>
 </body>
