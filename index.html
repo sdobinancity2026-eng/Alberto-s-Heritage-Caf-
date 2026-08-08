@@ -3263,24 +3263,69 @@ function renderCharts() {
  * Helper function to update payment method DOM elements safely
  */
 function updatePaymentCard(type, amount, count) {
+    const key = type.toLowerCase().trim();
+    const formattedAmount = `₱${Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const formattedCount = `${count || 0} transactions`;
+
+    // 1. TRY DIRECT ELEMENT IDs FIRST
     const cardMap = {
         'cash': { amountId: 'cash-sales-amount', countId: 'cash-sales-count' },
         'gcash': { amountId: 'gcash-sales-amount', countId: 'gcash-sales-count' },
         'bank': { amountId: 'bank-sales-amount', countId: 'bank-sales-count' }
     };
 
-    const target = cardMap[type.toLowerCase()];
-    if (!target) return;
+    const target = cardMap[key];
+    let updated = false;
 
-    const amountEl = document.getElementById(target.amountId);
-    const countEl = document.getElementById(target.countId);
+    if (target) {
+        const amountEl = document.getElementById(target.amountId);
+        const countEl = document.getElementById(target.countId);
 
-    if (amountEl) {
-        amountEl.innerText = `₱${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        if (amountEl) {
+            amountEl.innerText = formattedAmount;
+            updated = true;
+        }
+        if (countEl) {
+            countEl.innerText = formattedCount;
+        }
     }
-    if (countEl) {
-        countEl.innerText = `${count} transactions`;
-    }
+
+    // Return early if explicit IDs worked
+    if (updated) return;
+
+    // 2. SMART FALLBACK: SCAN DOM FOR CARD HEADERS (CASH, GCASH, BANK TRANSFER)
+    const headerSearchMap = {
+        'cash': 'CASH',
+        'gcash': 'GCASH',
+        'bank': 'BANK'
+    };
+
+    const targetHeader = headerSearchMap[key];
+    if (!targetHeader) return;
+
+    // Locate containers holding payment cards
+    const allCards = document.querySelectorAll('div, section');
+    allCards.forEach(card => {
+        const cardText = card.innerText ? card.innerText.toUpperCase() : '';
+        
+        // Find the specific card block containing the header and transaction stats
+        if (cardText.includes(targetHeader) && (cardText.includes('TRANSACTIONS') || cardText.includes('₱'))) {
+            const innerElements = card.querySelectorAll('p, h1, h2, h3, h4, span, div');
+            innerElements.forEach(el => {
+                const txt = el.innerText.trim();
+                
+                // Update Amount text element
+                if (txt.startsWith('₱') || txt === '₱0.00') {
+                    el.innerText = formattedAmount;
+                }
+                
+                // Update Transactions count text element
+                if (txt.toLowerCase().includes('transaction')) {
+                    el.innerText = formattedCount;
+                }
+            });
+        }
+    });
 }
 window.onload = initApp;
 
