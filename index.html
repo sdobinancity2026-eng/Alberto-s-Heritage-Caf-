@@ -3264,68 +3264,31 @@ function renderCharts() {
  */
 function updatePaymentCard(type, amount, count) {
     const key = type.toLowerCase().trim();
-    const formattedAmount = `₱${Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    
+    // Map function keys to your exact HTML element IDs
+    const idMap = {
+        'cash': { totalId: 'payment-cash-total', countId: 'payment-cash-count' },
+        'gcash': { totalId: 'payment-gcash-total', countId: 'payment-gcash-count' },
+        'bank': { totalId: 'payment-bank-total', countId: 'payment-bank-count' }
+    };
+
+    const target = idMap[key];
+    if (!target) return;
+
+    const totalEl = document.getElementById(target.totalId);
+    const countEl = document.getElementById(target.countId);
+
+    // Format currency cleanly (e.g. ₱11,760.40)
+    const formattedAmount = `₱${Number(amount || 0).toLocaleString('en-US', { 
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 2 
+    })}`;
+    
     const formattedCount = `${count || 0} transactions`;
 
-    // 1. TRY DIRECT ELEMENT IDs FIRST
-    const cardMap = {
-        'cash': { amountId: 'cash-sales-amount', countId: 'cash-sales-count' },
-        'gcash': { amountId: 'gcash-sales-amount', countId: 'gcash-sales-count' },
-        'bank': { amountId: 'bank-sales-amount', countId: 'bank-sales-count' }
-    };
-
-    const target = cardMap[key];
-    let updated = false;
-
-    if (target) {
-        const amountEl = document.getElementById(target.amountId);
-        const countEl = document.getElementById(target.countId);
-
-        if (amountEl) {
-            amountEl.innerText = formattedAmount;
-            updated = true;
-        }
-        if (countEl) {
-            countEl.innerText = formattedCount;
-        }
-    }
-
-    // Return early if explicit IDs worked
-    if (updated) return;
-
-    // 2. SMART FALLBACK: SCAN DOM FOR CARD HEADERS (CASH, GCASH, BANK TRANSFER)
-    const headerSearchMap = {
-        'cash': 'CASH',
-        'gcash': 'GCASH',
-        'bank': 'BANK'
-    };
-
-    const targetHeader = headerSearchMap[key];
-    if (!targetHeader) return;
-
-    // Locate containers holding payment cards
-    const allCards = document.querySelectorAll('div, section');
-    allCards.forEach(card => {
-        const cardText = card.innerText ? card.innerText.toUpperCase() : '';
-        
-        // Find the specific card block containing the header and transaction stats
-        if (cardText.includes(targetHeader) && (cardText.includes('TRANSACTIONS') || cardText.includes('₱'))) {
-            const innerElements = card.querySelectorAll('p, h1, h2, h3, h4, span, div');
-            innerElements.forEach(el => {
-                const txt = el.innerText.trim();
-                
-                // Update Amount text element
-                if (txt.startsWith('₱') || txt === '₱0.00') {
-                    el.innerText = formattedAmount;
-                }
-                
-                // Update Transactions count text element
-                if (txt.toLowerCase().includes('transaction')) {
-                    el.innerText = formattedCount;
-                }
-            });
-        }
-    });
+    // Direct, non-destructive text updates
+    if (totalEl) totalEl.textContent = formattedAmount;
+    if (countEl) countEl.textContent = formattedCount;
 }
 window.onload = initApp;
 
@@ -5747,7 +5710,7 @@ async function saveConsumableUpdateToSheet(itemId, updatedItem) {
     }
 }
 
-    let currentPaymentPeriod = 'daily';
+let currentPaymentPeriod = 'daily';
 
 function filterPaymentMethodSales(period = 'daily') {
     currentPaymentPeriod = period;
@@ -5756,23 +5719,21 @@ function filterPaymentMethodSales(period = 'daily') {
     ['daily', 'weekly', 'monthly'].forEach(p => {
         const btn = document.getElementById(`pm-filter-${p}`);
         if (btn) {
-            if (p === period) {
-                btn.className = "px-3 py-1.5 rounded-lg bg-white text-slate-900 shadow-sm transition";
-            } else {
-                btn.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition";
-            }
+            btn.className = (p === period) 
+                ? "px-3 py-1.5 rounded-lg bg-white text-slate-900 shadow-sm transition font-semibold"
+                : "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition";
         }
     });
 
     if (typeof db === 'undefined' || !db.orders) return;
 
     const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
+    
+    // Start of Today (00:00:00 local time)
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    // Helper to calculate start of the week (Sunday/Monday)
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay());
-    startOfWeek.setHours(0, 0, 0, 0);
+    // Start of the week (Sunday 00:00:00)
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
 
     let totals = {
         cash: { amount: 0, count: 0 },
@@ -5781,51 +5742,61 @@ function filterPaymentMethodSales(period = 'daily') {
     };
 
     db.orders.forEach(order => {
-        if (!order || !order.date) return;
+        if (!order) return;
 
-        const orderDate = new Date(order.date);
-        const orderDateStr = orderDate.toISOString().slice(0, 10);
+        // Safely capture date using Timestamp, date, or created_at
+        const rawDate = order.Timestamp || order.timestamp || order.date || order.Date || order.created_at;
+        const orderDate = rawDate ? new Date(rawDate) : null;
+
         let matchesFilter = false;
 
-        // Date Filter Logic
-        if (period === 'daily') {
-            matchesFilter = (orderDateStr === todayStr);
+        if (!orderDate || isNaN(orderDate.getTime())) {
+            // If date is invalid or missing, include it in daily/all so it doesn't get lost
+            matchesFilter = true;
+        } else if (period === 'daily') {
+            matchesFilter = (orderDate >= startOfToday);
         } else if (period === 'weekly') {
             matchesFilter = (orderDate >= startOfWeek);
         } else if (period === 'monthly') {
-            matchesFilter = (orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear());
+            matchesFilter = (
+                orderDate.getMonth() === now.getMonth() && 
+                orderDate.getFullYear() === now.getFullYear()
+            );
         }
 
         if (matchesFilter) {
-            const method = String(order.paymentMethod || order.payment_method || order.Type || "").toLowerCase();
-            const total = parseFloat(order.totalAmount || order.total || order.GrandTotal || 0) || 0;
+            // Capture payment method and total amount across multiple key variations
+            const method = String(order.PaymentMethod || order.paymentMethod || order.payment_method || order.Type || "cash").toLowerCase();
+            const total = parseFloat(order.TotalAmount || order.totalAmount || order.total || order.GrandTotal || 0) || 0;
 
-            if (method.includes('cash') && !method.includes('g-cash') && !method.includes('gcash')) {
-                totals.cash.amount += total;
-                totals.cash.count++;
-            } else if (method.includes('gcash') || method.includes('g-cash') || method.includes('g cash')) {
+            if (method.includes('gcash') || method.includes('g-cash') || method.includes('g cash')) {
                 totals.gcash.amount += total;
                 totals.gcash.count++;
             } else if (method.includes('bank') || method.includes('transfer') || method.includes('card')) {
                 totals.bank.amount += total;
                 totals.bank.count++;
             } else {
-                // Default fallback if unspecified cash
+                // Default to cash for "Cash" or unassigned payment methods
                 totals.cash.amount += total;
                 totals.cash.count++;
             }
         }
     });
 
-    // Render calculated totals to cards
-    document.getElementById('payment-cash-total').textContent = `₱${totals.cash.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-    document.getElementById('payment-cash-count').textContent = `${totals.cash.count} transaction${totals.cash.count === 1 ? '' : 's'}`;
+    // Safe UI Card Updates
+    const updateEl = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    };
 
-    document.getElementById('payment-gcash-total').textContent = `₱${totals.gcash.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-    document.getElementById('payment-gcash-count').textContent = `${totals.gcash.count} transaction${totals.gcash.count === 1 ? '' : 's'}`;
+    updateEl('payment-cash-total', `₱${totals.cash.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
+    updateEl('payment-cash-count', `${totals.cash.count} transaction${totals.cash.count === 1 ? '' : 's'}`);
 
-    document.getElementById('payment-bank-total').textContent = `₱${totals.bank.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-    document.getElementById('payment-bank-count').textContent = `${totals.bank.count} transaction${totals.bank.count === 1 ? '' : 's'}`;
+    updateEl('payment-gcash-total', `₱${totals.gcash.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
+    updateEl('payment-gcash-count', `${totals.gcash.count} transaction${totals.gcash.count === 1 ? '' : 's'}`);
+
+    updateEl('payment-bank-total', `₱${totals.bank.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
+    updateEl('payment-bank-count', `${totals.bank.count} transaction${totals.bank.count === 1 ? '' : 's'}`);
 }
 
 // Automatically load daily payment metrics when switching to Analytics view
