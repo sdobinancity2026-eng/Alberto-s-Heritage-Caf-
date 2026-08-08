@@ -264,25 +264,40 @@
             </button>
         </div>
 
-        <!-- Table Number Input Row -->
-        <div class="flex items-center gap-2">
-            <div class="w-1/2">
-                <label class="block text-[10px] font-bold text-slate-500 uppercase">Table / Order #</label>
-                <input type="text" id="table-number-input" placeholder="e.g. Table 5" 
-                       class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-800 focus:outline-none" />
+        <!-- Table Number & Order Type Inputs Row -->
+        <div class="space-y-2">
+            <div class="flex items-center gap-2">
+                <div class="w-1/2">
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase">Table / Order #</label>
+                    <input type="text" id="table-number-input" placeholder="e.g. Table 5" 
+                           class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-800 focus:outline-none" />
+                </div>
+                <div class="w-1/2">
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase">Order Type</label>
+                    <select id="order-type-select" onchange="toggleDeliveryCharge()" class="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-800 focus:outline-none">
+                        <option value="Dine In">Dine In</option>
+                        <option value="Take Out">Take Out</option>
+                        <option value="For Delivery">For Delivery</option>
+                    </select>
+                </div>
             </div>
-                        <!-- Order Type Selector -->
-            <div style="margin-bottom: 8px;">
-                <label style="font-size: 11px; font-weight: bold; color: #555; display: block; margin-bottom: 3px;">ORDER TYPE</label>
-                <select id="order-type-select" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; font-weight: bold; background-color: #fff;">
-                    <option value="Dine In">Dine In</option>
-                    <option value="Take Out">Take Out</option>
-                    <option value="For Delivery">For Delivery</option>
+
+            <!-- DYNAMIC DELIVERY CHARGE DROPDOWN (Hidden by default) -->
+            <div id="delivery-charge-container" class="hidden bg-amber-50/80 border border-amber-200 p-2 rounded-xl">
+                <label class="block text-[10px] font-bold text-amber-900 uppercase mb-1">🛵 Select Delivery Charge</label>
+                <select id="delivery-charge-select" onchange="calculateBasketTotal()" class="w-full bg-white border border-amber-300 rounded-lg px-2 py-1 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-600 focus:outline-none">
+                    <option value="30">Delivery Charge ₱30.00</option>
+                    <option value="40" selected>Delivery Charge ₱40.00</option>
+                    <option value="50">Delivery Charge ₱50.00</option>
+                    <option value="60">Delivery Charge ₱60.00</option>
+                    <option value="100">Delivery Charge ₱100.00</option>
                 </select>
             </div>
-            <div class="w-1/2 flex items-end">
+
+            <!-- Hold Order Button Row -->
+            <div>
                 <button type="button" onclick="saveAndHoldOrder()" 
-                        class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-1 px-2 rounded-lg text-xs transition-all shadow-sm">
+                        class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-1.5 px-2 rounded-lg text-xs transition-all shadow-sm flex items-center justify-center gap-1">
                     💾 Hold Order
                 </button>
             </div>
@@ -1953,14 +1968,26 @@ async function placeOrder() {
     const refInput = document.getElementById('transaction-no');
     const transactionNo = refInput ? refInput.value.trim() : "";
 
+    // 1. Calculate Raw Subtotal
     let rawSubtotal = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     
+    // 2. Extract Delivery Charge (If order type is For Delivery)
+    let deliveryCharge = 0;
+    if (typeof getDeliveryChargeAmount === 'function') {
+        deliveryCharge = getDeliveryChargeAmount();
+    } else if (orderType === "For Delivery") {
+        const deliverySelect = document.getElementById('delivery-charge-select');
+        deliveryCharge = deliverySelect ? (parseFloat(deliverySelect.value) || 0) : 0;
+    }
+
+    // 3. Calculate Senior / PWD Discount (20%)
     let discountAmount = 0;
     if (typeof discountID !== 'undefined' && discountID) {
         discountAmount = activeCart.reduce((sum, item) => sum + ((item.price * item.quantity) * 0.20), 0);
     }
     
-    const total = rawSubtotal - discountAmount;
+    // 4. Calculate Final Grand Total (Subtotal + Delivery - Discount)
+    const total = Math.max(0, (rawSubtotal + deliveryCharge) - discountAmount);
     
     let cashTendered = 0;
     let change = 0;
@@ -1995,6 +2022,7 @@ async function placeOrder() {
         btn.innerHTML = `<span class="animate-spin inline-block mr-1">⏳</span> Processing...`;
     }
 
+    // 5. Construct Payload for Apps Script & Thermal Printer
     const payload = {
         action: "placeOrder",
         EmployeeName: (typeof activeUser !== 'undefined' && activeUser?.name) ? activeUser.name : "Employee",
@@ -2006,6 +2034,7 @@ async function placeOrder() {
             printedQty: item.printedQty || 0 
         })), 
         SubtotalAmount: rawSubtotal,
+        DeliveryCharge: deliveryCharge, // 👈 ADDED DELIVERY FEE TO PAYLOAD
         DiscountAmount: discountAmount,
         TotalAmount: total,
         DiscountIDNumber: (typeof discountID !== 'undefined') ? discountID : "",
@@ -2033,7 +2062,10 @@ async function placeOrder() {
             if (typeof filterMenuBySearch === 'function') filterMenuBySearch();
         }
 
-        if (orderTypeSelect) orderTypeSelect.value = "Dine In";
+        if (orderTypeSelect) {
+            orderTypeSelect.value = "Dine In";
+            if (typeof toggleDeliveryCharge === 'function') toggleDeliveryCharge(); // Reset delivery field visibility
+        }
         
         if (typeof currentHeldOrderId !== 'undefined' && currentHeldOrderId) {
             if (typeof removeHeldOrder === 'function') removeHeldOrder(currentHeldOrderId);
@@ -2064,9 +2096,6 @@ async function placeOrder() {
     };
 
     try {
-        // ❌ Stock is NOT deducted here anymore.
-        // It is handled strictly inside printKitchenTicket().
-
         if (!targetUrl || targetUrl.includes("YOUR_SCRIPT_URL_PLACEHOLDER")) {
             if (typeof showToast === 'function') showToast("Database Offline. Printing receipt locally...", "warning");
             triggerOrderPrinting(payload, "LOCAL-" + Date.now());
@@ -2223,6 +2252,7 @@ function printThermalReceipt(payload, serverOrderId) {
     const finalOrderId = serverOrderId || ("ORD-" + Date.now());
     const subtotalAmount = Number(payload.SubtotalAmount || payload.subtotal || 0);
     const discountAmount = Number(payload.DiscountAmount || payload.discount || 0);
+    const deliveryCharge = Number(payload.DeliveryCharge || payload.deliveryCharge || getDeliveryChargeAmount() || 0);
     const totalAmount = Number(payload.TotalAmount || payload.total || 0).toFixed(2);
     
     const paymentMethod = payload.PaymentMethod || "Cash";
@@ -2231,18 +2261,26 @@ function printThermalReceipt(payload, serverOrderId) {
 
     const formattedSubtotal = `₱${subtotalAmount.toFixed(2)}`.padStart(11, ' ');
     const formattedDiscount = `-₱${discountAmount.toFixed(2)}`.padStart(11, ' ');
+    const formattedDelivery = `₱${deliveryCharge.toFixed(2)}`.padStart(11, ' ');
     const formattedTotal = `₱${totalAmount}`.padStart(11, ' ');
 
-    // Discount line section
-    let discountBlock = "";
-    if (discountAmount > 0) {
-        discountBlock = `
-SUBTOTAL:             ${formattedSubtotal}
-SC/PWD DISC (20%):    ${formattedDiscount}`;
-        if (discountIdNo) {
-            discountBlock += `\nSC/PWD ID NO:         ${discountIdNo}`;
+    // Subtotal, Discount & Delivery Line Section
+    let calculationsBlock = "";
+    if (discountAmount > 0 || deliveryCharge > 0) {
+        calculationsBlock = `SUBTOTAL:              ${formattedSubtotal}\n`;
+
+        if (discountAmount > 0) {
+            calculationsBlock += `SC/PWD DISC (20%):    ${formattedDiscount}\n`;
+            if (discountIdNo) {
+                calculationsBlock += `SC/PWD ID NO:         ${discountIdNo}\n`;
+            }
         }
-        discountBlock += `\n--------------------------------`;
+
+        if (deliveryCharge > 0) {
+            calculationsBlock += `DELIVERY CHARGE:       ${formattedDelivery}\n`;
+        }
+
+        calculationsBlock += `--------------------------------\n`;
     }
 
     // Payment details formatting
@@ -2251,13 +2289,13 @@ SC/PWD DISC (20%):    ${formattedDiscount}`;
         const cashReceived = Number(payload.cashTendered || 0).toFixed(2);
         const changeDue = Number(payload.change || 0).toFixed(2);
         paymentDetailsBlock = `
-PAYMENT METHOD:       CASH
+PAYMENT METHOD:        CASH
 CASH RECEIVED:        ${`₱${cashReceived}`.padStart(11, ' ')}
-CHANGE:               ${`₱${changeDue}`.padStart(11, ' ')}`;
+CHANGE:                ${`₱${changeDue}`.padStart(11, ' ')}`;
     } else {
         paymentDetailsBlock = `
-PAYMENT METHOD:       ${paymentMethod.toUpperCase()}
-REF / TRANS NO:       ${transactionNo}
+PAYMENT METHOD:        ${paymentMethod.toUpperCase()}
+REF / TRANS NO:        ${transactionNo}
 PAID AMOUNT:          ${formattedTotal}`;
     }
 
@@ -2289,11 +2327,11 @@ Staff: ${payload.EmployeeName || (typeof activeUser !== 'undefined' && activeUse
 Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
 Order ID: ${finalOrderId}
 --------------------------------
-Items          Qty       Price
+Items         Qty       Price
 --------------------------------
 ${itemLines}
---------------------------------${discountBlock}
-TOTAL:                ${formattedTotal}
+--------------------------------
+${calculationsBlock}TOTAL:                ${formattedTotal}
 ================================${paymentDetailsBlock}
 ================================
 National Highway 
@@ -5605,6 +5643,120 @@ function updatePaymentMethodChart(totals) {
             }
         }
     });
+}
+
+    //calculate delivery fee
+    // State tracking
+let currentOrderType = "Dine-In";
+let currentDeliveryFee = 0;
+
+// Handle Order Type Change
+function handleOrderTypeChange() {
+    const select = document.getElementById('order-type-select');
+    currentOrderType = select.value;
+    
+    const feeContainer = document.getElementById('delivery-fee-container');
+    const deliveryRow = document.getElementById('cart-delivery-row');
+
+    if (currentOrderType === "Delivery") {
+        feeContainer.classList.remove('hidden');
+        deliveryRow.classList.remove('hidden');
+        // Set default fee from dropdown
+        const feeSelect = document.getElementById('delivery-fee-select');
+        currentDeliveryFee = parseFloat(feeSelect.value) || 40;
+    } else {
+        feeContainer.classList.add('hidden');
+        deliveryRow.classList.add('hidden');
+        currentDeliveryFee = 0;
+    }
+
+    calculateTotal();
+}
+
+// Handle Delivery Fee dropdown change
+function updateDeliveryFee() {
+    const feeSelect = document.getElementById('delivery-fee-select');
+    currentDeliveryFee = parseFloat(feeSelect.value) || 0;
+    calculateTotal();
+}
+
+// Calculate Basket Total
+function calculateTotal() {
+    // 1. Calculate items subtotal from your active cart items array
+    let subtotal = 0;
+    if (Array.isArray(cartItems)) {
+        subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    }
+
+    // 2. Add delivery fee if Delivery
+    const finalTotal = subtotal + currentDeliveryFee;
+
+    // 3. Update DOM labels
+    if (document.getElementById('cart-subtotal')) {
+        document.getElementById('cart-subtotal').innerText = `₱${subtotal.toFixed(2)}`;
+    }
+    if (document.getElementById('cart-delivery-fee')) {
+        document.getElementById('cart-delivery-fee').innerText = `₱${currentDeliveryFee.toFixed(2)}`;
+    }
+    if (document.getElementById('cart-total-amount')) {
+        document.getElementById('cart-total-amount').innerText = `₱${finalTotal.toFixed(2)}`;
+    }
+
+    return { subtotal, deliveryFee: currentDeliveryFee, total: finalTotal };
+}
+
+    // Show or hide delivery charge dropdown
+function toggleDeliveryCharge() {
+    const orderType = document.getElementById('order-type-select').value;
+    const deliveryContainer = document.getElementById('delivery-charge-container');
+
+    if (orderType === "For Delivery") {
+        deliveryContainer.classList.remove('hidden');
+    } else {
+        deliveryContainer.classList.add('hidden');
+    }
+    
+    // Recalculate total immediately when order type changes
+    calculateBasketTotal();
+}
+
+// Get numeric delivery fee
+function getDeliveryChargeAmount() {
+    const orderType = document.getElementById('order-type-select')?.value;
+    if (orderType === "For Delivery") {
+        const feeSelect = document.getElementById('delivery-charge-select');
+        return parseFloat(feeSelect ? feeSelect.value : 0) || 0;
+    }
+    return 0;
+}
+
+// Basket Total Calculation Helper
+function calculateBasketTotal() {
+    // 1. Calculate items subtotal
+    let subtotal = 0;
+    if (typeof basket !== 'undefined' && Array.isArray(basket)) {
+        subtotal = basket.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
+    }
+
+    // 2. Add delivery charge
+    const deliveryCharge = getDeliveryChargeAmount();
+
+    // 3. Subtract discount if applicable
+    const discountAmount = typeof currentDiscountAmount !== 'undefined' ? currentDiscountAmount : 0;
+
+    const grandTotal = Math.max(0, (subtotal + deliveryCharge) - discountAmount);
+
+    // Update UI Total
+    const basketTotalEl = document.getElementById('basket-total');
+    if (basketTotalEl) {
+        basketTotalEl.innerText = `₱${grandTotal.toFixed(2)}`;
+    }
+
+    if (typeof calculateChange === 'function') {
+        calculateChange();
+    }
+
+    return grandTotal;
 }
 </script>
 </body>
