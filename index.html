@@ -2939,37 +2939,17 @@ let basketTotalSum = 0; // Tracking variable for basket totals
  */
 function calculateChange() {
     const cashInput = document.getElementById('cash-tendered');
-    // 1. Updated ID to 'change-amount' matching your HTML sidebar
     const changeDisplay = document.getElementById('change-amount'); 
     
     if (!cashInput || !changeDisplay) return;
 
-    // 2. Get the array whether your codebase calls it activeCart or basket
-    const currentCart = (typeof activeCart !== 'undefined' && Array.isArray(activeCart)) 
-        ? activeCart 
-        : ((typeof basket !== 'undefined' && Array.isArray(basket)) ? basket : []);
-
-    // 3. Calculate raw subtotal
-    const subtotal = currentCart.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
-
-    // 4. Extract delivery charge
-    const deliveryCharge = typeof getDeliveryChargeAmount === 'function' ? getDeliveryChargeAmount() : 0;
-
-    // 5. Calculate discount across ALL items (not just activeCart[0])
-    let discountAmount = 0;
-    if (typeof discountID !== 'undefined' && discountID && currentCart.length > 0) {
-        discountAmount = currentCart.reduce((sum, item) => sum + ((Number(item.price) * Number(item.quantity)) * 0.20), 0);
-    } else if (typeof currentDiscountAmount !== 'undefined') {
-        discountAmount = currentDiscountAmount;
-    }
-
-    // 6. Calculate exact total
-    const grandTotal = Math.max(0, (subtotal + deliveryCharge) - discountAmount);
+    // 1. Simply get the grand total already calculated for the basket
+    const grandTotal = calculateBasketTotal();
 
     const cashTendered = parseFloat(cashInput.value) || 0;
     const change = cashTendered - grandTotal;
 
-    // 7. Render change
+    // 2. Render change
     if (change >= 0 && cashTendered > 0) {
         changeDisplay.innerText = `₱${change.toFixed(2)}`;
         changeDisplay.classList.remove('text-slate-400');
@@ -2986,18 +2966,29 @@ function calculateBasketTotal() {
         ? activeCart 
         : ((typeof basket !== 'undefined' && Array.isArray(basket)) ? basket : []);
 
-    // 1. Calculate items subtotal
-    const subtotal = currentCart.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
+    // 1. Calculate actual subtotal respecting individual item discounts
+    let subtotal = 0;
+    currentCart.forEach(item => {
+        const qty = Number(item.quantity) || 1;
+        let price = Number(item.price) || 0;
+
+        // If the item itself has a discounted price property or flag, use that
+        if (item.discountedPrice) {
+            price = Number(item.discountedPrice);
+        } else if (item.isDiscounted) {
+            price = price * 0.80; // 20% off for this item only
+        }
+
+        subtotal += price * qty;
+    });
 
     // 2. Add delivery charge
     const deliveryCharge = typeof getDeliveryChargeAmount === 'function' ? getDeliveryChargeAmount() : 0;
 
-    // 3. Subtract discount if applicable
+    // 3. Overall Order Discount (only if applicable to global order level, not per item)
     let discountAmount = 0;
-    if (typeof discountID !== 'undefined' && discountID && currentCart.length > 0) {
-        discountAmount = currentCart.reduce((sum, item) => sum + ((Number(item.price) * Number(item.quantity)) * 0.20), 0);
-    } else if (typeof currentDiscountAmount !== 'undefined') {
-        discountAmount = currentDiscountAmount;
+    if (typeof currentDiscountAmount !== 'undefined') {
+        discountAmount = Number(currentDiscountAmount) || 0;
     }
 
     const grandTotal = Math.max(0, (subtotal + deliveryCharge) - discountAmount);
@@ -3008,15 +2999,12 @@ function calculateBasketTotal() {
         basketTotalEl.innerText = `₱${grandTotal.toFixed(2)}`;
     }
 
-    if (typeof calculateChange === 'function') {
-        calculateChange();
-    }
-
     return grandTotal;
 }
-// Hook into your custom renderCart() / basket UI updating routine to reset math inputs
+
+// Hook into basket UI updating routine to reset math inputs
 function onBasketUpdated(newTotal) {
-    basketTotalSum = newTotal;
+    const basketTotalSum = newTotal;
     
     // Reset cash tendered inputs whenever items are cleared out entirely
     if (basketTotalSum === 0) {
