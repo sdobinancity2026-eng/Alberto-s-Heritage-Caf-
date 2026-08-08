@@ -2938,17 +2938,37 @@ let basketTotalSum = 0; // Tracking variable for basket totals
  */
 function calculateChange() {
     const cashInput = document.getElementById('cash-tendered');
-    const changeDisplay = document.getElementById('customer-change');
+    // 1. Updated ID to 'change-amount' matching your HTML sidebar
+    const changeDisplay = document.getElementById('change-amount'); 
     
     if (!cashInput || !changeDisplay) return;
 
-    let rawSubtotal = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    let discountAmount = (discountID && activeCart.length > 0) ? (activeCart[0].price * 0.20) : 0;
-    const total = rawSubtotal - discountAmount;
+    // 2. Get the array whether your codebase calls it activeCart or basket
+    const currentCart = (typeof activeCart !== 'undefined' && Array.isArray(activeCart)) 
+        ? activeCart 
+        : ((typeof basket !== 'undefined' && Array.isArray(basket)) ? basket : []);
+
+    // 3. Calculate raw subtotal
+    const subtotal = currentCart.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
+
+    // 4. Extract delivery charge
+    const deliveryCharge = typeof getDeliveryChargeAmount === 'function' ? getDeliveryChargeAmount() : 0;
+
+    // 5. Calculate discount across ALL items (not just activeCart[0])
+    let discountAmount = 0;
+    if (typeof discountID !== 'undefined' && discountID && currentCart.length > 0) {
+        discountAmount = currentCart.reduce((sum, item) => sum + ((Number(item.price) * Number(item.quantity)) * 0.20), 0);
+    } else if (typeof currentDiscountAmount !== 'undefined') {
+        discountAmount = currentDiscountAmount;
+    }
+
+    // 6. Calculate exact total
+    const grandTotal = Math.max(0, (subtotal + deliveryCharge) - discountAmount);
 
     const cashTendered = parseFloat(cashInput.value) || 0;
-    const change = cashTendered - total;
+    const change = cashTendered - grandTotal;
 
+    // 7. Render change
     if (change >= 0 && cashTendered > 0) {
         changeDisplay.innerText = `₱${change.toFixed(2)}`;
         changeDisplay.classList.remove('text-slate-400');
@@ -2960,16 +2980,39 @@ function calculateChange() {
     }
 }
 
-/**
- * Helper to remove an item from the cart by index
- */
-function removeFromCart(index) {
-    if (index >= 0 && index < activeCart.length) {
-        activeCart.splice(index, 1);
-        renderCart();
-    }
-}
+function calculateBasketTotal() {
+    const currentCart = (typeof activeCart !== 'undefined' && Array.isArray(activeCart)) 
+        ? activeCart 
+        : ((typeof basket !== 'undefined' && Array.isArray(basket)) ? basket : []);
 
+    // 1. Calculate items subtotal
+    const subtotal = currentCart.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
+
+    // 2. Add delivery charge
+    const deliveryCharge = typeof getDeliveryChargeAmount === 'function' ? getDeliveryChargeAmount() : 0;
+
+    // 3. Subtract discount if applicable
+    let discountAmount = 0;
+    if (typeof discountID !== 'undefined' && discountID && currentCart.length > 0) {
+        discountAmount = currentCart.reduce((sum, item) => sum + ((Number(item.price) * Number(item.quantity)) * 0.20), 0);
+    } else if (typeof currentDiscountAmount !== 'undefined') {
+        discountAmount = currentDiscountAmount;
+    }
+
+    const grandTotal = Math.max(0, (subtotal + deliveryCharge) - discountAmount);
+
+    // Update UI Total
+    const basketTotalEl = document.getElementById('basket-total');
+    if (basketTotalEl) {
+        basketTotalEl.innerText = `₱${grandTotal.toFixed(2)}`;
+    }
+
+    if (typeof calculateChange === 'function') {
+        calculateChange();
+    }
+
+    return grandTotal;
+}
 // Hook into your custom renderCart() / basket UI updating routine to reset math inputs
 function onBasketUpdated(newTotal) {
     basketTotalSum = newTotal;
@@ -5743,34 +5786,7 @@ function getDeliveryChargeAmount() {
     return 0;
 }
 
-// Basket Total Calculation Helper
-function calculateBasketTotal() {
-    // 1. Calculate items subtotal
-    let subtotal = 0;
-    if (typeof basket !== 'undefined' && Array.isArray(basket)) {
-        subtotal = basket.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
-    }
 
-    // 2. Add delivery charge
-    const deliveryCharge = getDeliveryChargeAmount();
-
-    // 3. Subtract discount if applicable
-    const discountAmount = typeof currentDiscountAmount !== 'undefined' ? currentDiscountAmount : 0;
-
-    const grandTotal = Math.max(0, (subtotal + deliveryCharge) - discountAmount);
-
-    // Update UI Total
-    const basketTotalEl = document.getElementById('basket-total');
-    if (basketTotalEl) {
-        basketTotalEl.innerText = `₱${grandTotal.toFixed(2)}`;
-    }
-
-    if (typeof calculateChange === 'function') {
-        calculateChange();
-    }
-
-    return grandTotal;
-}
 </script>
 </body>
 </html>
