@@ -3028,7 +3028,8 @@ function populateEditForm() {
     document.getElementById('edit-inv-cat').value = category;
     document.getElementById('edit-inv-stock').value = item.StockQuantity !== undefined ? item.StockQuantity : (item.stock || 0);
 
-    const isPizza = category.toLowerCase().trim() === 'pizza';
+    // FIX: Check if category contains 'pizza' (matches 'pizza' and 'pizzaprice')
+    const isPizza = category.toLowerCase().trim().includes('pizza');
     const singleContainer = document.getElementById('single-price-container');
     const pizzaContainer = document.getElementById('pizza-variant-prices-container');
 
@@ -3037,12 +3038,17 @@ function populateEditForm() {
         if (pizzaContainer) pizzaContainer.classList.remove('hidden');
 
         const flavorName = item.ItemName || item.name;
-        const prices = PIZZA_PRICING_DATABASE[flavorName] || {};
+        
+        // Flexible search in PIZZA_PRICING_DATABASE
+        let prices = {};
+        if (typeof PIZZA_PRICING_DATABASE !== 'undefined') {
+            prices = PIZZA_PRICING_DATABASE[flavorName] || {};
+        }
 
-        document.getElementById('edit-pizza-thin10').value = prices.thin10 || '';
-        document.getElementById('edit-pizza-thin12').value = prices.thin12 || '';
-        document.getElementById('edit-pizza-regular10').value = prices.regular10 || '';
-        document.getElementById('edit-pizza-regular12').value = prices.regular12 || '';
+        document.getElementById('edit-pizza-thin10').value = prices.thin10 ?? item.thin10 ?? '';
+        document.getElementById('edit-pizza-thin12').value = prices.thin12 ?? item.thin12 ?? '';
+        document.getElementById('edit-pizza-regular10').value = prices.regular10 ?? item.regular10 ?? '';
+        document.getElementById('edit-pizza-regular12').value = prices.regular12 ?? item.regular12 ?? '';
     } else {
         if (pizzaContainer) pizzaContainer.classList.add('hidden');
         if (singleContainer) singleContainer.classList.remove('hidden');
@@ -3069,7 +3075,9 @@ async function submitProductUpdate() {
     const name = nameEl.value.trim();
     const category = catEl.value.trim();
     const stock = Number(stockEl.value);
-    const isPizza = category.toLowerCase() === 'pizza';
+    
+    // FIX: Check if category contains 'pizza' (matches 'pizza' and 'pizzaprice')
+    const isPizza = category.toLowerCase().includes('pizza');
 
     // 2. Resolve Product ID
     let id = (selectEl ? selectEl.value : "") || (hiddenIdEl ? hiddenIdEl.value : "");
@@ -3093,23 +3101,27 @@ async function submitProductUpdate() {
     // 3. Build Payload based on Category
     let payload = { id, name, category, stock };
 
-   if (isPizza) {
-    const thin10 = document.getElementById('edit-pizza-thin10')?.value;
-    const thin12 = document.getElementById('edit-pizza-thin12')?.value;
-    const regular10 = document.getElementById('edit-pizza-regular10')?.value;
-    const regular12 = document.getElementById('edit-pizza-regular12')?.value;
+    if (isPizza) {
+        const thin10 = document.getElementById('edit-pizza-thin10')?.value;
+        const thin12 = document.getElementById('edit-pizza-thin12')?.value;
+        const regular10 = document.getElementById('edit-pizza-regular10')?.value;
+        const regular12 = document.getElementById('edit-pizza-regular12')?.value;
 
-    payload.action = "updatePizzaPrice";
-    payload.itemName = name;
-    payload.thin10 = thin10 !== "" ? Number(thin10) : "";
-    payload.thin12 = thin12 !== "" ? Number(thin12) : "";
-    payload.regular10 = regular10 !== "" ? Number(regular10) : "";
-    payload.regular12 = regular12 !== "" ? Number(regular12) : "";
-}
+        payload.action = "updatePizzaPrice";
+        payload.itemName = name;
+        payload.thin10 = thin10 !== "" ? Number(thin10) : "";
+        payload.thin12 = thin12 !== "" ? Number(thin12) : "";
+        payload.regular10 = regular10 !== "" ? Number(regular10) : "";
+        payload.regular12 = regular12 !== "" ? Number(regular12) : "";
 
         // Immediately sync local JS cache
         if (typeof PIZZA_PRICING_DATABASE !== 'undefined') {
-            PIZZA_PRICING_DATABASE[name] = { thin10, thin12, regular10, regular12 };
+            PIZZA_PRICING_DATABASE[name] = { 
+                thin10: payload.thin10, 
+                thin12: payload.thin12, 
+                regular10: payload.regular10, 
+                regular12: payload.regular12 
+            };
         }
     } else {
         // Regular Non-Pizza product
