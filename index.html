@@ -1774,7 +1774,8 @@ function renderMenu() {
     // 1. Render Category Buttons Tab Bar
     const tabContainer = document.getElementById('category-tab-bar');
     if (tabContainer) {
-        const categoriesToRender = (typeof menuCategories !== 'undefined') ? menuCategories : ['All', ...uniqueCategories];
+        // 🟢 FIX: Use ['All', ...uniqueCategories] directly so stale global values don't leak through
+        const categoriesToRender = ['All', ...uniqueCategories];
         
         tabContainer.innerHTML = categoriesToRender.map(cat => {
             const isActive = cat.toLowerCase() === activeCategoryTab.toLowerCase();
@@ -1795,7 +1796,7 @@ function renderMenu() {
     // 2. Filter Database Inventory items by Category Selection
     let filteredItems = (db.inventory || []).filter(item => {
         const itemCat = String(item.Category || item.category || "").toLowerCase().trim();
-        // Hide Pizzaprice items when 'All' tab is selected
+        // Hide internal categories from the main menu table
         return !excludedCategories.includes(itemCat);
     });
 
