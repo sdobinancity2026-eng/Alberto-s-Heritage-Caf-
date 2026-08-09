@@ -640,55 +640,89 @@
                 </div>
 
                <!-- VIEW: UPDATE PRODUCT -->
-                <div id="view-admin-update" class="view-block hidden max-w-lg mx-auto bg-white p-6 rounded-2xl shadow-sm border">
-                    <h2 class="text-lg font-bold text-slate-800 mb-4">Edit Product Inventory Data</h2>
-                    
-                    <!-- Product Metadata Search Bar -->
-                    <div class="mb-4">
-                        <div class="relative w-full">
-                            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 text-xs">
-                                🔍
-                            </span>
-                            <input 
-                                type="text" 
-                                id="metadata-search-input" 
-                                onkeyup="searchAndPopulateProduct()" 
-                                placeholder="Type item name or ID to search and edit..." 
-                                class="w-full pl-8 pr-3 py-2 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-800/20 focus:border-amber-800 transition-all placeholder:text-slate-400"
-                            />
-                        </div>
+<div id="view-admin-update" class="view-block hidden max-w-lg mx-auto bg-white p-6 rounded-2xl shadow-sm border">
+    <h2 class="text-lg font-bold text-slate-800 mb-4">Edit Product Inventory Data</h2>
+    
+    <!-- Product Metadata Search Bar -->
+    <div class="mb-4">
+        <div class="relative w-full">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 text-xs">
+                🔍
+            </span>
+            <input 
+                type="text" 
+                id="metadata-search-input" 
+                onkeyup="searchAndPopulateProduct()" 
+                placeholder="Type item name or ID to search and edit..." 
+                class="w-full pl-8 pr-3 py-2 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-800/20 focus:border-amber-800 transition-all placeholder:text-slate-400"
+            />
+        </div>
+    </div>
+
+    <div class="space-y-4">
+        <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">Select Product to Edit</label>
+            <select id="edit-select-prod" onchange="populateEditForm()" class="w-full p-3 rounded-lg border text-xs md:text-sm bg-slate-50 font-medium"></select>
+        </div>
+
+        <div id="edit-form-fields" class="hidden space-y-4 border-t pt-4">
+            <!-- Hidden input to hold the item ID for database commits -->
+            <input type="hidden" id="edit-inv-id" />
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-500 mb-1">Item Name</label>
+                <input type="text" id="edit-inv-name" class="w-full p-3 rounded-lg border text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-500 mb-1">Category</label>
+                <input type="text" id="edit-inv-cat" class="w-full p-3 rounded-lg border text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+            </div>
+
+            <!-- STANDARD SINGLE PRICE CONTAINER (Non-Pizza Items) -->
+            <div id="single-price-container">
+                <label class="block text-xs font-semibold text-slate-500 mb-1">Price (₱)</label>
+                <input type="number" step="0.01" id="edit-inv-price" class="w-full p-3 rounded-lg border font-mono text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+            </div>
+
+            <!-- PIZZA VARIANT PRICES CONTAINER (Pizza Items) -->
+            <div id="pizza-variant-prices-container" class="hidden space-y-3 bg-amber-50/60 p-4 rounded-xl border border-amber-200/60">
+                <div class="flex items-center justify-between">
+                    <label class="text-xs font-bold text-amber-900 uppercase">🍕 Pizza Variant Prices (₱)</label>
+                    <span class="text-[10px] text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded font-semibold">Pizzaprice Tab Sync</span>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <!-- Thin Crust -->
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Thin 10"</label>
+                        <input type="number" id="edit-pizza-thin10" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs md:text-sm font-mono font-bold text-amber-950 focus:ring-2 focus:ring-amber-800/20" placeholder="e.g. 329">
                     </div>
-                
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1">Select Product to Edit</label>
-                            <select id="edit-select-prod" onchange="populateEditForm()" class="w-full p-3 rounded-lg border text-xs md:text-sm bg-slate-50 font-medium"></select>
-                        </div>
-                
-                        <div id="edit-form-fields" class="hidden space-y-4 border-t pt-4">
-                            <!-- Hidden input to hold the item ID for database commits (hidden from user display) -->
-                            <input type="hidden" id="edit-inv-id" />
-                
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-500 mb-1">Item Name</label>
-                                <input type="text" id="edit-inv-name" class="w-full p-3 rounded-lg border text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-500 mb-1">Category</label>
-                                <input type="text" id="edit-inv-cat" class="w-full p-3 rounded-lg border text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-500 mb-1">Price (₱)</label>
-                                <input type="number" step="0.01" id="edit-inv-price" class="w-full p-3 rounded-lg border font-mono text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-500 mb-1">Stock Level Count</label>
-                                <input type="number" id="edit-inv-stock" class="w-full p-3 rounded-lg border font-mono text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
-                            </div>
-                            <button onclick="submitProductUpdate()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition shadow-sm">Commit Database Updates</button>
-                        </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Thin 12"</label>
+                        <input type="number" id="edit-pizza-thin12" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs md:text-sm font-mono font-bold text-amber-950 focus:ring-2 focus:ring-amber-800/20" placeholder="e.g. 399">
+                    </div>
+
+                    <!-- Regular Crust -->
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Regular 10"</label>
+                        <input type="number" id="edit-pizza-regular10" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs md:text-sm font-mono font-bold text-amber-950 focus:ring-2 focus:ring-amber-800/20" placeholder="e.g. 339">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Regular 12"</label>
+                        <input type="number" id="edit-pizza-regular12" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs md:text-sm font-mono font-bold text-amber-950 focus:ring-2 focus:ring-amber-800/20" placeholder="e.g. 429">
                     </div>
                 </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-500 mb-1">Stock Level Count</label>
+                <input type="number" id="edit-inv-stock" class="w-full p-3 rounded-lg border font-mono text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+            </div>
+
+            <button onclick="submitProductUpdate()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition shadow-sm">Commit Database Updates</button>
+        </div>
+    </div>
+</div>
 
                 <!-- VIEW: REPRINT RECEIPT -->
                 <div id="view-admin-reprint" class="view-block hidden space-y-6">
@@ -943,6 +977,63 @@
             </button>
             <button id="add-pizza-to-cart-btn" onclick="confirmPizzaAddToCart()" class="w-2/3 bg-amber-800 text-white font-bold py-3 rounded-xl text-xs hover:bg-amber-900 transition shadow-md">
                 + Add To Receipt
+            </button>
+        </div>
+    </div>
+</div>
+
+    <!-- ================= EDIT PIZZA PRICING MODAL ================= -->
+<div id="edit-pizza-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1002] flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100">
+        <!-- Header -->
+        <div class="bg-slate-900 text-white p-5 flex justify-between items-center">
+            <div>
+                <h3 id="edit-pizza-title" class="text-lg font-black">Edit Pizza Prices</h3>
+                <p class="text-xs text-slate-400">Update variant prices for this pizza item</p>
+            </div>
+            <button onclick="closeEditPizzaModal()" class="text-slate-400 hover:text-white text-xl font-bold">✕</button>
+        </div>
+
+        <!-- Body Form -->
+        <div class="p-6 space-y-4">
+            <input type="hidden" id="edit-pizza-flavor-name" />
+
+            <div class="grid grid-cols-2 gap-4">
+                <!-- Thin Crust Prices -->
+                <div class="p-3 bg-amber-50/50 border border-amber-100 rounded-xl space-y-2">
+                    <span class="text-xs font-bold text-amber-900 uppercase">Thin Crust</span>
+                    <div>
+                        <label class="text-[11px] font-semibold text-slate-500">10" Thin Price (₱)</label>
+                        <input type="number" id="price-thin10" class="w-full mt-1 p-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-800" placeholder="e.g. 299" />
+                    </div>
+                    <div>
+                        <label class="text-[11px] font-semibold text-slate-500">12" Thin Price (₱)</label>
+                        <input type="number" id="price-thin12" class="w-full mt-1 p-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-800" placeholder="e.g. 359" />
+                    </div>
+                </div>
+
+                <!-- Regular Crust Prices -->
+                <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-2">
+                    <span class="text-xs font-bold text-slate-800 uppercase">Regular Crust</span>
+                    <div>
+                        <label class="text-[11px] font-semibold text-slate-500">10" Regular Price (₱)</label>
+                        <input type="number" id="price-regular10" class="w-full mt-1 p-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-800" placeholder="e.g. 319" />
+                    </div>
+                    <div>
+                        <label class="text-[11px] font-semibold text-slate-500">12" Regular Price (₱)</label>
+                        <input type="number" id="price-regular12" class="w-full mt-1 p-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-800" placeholder="e.g. 379" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="p-4 bg-slate-50 border-t border-slate-100 flex gap-3">
+            <button onclick="closeEditPizzaModal()" class="w-1/3 bg-slate-200 text-slate-700 font-bold py-3 rounded-xl text-xs hover:bg-slate-300 transition">
+                Cancel
+            </button>
+            <button onclick="savePizzaPrices()" class="w-2/3 bg-emerald-700 text-white font-bold py-3 rounded-xl text-xs hover:bg-emerald-800 transition shadow-md">
+                💾 Save New Prices
             </button>
         </div>
     </div>
@@ -2918,27 +3009,46 @@ function loadUpdateSelect() {
 }
 
 function populateEditForm() {
-    const id = document.getElementById('edit-select-prod').value;
-    const fields = document.getElementById('edit-form-fields');
+    const select = document.getElementById('edit-select-prod');
+    const selectedId = select.value;
     
-    if (!id) {
-        if (fields) fields.classList.add('hidden');
-        return;
-    }
-
-    const item = db.inventory.find(i => i.ItemID == id);
+    // Find item in local DB
+    const item = db.inventory.find(i => (i.ItemID || i.id) == selectedId);
     if (!item) return;
 
-    document.getElementById('edit-inv-name').value = item.ItemName || "";
-    document.getElementById('edit-inv-cat').value = item.Category || item.category || "";
-    document.getElementById('edit-inv-price').value = item.Price || 0;
+    document.getElementById('edit-form-fields').classList.remove('hidden');
+    document.getElementById('edit-inv-id').value = item.ItemID || item.id || '';
+    document.getElementById('edit-inv-name').value = item.ItemName || item.name || '';
+    
+    const category = item.Category || item.category || '';
+    document.getElementById('edit-inv-cat').value = category;
     document.getElementById('edit-inv-stock').value = item.StockQuantity !== undefined ? item.StockQuantity : (item.stock || 0);
 
-    if (fields) fields.classList.remove('hidden');
+    const isPizza = category.toLowerCase().trim() === 'pizza';
+    const singleContainer = document.getElementById('single-price-container');
+    const pizzaContainer = document.getElementById('pizza-variant-prices-container');
+
+    if (isPizza) {
+        if (singleContainer) singleContainer.classList.add('hidden');
+        if (pizzaContainer) pizzaContainer.classList.remove('hidden');
+
+        const flavorName = item.ItemName || item.name;
+        const prices = PIZZA_PRICING_DATABASE[flavorName] || {};
+
+        document.getElementById('edit-pizza-thin10').value = prices.thin10 || '';
+        document.getElementById('edit-pizza-thin12').value = prices.thin12 || '';
+        document.getElementById('edit-pizza-regular10').value = prices.regular10 || '';
+        document.getElementById('edit-pizza-regular12').value = prices.regular12 || '';
+    } else {
+        if (pizzaContainer) pizzaContainer.classList.add('hidden');
+        if (singleContainer) singleContainer.classList.remove('hidden');
+
+        document.getElementById('edit-inv-price').value = item.Price || item.price || 0;
+    }
 }
 
 async function submitProductUpdate() {
-    // 1. Validate Form Fields & Element Existence
+    // 1. Validate Core Form Fields
     const selectEl = document.getElementById('edit-select-prod');
     const hiddenIdEl = document.getElementById('edit-prod-id') || document.getElementById('edit-inv-id');
     const nameEl = document.getElementById('edit-inv-name');
@@ -2946,21 +3056,20 @@ async function submitProductUpdate() {
     const priceEl = document.getElementById('edit-inv-price');
     const stockEl = document.getElementById('edit-inv-stock');
 
-    if (!nameEl || !catEl || !priceEl || !stockEl) {
-        console.error("One or more form elements are missing in the DOM.");
+    if (!nameEl || !catEl || !stockEl) {
+        console.error("One or more required form elements are missing in the DOM.");
         if (typeof showToast === 'function') showToast("Form elements not found!", "error");
         return;
     }
 
     const name = nameEl.value.trim();
     const category = catEl.value.trim();
-    const price = Number(priceEl.value);
     const stock = Number(stockEl.value);
+    const isPizza = category.toLowerCase() === 'pizza';
 
-    // 2. Multi-Fallback ID Resolution (Dropdown -> Hidden ID Field -> Search Match in Global Inventory)
+    // 2. Resolve Product ID
     let id = (selectEl ? selectEl.value : "") || (hiddenIdEl ? hiddenIdEl.value : "");
 
-    // Fallback: If ID is still empty, search for product ID by matching name from global dataset
     if (!id && name) {
         const productList = (typeof inventory !== 'undefined' && Array.isArray(inventory)) 
             ? inventory 
@@ -2977,7 +3086,34 @@ async function submitProductUpdate() {
         return;
     }
 
-    // 3. Check API Endpoint
+    // 3. Build Payload based on Category
+    let payload = { id, name, category, stock };
+
+    if (isPizza) {
+        // Collect Pizza Variant inputs
+        const thin10 = parseFloat(document.getElementById('edit-pizza-thin10')?.value) || 0;
+        const thin12 = parseFloat(document.getElementById('edit-pizza-thin12')?.value) || 0;
+        const regular10 = parseFloat(document.getElementById('edit-pizza-regular10')?.value) || 0;
+        const regular12 = parseFloat(document.getElementById('edit-pizza-regular12')?.value) || 0;
+
+        payload.action = "updatePizzaPrice";
+        payload.itemName = name;
+        payload.thin10 = thin10;
+        payload.thin12 = thin12;
+        payload.regular10 = regular10;
+        payload.regular12 = regular12;
+
+        // Immediately sync local JS cache
+        if (typeof PIZZA_PRICING_DATABASE !== 'undefined') {
+            PIZZA_PRICING_DATABASE[name] = { thin10, thin12, regular10, regular12 };
+        }
+    } else {
+        // Regular Non-Pizza product
+        payload.action = "updateProduct";
+        payload.price = Number(priceEl ? priceEl.value : 0);
+    }
+
+    // 4. API Endpoint Check
     const targetUrl = (typeof API_URL !== 'undefined' && API_URL) ? API_URL : ((typeof SCRIPT_URL !== 'undefined') ? SCRIPT_URL : "");
     if (!targetUrl) {
         console.error("API_URL / SCRIPT_URL is not defined!");
@@ -2985,7 +3121,7 @@ async function submitProductUpdate() {
         return;
     }
 
-    // 4. UI Button Loading State Feedback
+    // 5. UI Loading Feedback
     const btn = document.querySelector('button[onclick*="submitProductUpdate"]');
     let originalText = "Commit Database Updates";
     if (btn) {
@@ -2995,10 +3131,8 @@ async function submitProductUpdate() {
         btn.innerHTML = `<span class="animate-spin inline-block mr-1">⏳</span> Committing...`;
     }
 
-    const payload = { action: "updateProduct", id, name, category, price, stock };
-
     try {
-        // 5. Send POST request
+        // 6. Send POST Request
         const response = await fetch(targetUrl, { 
             method: "POST", 
             mode: "cors",
@@ -3022,7 +3156,7 @@ async function submitProductUpdate() {
         console.error("Update Product Error:", e);
         if (typeof showToast === 'function') showToast("Product updates failed: Network Error", "error"); 
     } finally {
-        // 6. Restore Button State
+        // 7. Restore Button State
         if (btn) {
             btn.disabled = false;
             btn.classList.remove('opacity-60', 'cursor-not-allowed');
@@ -3030,7 +3164,6 @@ async function submitProductUpdate() {
         }
     }
 }
-
 let basketTotalSum = 0; // Tracking variable for basket totals
 
 /**
@@ -5181,7 +5314,7 @@ function renderConsumablesTable(items) {
     });
 };
 
-    // Real-time Search & Auto-Populate for Product Metadata
+// Real-time Search & Auto-Populate for Product Metadata
 function searchAndPopulateProduct() {
     const query = (document.getElementById('metadata-search-input')?.value || '').toLowerCase().trim();
     const select = document.getElementById('edit-select-prod');
@@ -5190,30 +5323,33 @@ function searchAndPopulateProduct() {
     if (!select) return;
 
     if (!query) {
-        // If search is cleared, select empty choice and hide form
+        // If search input is cleared, reset selection and hide form
         select.value = "";
         if (formFields) formFields.classList.add('hidden');
         return;
     }
 
-    // Search through db.inventory or options inside select
+    // Search through db.inventory or fallback array
     const items = (typeof db !== 'undefined' && db.inventory) ? db.inventory : [];
     
     const matchedItem = items.find(item => {
-        const id = (item.id || item.ID || '').toString().toLowerCase();
+        const id = (item.id || item.ID || item.ItemID || '').toString().toLowerCase();
         const name = (item.name || item.ItemName || item.Name || '').toString().toLowerCase();
         return id === query || name.includes(query);
     });
 
     if (matchedItem) {
-        const targetId = matchedItem.id || matchedItem.ID;
+        const targetId = matchedItem.id || matchedItem.ID || matchedItem.ItemID;
         select.value = targetId;
         
-        // Auto-fill form and unhide
+        // Auto-fill form (handles both Pizza & Standard items)
         populateEditForm(matchedItem);
+    } else {
+        // Query has text, but NO match was found: reset form
+        select.value = "";
+        if (formFields) formFields.classList.add('hidden');
     }
 }
-
 // Function to populate edit form fields (Hides ID completely from display)
 function populateEditForm(selectedObj = null) {
     const select = document.getElementById('edit-select-prod');
@@ -5231,15 +5367,44 @@ function populateEditForm(selectedObj = null) {
         return;
     }
 
+    const itemName = item.name || item.ItemName || item.Name || '';
+    const itemCat = item.category || item.Category || '';
+
     // Set hidden ID field for form submission
     const idInput = document.getElementById('edit-inv-id');
     if (idInput) idInput.value = item.id || item.ID || '';
 
-    // Populate editable fields (Item Name, Category, Price, Stock)
-    document.getElementById('edit-inv-name').value = item.name || item.ItemName || item.Name || '';
-    document.getElementById('edit-inv-cat').value = item.category || item.Category || '';
-    document.getElementById('edit-inv-price').value = item.price || item.Price || 0;
-    document.getElementById('edit-inv-stock').value = item.stock || item.Stock || 0;
+    // Populate editable basic fields
+    document.getElementById('edit-inv-name').value = itemName;
+    document.getElementById('edit-inv-cat').value = itemCat;
+    document.getElementById('edit-inv-stock').value = item.stock || item.Stock || item.StockQuantity || 0;
+
+    // Check if category is Pizza
+    const isPizza = itemCat.toLowerCase().trim() === 'pizza';
+    const singleContainer = document.getElementById('single-price-container');
+    const pizzaContainer = document.getElementById('pizza-variant-prices-container');
+
+    if (isPizza) {
+        // Hide standard price, show Pizza inputs
+        if (singleContainer) singleContainer.classList.add('hidden');
+        if (pizzaContainer) pizzaContainer.classList.remove('hidden');
+
+        // Retrieve pricing from PIZZA_PRICING_DATABASE memory object
+        const prices = (typeof PIZZA_PRICING_DATABASE !== 'undefined' && PIZZA_PRICING_DATABASE[itemName]) 
+            ? PIZZA_PRICING_DATABASE[itemName] 
+            : {};
+
+        document.getElementById('edit-pizza-thin10').value = prices.thin10 || '';
+        document.getElementById('edit-pizza-thin12').value = prices.thin12 || '';
+        document.getElementById('edit-pizza-regular10').value = prices.regular10 || '';
+        document.getElementById('edit-pizza-regular12').value = prices.regular12 || '';
+    } else {
+        // Show standard price, hide Pizza inputs
+        if (pizzaContainer) pizzaContainer.classList.add('hidden');
+        if (singleContainer) singleContainer.classList.remove('hidden');
+
+        document.getElementById('edit-inv-price').value = item.price || item.Price || 0;
+    }
 
     // Reveal form fields
     if (formFields) formFields.classList.remove('hidden');
