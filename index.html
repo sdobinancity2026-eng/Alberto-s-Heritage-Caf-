@@ -1904,11 +1904,22 @@ function addToCart(id) {
     if (!item) return;
 
     const itemName = (item.ItemName || "").trim();
-    const itemCategory = (item.Category || item.category || "").toLowerCase();
+    const itemCategory = (item.Category || item.category || "").toLowerCase().trim();
 
-    // 1. Intercept Pizza category items
-    if (itemCategory === "pizza") {
-        if (typeof openPizzaModal === 'function') openPizzaModal(item.ItemName, item.ItemID);
+    // 1. Intercept Pizza category items (🟢 FIX: Use .includes("pizza") to match 'pizza' and 'pizzaprice')
+    if (itemCategory.includes("pizza")) {
+        // First verify base stock before opening size modal
+        const rawStock = item.StockQuantity !== undefined ? item.StockQuantity : (item.stock || 0);
+        if (Number(rawStock) <= 0) {
+            if (typeof showToast === 'function') showToast("Item is out of stock.", "warning");
+            return;
+        }
+
+        if (typeof openPizzaModal === 'function') {
+            openPizzaModal(item.ItemName, item.ItemID);
+        } else {
+            console.error("openPizzaModal function is missing!");
+        }
         return;
     }
 
@@ -1935,7 +1946,6 @@ function addToCart(id) {
             return;
         }
         exist.quantity++;
-        // 🔑 NOTE: exist.printedQty remains untouched so only the newly added quantity is printed
     } else {
         if (maxStock <= 0) {
             if (typeof showToast === 'function') showToast("Item is out of stock.", "warning");
@@ -1947,7 +1957,7 @@ function addToCart(id) {
             price: Number(item.Price) || 0, 
             category: item.Category || item.category || "General", 
             quantity: 1,
-            printedQty: 0 // 🔑 Track initial printed quantity as 0
+            printedQty: 0
         });
     }
     renderCart();
