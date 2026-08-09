@@ -1742,9 +1742,16 @@ if (typeof activeCategoryTab === 'undefined') {
 
 function renderMenu() {
     // 0. DYNAMICALLY BUILD CATEGORIES FROM INVENTORY DATABASE
+    // List of internal sheets/categories to exclude from the UI tabs
+    const excludedCategories = ['pizzaprice', 'inventory', 'consumables', 'recipes'];
+
     const existingCategories = (db.inventory || [])
         .map(item => item.Category || item.category || "")
-        .filter(cat => String(cat).trim() !== ""); // Filter out blank categories
+        .filter(cat => {
+            const normalized = String(cat).toLowerCase().trim();
+            // Filter out blank categories and internal system sheets
+            return normalized !== "" && !excludedCategories.includes(normalized);
+        });
 
     // Remove duplicate category names (case-insensitive deduplication)
     const uniqueCategories = [];
@@ -1786,9 +1793,14 @@ function renderMenu() {
     }
 
     // 2. Filter Database Inventory items by Category Selection
-    let filteredItems = db.inventory || [];
+    let filteredItems = (db.inventory || []).filter(item => {
+        const itemCat = String(item.Category || item.category || "").toLowerCase().trim();
+        // Hide Pizzaprice items when 'All' tab is selected
+        return !excludedCategories.includes(itemCat);
+    });
+
     if (activeCategoryTab !== "All") {
-        filteredItems = (db.inventory || []).filter(item => {
+        filteredItems = filteredItems.filter(item => {
             const itemCat = String(item.Category || item.category || "").toLowerCase().trim();
             return itemCat === activeCategoryTab.toLowerCase().trim();
         });
@@ -1868,17 +1880,9 @@ function renderMenu() {
     const lowAlertEl = document.getElementById('low-stock-alert');
     if (lowAlertEl) {
         lowAlertEl.innerText = `${lowCount} Low Items Flagged 🔍`;
-        
-        // Make element interactive
         lowAlertEl.style.cursor = 'pointer';
         lowAlertEl.onclick = openLowStockModal;
     }
-}
-
-// Tab selection click handler
-function setCategoryFilter(categoryName) {
-    activeCategoryTab = categoryName;
-    renderMenu();
 }
     /**
  * Add item to basket
@@ -3089,19 +3093,19 @@ async function submitProductUpdate() {
     // 3. Build Payload based on Category
     let payload = { id, name, category, stock };
 
-    if (isPizza) {
-        // Collect Pizza Variant inputs
-        const thin10 = parseFloat(document.getElementById('edit-pizza-thin10')?.value) || 0;
-        const thin12 = parseFloat(document.getElementById('edit-pizza-thin12')?.value) || 0;
-        const regular10 = parseFloat(document.getElementById('edit-pizza-regular10')?.value) || 0;
-        const regular12 = parseFloat(document.getElementById('edit-pizza-regular12')?.value) || 0;
+   if (isPizza) {
+    const thin10 = document.getElementById('edit-pizza-thin10')?.value;
+    const thin12 = document.getElementById('edit-pizza-thin12')?.value;
+    const regular10 = document.getElementById('edit-pizza-regular10')?.value;
+    const regular12 = document.getElementById('edit-pizza-regular12')?.value;
 
-        payload.action = "updatePizzaPrice";
-        payload.itemName = name;
-        payload.thin10 = thin10;
-        payload.thin12 = thin12;
-        payload.regular10 = regular10;
-        payload.regular12 = regular12;
+    payload.action = "updatePizzaPrice";
+    payload.itemName = name;
+    payload.thin10 = thin10 !== "" ? Number(thin10) : "";
+    payload.thin12 = thin12 !== "" ? Number(thin12) : "";
+    payload.regular10 = regular10 !== "" ? Number(regular10) : "";
+    payload.regular12 = regular12 !== "" ? Number(regular12) : "";
+}
 
         // Immediately sync local JS cache
         if (typeof PIZZA_PRICING_DATABASE !== 'undefined') {
@@ -5359,7 +5363,7 @@ function populateEditForm(selectedObj = null) {
 
     if (!item && select && select.value) {
         const items = (typeof db !== 'undefined' && db.inventory) ? db.inventory : [];
-        item = items.find(i => String(i.id || i.ID) === String(select.value));
+        item = items.find(i => String(i.id || i.ID || i.ItemID) === String(select.value));
     }
 
     if (!item) {
@@ -5368,48 +5372,71 @@ function populateEditForm(selectedObj = null) {
     }
 
     const itemName = item.name || item.ItemName || item.Name || '';
-    const itemCat = item.category || item.Category || '';
+    const rawCategory = item.category || item.Category || '';
+    const itemCat = rawCategory.toLowerCase().trim();
 
     // Set hidden ID field for form submission
     const idInput = document.getElementById('edit-inv-id');
-    if (idInput) idInput.value = item.id || item.ID || '';
+    if (idInput) idInput.value = item.id || item.ID || item.ItemID || '';
 
     // Populate editable basic fields
-    document.getElementById('edit-inv-name').value = itemName;
-    document.getElementById('edit-inv-cat').value = itemCat;
-    document.getElementById('edit-inv-stock').value = item.stock || item.Stock || item.StockQuantity || 0;
+    const nameEl = document.getElementById('edit-inv-name');
+    const catEl = document.getElementById('edit-inv-cat');
+    const stockEl = document.getElementById('edit-inv-stock');
 
-    // Check if category is Pizza
-    const isPizza = itemCat.toLowerCase().trim() === 'pizza';
+    if (nameEl) nameEl.value = itemName;
+    if (catEl) catEl.value = rawCategory;
+    if (stockEl) stockEl.value = item.stock || item.Stock || item.StockQuantity || 0;
+
+    // FIX 1: Check if category contains 'pizza' (matches 'pizza', 'pizzaprice', etc.)
+    const isPizza = itemCat.includes('pizza');
     const singleContainer = document.getElementById('single-price-container');
     const pizzaContainer = document.getElementById('pizza-variant-prices-container');
 
     if (isPizza) {
-        // Hide standard price, show Pizza inputs
+        // Hide standard price input, show Pizza variant inputs
         if (singleContainer) singleContainer.classList.add('hidden');
         if (pizzaContainer) pizzaContainer.classList.remove('hidden');
 
-        // Retrieve pricing from PIZZA_PRICING_DATABASE memory object
-        const prices = (typeof PIZZA_PRICING_DATABASE !== 'undefined' && PIZZA_PRICING_DATABASE[itemName]) 
-            ? PIZZA_PRICING_DATABASE[itemName] 
-            : {};
+        // FIX 2: Flexible search in PIZZA_PRICING_DATABASE
+        let prices = {};
+        if (typeof PIZZA_PRICING_DATABASE !== 'undefined') {
+            // Direct match check
+            if (PIZZA_PRICING_DATABASE[itemName]) {
+                prices = PIZZA_PRICING_DATABASE[itemName];
+            } else {
+                // Partial name match check (e.g. "Classic 4-Flavors-In-1" vs "Classic 4-Flavors")
+                const lowerName = itemName.toLowerCase();
+                const matchedKey = Object.keys(PIZZA_PRICING_DATABASE).find(k => 
+                    lowerName.includes(k.toLowerCase()) || k.toLowerCase().includes(lowerName)
+                );
+                if (matchedKey) prices = PIZZA_PRICING_DATABASE[matchedKey];
+            }
+        }
 
-        document.getElementById('edit-pizza-thin10').value = prices.thin10 || '';
-        document.getElementById('edit-pizza-thin12').value = prices.thin12 || '';
-        document.getElementById('edit-pizza-regular10').value = prices.regular10 || '';
-        document.getElementById('edit-pizza-regular12').value = prices.regular12 || '';
+        // FIX 3: Set variant field values with fallbacks to the item object itself
+        const thin10El = document.getElementById('edit-pizza-thin10');
+        const thin12El = document.getElementById('edit-pizza-thin12');
+        const reg10El = document.getElementById('edit-pizza-regular10');
+        const reg12El = document.getElementById('edit-pizza-regular12');
+
+        if (thin10El) thin10El.value = prices.thin10 ?? item.thin10 ?? '';
+        if (thin12El) thin12El.value = prices.thin12 ?? item.thin12 ?? '';
+        if (reg10El) reg10El.value = prices.regular10 ?? item.regular10 ?? '';
+        if (reg12El) reg12El.value = prices.regular12 ?? item.regular12 ?? '';
+
     } else {
-        // Show standard price, hide Pizza inputs
+        // Show standard single price, hide Pizza variant inputs
         if (pizzaContainer) pizzaContainer.classList.add('hidden');
         if (singleContainer) singleContainer.classList.remove('hidden');
 
-        document.getElementById('edit-inv-price').value = item.price || item.Price || 0;
+        const priceEl = document.getElementById('edit-inv-price');
+        if (priceEl) priceEl.value = item.price || item.Price || 0;
     }
 
-    // Reveal form fields
+    // Reveal form fields container
     if (formFields) formFields.classList.remove('hidden');
 }
-
      /**
  *  fucntion to clear input field on search
  */
