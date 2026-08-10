@@ -678,41 +678,41 @@
                 <input type="text" id="edit-inv-cat" class="w-full p-3 rounded-lg border text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
             </div>
 
-            <!-- STANDARD SINGLE PRICE CONTAINER (Non-Pizza Items) -->
-            <div id="single-price-container">
-                <label class="block text-xs font-semibold text-slate-500 mb-1">Price (₱)</label>
-                <input type="number" step="0.01" id="edit-inv-price" class="w-full p-3 rounded-lg border font-mono text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
-            </div>
+           <!-- STANDARD STOCK CONTAINER (Non-Pizza Items) -->
+<div id="single-stock-container">
+    <label class="block text-xs font-semibold text-slate-500 mb-1">Stock Level Count</label>
+    <input type="number" id="edit-inv-stock" class="w-full p-3 rounded-lg border font-mono text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+</div>
 
-            <!-- PIZZA VARIANT PRICES CONTAINER (Pizza Items) -->
-            <div id="pizza-variant-prices-container" class="hidden space-y-3 bg-amber-50/60 p-4 rounded-xl border border-amber-200/60">
-                <div class="flex items-center justify-between">
-                    <label class="text-xs font-bold text-amber-900 uppercase">🍕 Pizza Variant Prices (₱)</label>
-                    <span class="text-[10px] text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded font-semibold">Pizzaprice Tab Sync</span>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-3">
-                    <!-- Thin Crust -->
-                    <div>
-                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Thin 10"</label>
-                        <input type="number" id="edit-pizza-thin10" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs md:text-sm font-mono font-bold text-amber-950 focus:ring-2 focus:ring-amber-800/20" placeholder="e.g. 329">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Thin 12"</label>
-                        <input type="number" id="edit-pizza-thin12" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs md:text-sm font-mono font-bold text-amber-950 focus:ring-2 focus:ring-amber-800/20" placeholder="e.g. 399">
-                    </div>
+<!-- PIZZA VARIANT STOCKS CONTAINER (Pizza Items) -->
+<div id="pizza-variant-stocks-container" class="hidden space-y-3 bg-amber-50/60 p-4 rounded-xl border border-amber-200/60">
+    <div class="flex items-center justify-between">
+        <label class="text-xs font-bold text-amber-900 uppercase">🍕 Pizza Variant Stocks</label>
+        <span class="text-[10px] text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded font-semibold">Variant Stock Sync</span>
+    </div>
+    
+    <div class="grid grid-cols-2 gap-3">
+        <!-- Thin Crust Stocks -->
+        <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Thin 10" Stock</label>
+            <input type="number" id="edit-pizza-stock-thin10" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs md:text-sm font-mono font-bold text-amber-950 focus:ring-2 focus:ring-amber-800/20" placeholder="0">
+        </div>
+        <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Thin 12" Stock</label>
+            <input type="number" id="edit-pizza-stock-thin12" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs md:text-sm font-mono font-bold text-amber-950 focus:ring-2 focus:ring-amber-800/20" placeholder="0">
+        </div>
 
-                    <!-- Regular Crust -->
-                    <div>
-                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Regular 10"</label>
-                        <input type="number" id="edit-pizza-regular10" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs md:text-sm font-mono font-bold text-amber-950 focus:ring-2 focus:ring-amber-800/20" placeholder="e.g. 339">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Regular 12"</label>
-                        <input type="number" id="edit-pizza-regular12" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs md:text-sm font-mono font-bold text-amber-950 focus:ring-2 focus:ring-amber-800/20" placeholder="e.g. 429">
-                    </div>
-                </div>
-            </div>
+        <!-- Regular Crust Stocks -->
+        <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Regular 10" Stock</label>
+            <input type="number" id="edit-pizza-stock-regular10" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs md:text-sm font-mono font-bold text-amber-950 focus:ring-2 focus:ring-amber-800/20" placeholder="0">
+        </div>
+        <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Regular 12" Stock</label>
+            <input type="number" id="edit-pizza-stock-regular12" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs md:text-sm font-mono font-bold text-amber-950 focus:ring-2 focus:ring-amber-800/20" placeholder="0">
+        </div>
+    </div>
+</div>
 
             <div>
                 <label class="block text-xs font-semibold text-slate-500 mb-1">Stock Level Count</label>
@@ -3038,47 +3038,81 @@ function loadUpdateSelect() {
 }
 
 function populateEditForm() {
-    const select = document.getElementById('edit-select-prod');
-    const selectedId = select.value;
-    
-    // Find item in local DB
-    const item = db.inventory.find(i => (i.ItemID || i.id) == selectedId);
+    const selectEl = document.getElementById('edit-select-prod');
+    if (!selectEl) return;
+
+    const selectedId = selectEl.value;
+    if (!selectedId) return;
+
+    // 1. Locate the selected item from inventory or menuData cache
+    const productList = (typeof inventory !== 'undefined' && Array.isArray(inventory)) 
+        ? inventory 
+        : ((typeof menuData !== 'undefined' && Array.isArray(menuData)) ? menuData : []);
+
+    const item = productList.find(p => 
+        String(p.id || p.ID || p.code || p.ItemCode) === String(selectedId)
+    );
+
     if (!item) return;
 
-    document.getElementById('edit-form-fields').classList.remove('hidden');
-    document.getElementById('edit-inv-id').value = item.ItemID || item.id || '';
-    document.getElementById('edit-inv-name').value = item.ItemName || item.name || '';
-    
-    const category = item.Category || item.category || '';
-    document.getElementById('edit-inv-cat').value = category;
-    document.getElementById('edit-inv-stock').value = item.StockQuantity !== undefined ? item.StockQuantity : (item.stock || 0);
+    // 2. Unhide the form container
+    const formFields = document.getElementById('edit-form-fields');
+    if (formFields) formFields.classList.remove('hidden');
 
-    // FIX: Check if category contains 'pizza' (matches 'pizza' and 'pizzaprice')
-    const isPizza = category.toLowerCase().trim().includes('pizza');
-    const singleContainer = document.getElementById('single-price-container');
-    const pizzaContainer = document.getElementById('pizza-variant-prices-container');
+    // 3. Populate Hidden ID, Name, and Category
+    const hiddenIdEl = document.getElementById('edit-inv-id');
+    const nameEl = document.getElementById('edit-inv-name');
+    const catEl = document.getElementById('edit-inv-cat');
 
+    if (hiddenIdEl) hiddenIdEl.value = item.id || item.ID || item.code || "";
+    if (nameEl) nameEl.value = item.name || item.ItemName || "";
+    if (catEl) catEl.value = item.category || item.Category || "";
+
+    // 4. Check if Category is Pizza
+    const categoryStr = (catEl ? catEl.value : (item.category || item.Category || "")).toLowerCase();
+    const isPizza = categoryStr.includes('pizza');
+
+    // 5. Get UI Containers
+    const singlePriceContainer = document.getElementById('single-price-container');
+    const pizzaPriceContainer = document.getElementById('pizza-variant-prices-container');
+    const singleStockContainer = document.getElementById('single-stock-container');
+    const pizzaStockContainer = document.getElementById('pizza-variant-stocks-container');
+
+    // 6. Handle UI Visibility & Value Population
     if (isPizza) {
-        if (singleContainer) singleContainer.classList.add('hidden');
-        if (pizzaContainer) pizzaContainer.classList.remove('hidden');
+        // --- SHOW PIZZA GRIDS, HIDE SINGLE INPUTS ---
+        if (singlePriceContainer) singlePriceContainer.classList.add('hidden');
+        if (singleStockContainer) singleStockContainer.classList.add('hidden');
 
-        const flavorName = item.ItemName || item.name;
-        
-        // Flexible search in PIZZA_PRICING_DATABASE
-        let prices = {};
-        if (typeof PIZZA_PRICING_DATABASE !== 'undefined') {
-            prices = PIZZA_PRICING_DATABASE[flavorName] || {};
-        }
+        if (pizzaPriceContainer) pizzaPriceContainer.classList.remove('hidden');
+        if (pizzaStockContainer) pizzaStockContainer.classList.remove('hidden');
 
-        document.getElementById('edit-pizza-thin10').value = prices.thin10 ?? item.thin10 ?? '';
-        document.getElementById('edit-pizza-thin12').value = prices.thin12 ?? item.thin12 ?? '';
-        document.getElementById('edit-pizza-regular10').value = prices.regular10 ?? item.regular10 ?? '';
-        document.getElementById('edit-pizza-regular12').value = prices.regular12 ?? item.regular12 ?? '';
+        // Populate Pizza Variant Prices
+        document.getElementById('edit-pizza-thin10').value = item.thin10 ?? item.Thin10 ?? "";
+        document.getElementById('edit-pizza-thin12').value = item.thin12 ?? item.Thin12 ?? "";
+        document.getElementById('edit-pizza-regular10').value = item.regular10 ?? item.Regular10 ?? "";
+        document.getElementById('edit-pizza-regular12').value = item.regular12 ?? item.Regular12 ?? "";
+
+        // Populate Pizza Variant Stocks
+        document.getElementById('edit-pizza-stock-thin10').value = item.thin10_Stock ?? item.Thin10_Stock ?? 0;
+        document.getElementById('edit-pizza-stock-thin12').value = item.thin12_Stock ?? item.Thin12_Stock ?? 0;
+        document.getElementById('edit-pizza-stock-regular10').value = item.regular10_Stock ?? item.Regular10_Stock ?? 0;
+        document.getElementById('edit-pizza-stock-regular12').value = item.regular12_Stock ?? item.Regular12_Stock ?? 0;
+
     } else {
-        if (pizzaContainer) pizzaContainer.classList.add('hidden');
-        if (singleContainer) singleContainer.classList.remove('hidden');
+        // --- SHOW SINGLE INPUTS, HIDE PIZZA GRIDS ---
+        if (pizzaPriceContainer) pizzaPriceContainer.classList.add('hidden');
+        if (pizzaStockContainer) pizzaStockContainer.classList.add('hidden');
 
-        document.getElementById('edit-inv-price').value = item.Price || item.price || 0;
+        if (singlePriceContainer) singlePriceContainer.classList.remove('hidden');
+        if (singleStockContainer) singleStockContainer.classList.remove('hidden');
+
+        // Populate Standard Price & Stock
+        const priceEl = document.getElementById('edit-inv-price');
+        const stockEl = document.getElementById('edit-inv-stock');
+
+        if (priceEl) priceEl.value = item.price ?? item.Price ?? 0;
+        if (stockEl) stockEl.value = item.stock ?? item.StockQuantity ?? item.Stock ?? 0;
     }
 }
 
@@ -3091,7 +3125,7 @@ async function submitProductUpdate() {
     const priceEl = document.getElementById('edit-inv-price');
     const stockEl = document.getElementById('edit-inv-stock');
 
-    if (!nameEl || !catEl || !stockEl) {
+    if (!nameEl || !catEl) {
         console.error("One or more required form elements are missing in the DOM.");
         if (typeof showToast === 'function') showToast("Form elements not found!", "error");
         return;
@@ -3099,9 +3133,6 @@ async function submitProductUpdate() {
 
     const name = nameEl.value.trim();
     const category = catEl.value.trim();
-    const stock = Number(stockEl.value);
-    
-    // FIX: Check if category contains 'pizza' (matches 'pizza' and 'pizzaprice')
     const isPizza = category.toLowerCase().includes('pizza');
 
     // 2. Resolve Product ID
@@ -3124,22 +3155,36 @@ async function submitProductUpdate() {
     }
 
     // 3. Build Payload based on Category
-    let payload = { id, name, category, stock };
+    let payload = { id, name, category };
 
     if (isPizza) {
+        // Read Prices
         const thin10 = document.getElementById('edit-pizza-thin10')?.value;
         const thin12 = document.getElementById('edit-pizza-thin12')?.value;
         const regular10 = document.getElementById('edit-pizza-regular10')?.value;
         const regular12 = document.getElementById('edit-pizza-regular12')?.value;
 
+        // Read Variant Stocks
+        const thin10_Stock = document.getElementById('edit-pizza-stock-thin10')?.value;
+        const thin12_Stock = document.getElementById('edit-pizza-stock-thin12')?.value;
+        const regular10_Stock = document.getElementById('edit-pizza-stock-regular10')?.value;
+        const regular12_Stock = document.getElementById('edit-pizza-stock-regular12')?.value;
+
         payload.action = "updatePizzaPrice";
         payload.itemName = name;
-        payload.thin10 = thin10 !== "" ? Number(thin10) : "";
-        payload.thin12 = thin12 !== "" ? Number(thin12) : "";
-        payload.regular10 = regular10 !== "" ? Number(regular10) : "";
-        payload.regular12 = regular12 !== "" ? Number(regular12) : "";
 
-        // Immediately sync local JS cache
+        // Option A: Specific Variant Prices & Stocks
+        if (thin10 !== "") payload.thin10 = Number(thin10);
+        if (thin12 !== "") payload.thin12 = Number(thin12);
+        if (regular10 !== "") payload.regular10 = Number(regular10);
+        if (regular12 !== "") payload.regular12 = Number(regular12);
+
+        if (thin10_Stock !== "") payload.thin10_Stock = Number(thin10_Stock);
+        if (thin12_Stock !== "") payload.thin12_Stock = Number(thin12_Stock);
+        if (regular10_Stock !== "") payload.regular10_Stock = Number(regular10_Stock);
+        if (regular12_Stock !== "") payload.regular12_Stock = Number(regular12_Stock);
+
+        // Immediately sync local JS cache if present
         if (typeof PIZZA_PRICING_DATABASE !== 'undefined') {
             PIZZA_PRICING_DATABASE[name] = { 
                 thin10: payload.thin10, 
@@ -3152,6 +3197,7 @@ async function submitProductUpdate() {
         // Regular Non-Pizza product
         payload.action = "updateProduct";
         payload.price = Number(priceEl ? priceEl.value : 0);
+        payload.stock = Number(stockEl ? stockEl.value : 0);
     }
 
     // 4. API Endpoint Check
@@ -4764,7 +4810,7 @@ function selectPizzaSize(size) {
 // CALCULATE PRICE & UPDATE MODAL UI
 // ==========================================
 function updateModalUI() {
-    // 1. Crust Button Highlights
+    // 1. Highlight Crust Buttons
     const thinBtn = document.getElementById('crust-thin-btn');
     const regBtn = document.getElementById('crust-regular-btn');
     if (thinBtn && regBtn) {
@@ -4777,7 +4823,7 @@ function updateModalUI() {
             : "p-3 rounded-xl border-2 border-slate-200 bg-white text-slate-600 font-bold text-sm text-center hover:border-slate-300 transition-all";
     }
 
-    // 2. Size Button Highlights
+    // 2. Highlight Size Buttons
     const btn10 = document.getElementById('size-10-btn');
     const btn12 = document.getElementById('size-12-btn');
     if (btn10 && btn12) {
@@ -4790,25 +4836,27 @@ function updateModalUI() {
             : "p-3 rounded-xl border-2 border-slate-200 bg-white text-slate-600 font-bold text-sm text-center hover:border-slate-300 transition-all";
     }
 
-    // 3. Robust Lookup for Price & Stock
+    // 3. READ PRICE AND STOCK
     let price = 0;
     let stock = 0;
     const crust = window.selectedCrust || 'thin';
     const size = window.selectedSize || '10';
-    const variantKey = `${crust}${size}`;       // e.g., "thin10"
-    const stockKey = `${variantKey}_Stock`;     // e.g., "thin10_Stock"
+    const variantKey = `${crust}${size}`;       // e.g. "thin10"
+    const stockKey = `${variantKey}_Stock`;     // e.g. "thin10_Stock"
 
     const activeId = String(window.activePizzaId || "").trim();
     const activeName = String(window.activePizzaFlavor || "").toLowerCase().trim();
 
-    // Helper: Clean strings for comparison (ignores spaces, "pizza", dashes)
+    // Normalizer: strips extra spaces, hyphens, and "pizza" for fuzzy comparison
     const cleanStr = (s) => String(s || "").toLowerCase().replace(/pizza/g, '').replace(/[^a-z0-9]/g, '');
     const cleanActiveName = cleanStr(activeName);
 
     const dbSource = window.PIZZA_PRICING_DATABASE || (typeof db !== 'undefined' ? db.pizzaPricing : {}) || {};
+    
+    // Direct key lookup
     let itemData = dbSource[activeId] || dbSource[activeName];
 
-    // Fallback search across array values
+    // Fuzzy search array fallback
     if (!itemData && typeof dbSource === 'object') {
         itemData = Object.values(dbSource).find(p => {
             const pId = String(p.itemId || "").trim();
@@ -4821,8 +4869,18 @@ function updateModalUI() {
 
     if (itemData) {
         price = Number(itemData[variantKey]) || 0;
-        stock = Number(itemData[stockKey]) || 0;
+        
+        // Check variant stock first. If variant stock column is undefined/blank, fallback to generic stock property
+        if (itemData[stockKey] !== undefined && itemData[stockKey] !== "") {
+            stock = Number(itemData[stockKey]);
+        } else {
+            stock = Number(itemData.stock || itemData.StockQuantity || 999);
+        }
+
         window.activePizzaVariantStock = stock;
+    } else {
+        console.warn("⚠️ Item missing from pricing database:", { searchedId: activeId, searchedName: activeName });
+        window.activePizzaVariantStock = 0;
     }
 
     // 4. Update Price Display in Modal
@@ -4836,7 +4894,6 @@ function updateModalUI() {
 
     return price;
 }
-
 // ==========================================
 // CONFIRM & ADD TO CART LOGIC
 // ==========================================
