@@ -4713,9 +4713,6 @@ function closeSetMealModal() {
             }
         };
 // ==========================================
-// 3. PIZZA MODAL INTERACTION LOGIC
-// ==========================================
-// ==========================================
 // PIZZA MODAL STATE & HANDLERS
 // ==========================================
 
@@ -4735,7 +4732,7 @@ function openPizzaModal(itemName, itemId) {
         titleEl.textContent = itemName;
     }
 
-    // 3. Refresh UI highlights and calculate initial price
+    // 3. Refresh UI highlights and calculate initial price/stock
     updateModalUI();
 
     // 4. Show modal
@@ -4786,33 +4783,42 @@ function updateModalUI() {
         }
     }
 
-    // 3. LOOKUP PRICE FROM SHEET DATA ARRAY (db.pizzaprice or db.Pizzaprice or PIZZA_PRICING_DATABASE)
+    // 3. READ PRICE AND STOCK FROM NEW SHEET STRUCTURE
     let price = 0;
+    let stock = 0;
     const crust = window.selectedCrust || 'thin'; // 'thin' or 'regular'
     const size = window.selectedSize || '10';      // '10' or '12'
-    const key = `${crust}${size}`;                 // e.g. "thin10", "regular10"
+    const keyPrice = `${crust}${size}`;            // e.g. "thin10", "regular12"
 
-    // Target sources where your sheet tab data lives
-    const pricingSource = (typeof db !== 'undefined' && (db.pizzaprice || db.Pizzaprice || db.pizzaPrice)) 
-                          || (typeof PIZZA_PRICING_DATABASE !== 'undefined' ? PIZZA_PRICING_DATABASE : null);
+    // Search inside loaded inventory tab
+    const inventory = (typeof db !== 'undefined' && db.inventory) ? db.inventory : [];
+    const item = inventory.find(i => 
+        String(i.ItemID || i.id || "").trim() === String(window.activePizzaId || "").trim() ||
+        String(i.ItemName || i.name || "").toLowerCase().trim() === String(window.activePizzaFlavor || "").toLowerCase().trim()
+    );
 
-    if (pricingSource) {
-        let pizzaRow = null;
+    if (item) {
+        // Price Key Lookup (handles thin10, regular12, etc.)
+        price = Number(item[keyPrice]) || 0;
 
-        // If it's an Array (Google Sheet tab standard load)
-        if (Array.isArray(pricingSource)) {
-            pizzaRow = pricingSource.find(item => 
-                String(item.ItemID || "").trim() === String(window.activePizzaId || "").trim() ||
-                String(item.ItemName || item.name || "").toLowerCase().trim() === String(window.activePizzaFlavor || "").toLowerCase().trim()
-            );
-        } else if (typeof pricingSource === 'object') {
-            // Object mapping fallback
-            pizzaRow = pricingSource[window.activePizzaFlavor] || pricingSource[window.activePizzaId];
+        // Stock Lookup for variant: supports duplicate column mapping or variant stock keys
+        const stockKeys = [
+            `${keyPrice}_Stock`,
+            `${keyPrice}Stock`,
+            `${keyPrice}_stock`,
+            'Stock',
+            'StockQuantity'
+        ];
+
+        for (const sk of stockKeys) {
+            if (item[sk] !== undefined && item[sk] !== "") {
+                stock = Number(item[sk]);
+                break;
+            }
         }
-
-        if (pizzaRow) {
-            price = Number(pizzaRow[key]) || 0;
-        }
+        
+        // Save computed current variant stock globally for cart submission
+        window.activePizzaVariantStock = stock;
     }
 
     // 4. Update Modal Display
@@ -4833,19 +4839,16 @@ function confirmPizzaAddToCart() {
         return;
     }
 
-    const price = updateModalUI(); // Dynamic price based on selected crust & size
+    const price = updateModalUI(); 
     const crustLabel = window.selectedCrust === 'thin' ? 'Thin Crust' : 'Regular Crust';
     const formattedName = `${window.activePizzaFlavor} (${crustLabel} ${window.selectedSize}")`;
     const variantId = `${window.activePizzaId}_${window.selectedCrust}_${window.selectedSize}`;
+    const maxStock = Number(window.activePizzaVariantStock) || 0;
 
-    // Access database stock safely from your 'Pizza' tab
-    let maxStock = 99;
-    if (typeof db !== 'undefined' && db.inventory) {
-        const item = db.inventory.find(i => (i.ItemID || i.id) == window.activePizzaId);
-        if (item) {
-            const rawStock = item.StockQuantity !== undefined ? item.StockQuantity : (item.Stock || item.stock || 0);
-            maxStock = Number(rawStock) || 0;
-        }
+    // Check variant stock
+    if (maxStock <= 0) {
+        if (typeof showToast === 'function') showToast("Selected variant is out of stock.", "warning");
+        return;
     }
 
     const exist = activeCart.find(c => c.variantId === variantId);
@@ -4857,10 +4860,6 @@ function confirmPizzaAddToCart() {
         }
         exist.quantity++;
     } else {
-        if (maxStock <= 0) {
-            if (typeof showToast === 'function') showToast("Item is out of stock.", "warning");
-            return;
-        }
         activeCart.push({ 
             id: window.activePizzaId,
             variantId: variantId,
