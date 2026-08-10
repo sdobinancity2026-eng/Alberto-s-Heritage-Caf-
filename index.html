@@ -2557,9 +2557,11 @@ Contact us at: 0969 299 2006
     }
 }
 // ==========================================
-// 1. UPDATED KITCHEN ORDER TICKET (KOT)
+// UPDATED KITCHEN ORDER TICKET (KOT)
 // ==========================================
 function printKitchenTicket(orderData) {
+    if (!orderData) return;
+
     const tableNo = orderData.TableNo || document.getElementById('table-number-input')?.value || "N/A";
     const orderType = orderData.OrderType || orderData.orderType || document.getElementById('order-type-select')?.value || "Dine In";
     const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -2615,9 +2617,7 @@ function printKitchenTicket(orderData) {
         });
     }
 
-    // 🖨️ 4. Build and print the KOT ticket
-    const printWindow = window.open('', '_blank');
-
+    // 🖨️ 4. Build the KOT HTML payload
     const kotHtml = `
       <!DOCTYPE html>
       <html>
@@ -2696,19 +2696,56 @@ function printKitchenTicket(orderData) {
       </html>
     `;
 
-    printWindow.document.write(kotHtml);
-    printWindow.document.close();
-    printWindow.focus();
-    
-    setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
+    // 🎯 SAFE PRINTING IMPLEMENTATION (IFRAME FALLBACK IF POPUP IS BLOCKED)
+    try {
+        const printWindow = window.open('', '_blank');
 
-        // 🏷️ Flag items as printed after printing finishes
-        itemsList.forEach(item => {
-            item.printedQty = Number(item.quantity || 0);
-        });
-    }, 250);
+        if (printWindow && printWindow.document) {
+            printWindow.document.open();
+            printWindow.document.write(kotHtml);
+            printWindow.document.close();
+            printWindow.focus();
+
+            setTimeout(() => {
+                printWindow.print();
+                printWindow.close();
+                itemsList.forEach(item => { item.printedQty = Number(item.quantity || 0); });
+            }, 250);
+        } else {
+            throw new Error("Popup blocked");
+        }
+    } catch (err) {
+        // Fallback: Use dynamic hidden iframe for silent thermal printing
+        console.warn("Kitchen print popup blocked. Using iframe fallback instead.");
+
+        let iframe = document.getElementById('kot-print-iframe');
+        if (!iframe) {
+            iframe = document.createElement('iframe');
+            iframe.id = 'kot-print-iframe';
+            iframe.style.position = 'fixed';
+            iframe.style.right = '0';
+            iframe.style.bottom = '0';
+            iframe.style.width = '0';
+            iframe.style.height = '0';
+            iframe.style.border = '0';
+            document.body.appendChild(iframe);
+        }
+
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        if (doc) {
+            doc.open();
+            doc.write(kotHtml);
+            doc.close();
+
+            setTimeout(() => {
+                if (iframe.contentWindow) {
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                }
+                itemsList.forEach(item => { item.printedQty = Number(item.quantity || 0); });
+            }, 250);
+        }
+    }
 }
     let employeePettyCash = 0;
 
