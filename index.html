@@ -4715,83 +4715,33 @@ function closeSetMealModal() {
 // ==========================================
 // 3. PIZZA MODAL INTERACTION LOGIC
 // ==========================================
+// ==========================================
+// PIZZA MODAL STATE & HANDLERS
+// ==========================================
+
 function openPizzaModal(itemName, itemId) {
-    const modal = document.getElementById('pizza-modal'); // Adjust to your modal ID
+    const modal = document.getElementById('pizza-modal');
     if (!modal) return;
 
-    // Fetch prices from local database cache
-    const prices = (typeof PIZZA_PRICING_DATABASE !== 'undefined' && PIZZA_PRICING_DATABASE[itemName]) 
-        ? PIZZA_PRICING_DATABASE[itemName] 
-        : {};
+    // 1. Set global state required by updateModalUI and confirmPizzaAddToCart
+    window.activePizzaId = itemId;
+    window.activePizzaFlavor = itemName;
+    window.selectedCrust = 'thin'; // 'thin' or 'regular'
+    window.selectedSize = '10';    // '10' or '12'
 
-    // Example mapping prices into modal buttons
-    const thin10Price = Number(prices.thin10) || 0;
-    const thin12Price = Number(prices.thin12) || 0;
-    const reg10Price  = Number(prices.regular10) || 0;
-    const reg12Price  = Number(prices.regular12) || 0;
-
-    // Update modal labels (adjust IDs to match your HTML modal element IDs)
-    if (document.getElementById('pizza-modal-title')) {
-        document.getElementById('pizza-modal-title').innerText = itemName;
-    }
-    
-    // Set button click handlers with explicit prices
-    const btnThin10 = document.getElementById('btn-thin-10');
-    if (btnThin10) {
-        btnThin10.innerText = `Thin 10" - ₱${thin10Price.toFixed(2)}`;
-        btnThin10.onclick = () => addPizzaToCart(itemId, itemName, 'Thin 10"', thin10Price);
+    // 2. Update modal title
+    const titleEl = document.getElementById('pizza-modal-title');
+    if (titleEl) {
+        titleEl.textContent = itemName;
     }
 
-    const btnThin12 = document.getElementById('btn-thin-12');
-    if (btnThin12) {
-        btnThin12.innerText = `Thin 12" - ₱${thin12Price.toFixed(2)}`;
-        btnThin12.onclick = () => addPizzaToCart(itemId, itemName, 'Thin 12"', thin12Price);
-    }
+    // 3. Refresh UI highlights and calculate initial price
+    updateModalUI();
 
-    const btnReg10 = document.getElementById('btn-reg-10');
-    if (btnReg10) {
-        btnReg10.innerText = `Regular 10" - ₱${reg10Price.toFixed(2)}`;
-        btnReg10.onclick = () => addPizzaToCart(itemId, itemName, 'Regular 10"', reg10Price);
-    }
-
-    const btnReg12 = document.getElementById('btn-reg-12');
-    if (btnReg12) {
-        btnReg12.innerText = `Regular 12" - ₱${reg12Price.toFixed(2)}`;
-        btnReg12.onclick = () => addPizzaToCart(itemId, itemName, 'Regular 12"', reg12Price);
-    }
-
+    // 4. Show modal
     modal.classList.remove('hidden');
 }
 
-function addPizzaToCart(itemId, itemName, variantName, price) {
-    if (!price || price <= 0) {
-        if (typeof showToast === 'function') showToast("Price for this variant is not set.", "warning");
-        return;
-    }
-
-    const cartItemId = `${itemId}-${variantName.replace(/\s+/g, '-').toLowerCase()}`;
-    const fullItemName = `${itemName} (${variantName})`;
-
-    const exist = activeCart.find(c => c.id === cartItemId);
-    if (exist) {
-        exist.quantity++;
-    } else {
-        activeCart.push({
-            id: cartItemId,
-            name: fullItemName,
-            price: Number(price),
-            category: "Pizza",
-            quantity: 1,
-            printedQty: 0
-        });
-    }
-
-    // Close modal & render cart
-    const modal = document.getElementById('pizza-modal');
-    if (modal) modal.classList.add('hidden');
-
-    renderCart();
-}
 function closePizzaModal() {
     const modal = document.getElementById('pizza-modal');
     if (modal) modal.classList.add('hidden');
@@ -4808,6 +4758,7 @@ function selectPizzaSize(size) {
 }
 
 function updateModalUI() {
+    // 1. Highlight selected crust
     const thinBtn = document.getElementById('crust-thin-btn');
     const regBtn = document.getElementById('crust-regular-btn');
     
@@ -4821,6 +4772,7 @@ function updateModalUI() {
         }
     }
 
+    // 2. Highlight selected size
     const btn10 = document.getElementById('size-10-btn');
     const btn12 = document.getElementById('size-12-btn');
 
@@ -4834,36 +4786,50 @@ function updateModalUI() {
         }
     }
 
-    // Calculate Price dynamically
-    const key = window.selectedCrust + window.selectedSize;
-    const price = PIZZA_PRICING_DATABASE[window.activePizzaFlavor]?.[key] || 0;
+    // 3. Price Lookup (Fallback check for object keys e.g. "thin10" or "thin_10")
+    const crust = window.selectedCrust || 'thin';
+    const size = window.selectedSize || '10';
+    const flavorObj = (typeof PIZZA_PRICING_DATABASE !== 'undefined') ? PIZZA_PRICING_DATABASE[window.activePizzaFlavor] : null;
+
+    let price = 0;
+    if (flavorObj) {
+        const keyExact = crust + size;                           // e.g. "thin10"
+        const keyUnderscore = `${crust}_${size}`;                // e.g. "thin_10"
+        price = Number(flavorObj[keyExact] || flavorObj[keyUnderscore] || flavorObj[crust] || 0);
+    }
     
-    const priceDisplay = document.getElementById('pizza-modal-price');
+    // Update displayed modal price
+    const priceDisplay = document.getElementById('pizza-modal-price') || document.getElementById('computed-pizza-price');
     if (priceDisplay) priceDisplay.textContent = `₱${price.toFixed(2)}`;
+
+    return price;
 }
 
 // ==========================================
-// 4. CONFIRM & ADD TO CART LOGIC
+// CONFIRM & ADD TO CART LOGIC
 // ==========================================
 function confirmPizzaAddToCart() {
-    const key = window.selectedCrust + window.selectedSize;
-    const price = PIZZA_PRICING_DATABASE[window.activePizzaFlavor]?.[key] || 0;
+    if (!window.activePizzaFlavor || !window.activePizzaId) {
+        if (typeof showToast === 'function') showToast("Please select a pizza first.", "error");
+        return;
+    }
+
+    const price = updateModalUI(); // Fetch price accurately from database lookup
     const crustLabel = window.selectedCrust === 'thin' ? 'Thin Crust' : 'Regular Crust';
     const formattedName = `${window.activePizzaFlavor} (${crustLabel} ${window.selectedSize}")`;
-
     const variantId = `${window.activePizzaId}_${window.selectedCrust}_${window.selectedSize}`;
 
     // Access database stock safely
     let maxStock = 99;
     if (typeof db !== 'undefined' && db.inventory) {
-        const item = db.inventory.find(i => i.ItemID == window.activePizzaId);
+        const item = db.inventory.find(i => (i.ItemID || i.id) == window.activePizzaId);
         if (item) {
             const rawStock = item.StockQuantity !== undefined ? item.StockQuantity : (item.stock || 0);
             maxStock = Number(rawStock) || 0;
         }
     }
 
-    const exist = activeCart.find(c => c.variantId === variantId);
+    const exist = activeCart.find(c => c.variantId === variantId || c.id === variantId);
 
     if (exist) {
         if (exist.quantity >= maxStock) {
@@ -4871,7 +4837,6 @@ function confirmPizzaAddToCart() {
             return;
         }
         exist.quantity++;
-        // 🔑 NOTE: exist.printedQty remains untouched so only the added unit prints on KOT
     } else {
         if (maxStock <= 0) {
             if (typeof showToast === 'function') showToast("Item is out of stock.", "warning");
@@ -4884,14 +4849,13 @@ function confirmPizzaAddToCart() {
             price: price, 
             category: "Pizza", 
             quantity: 1,
-            printedQty: 0 // 🔑 Track initial printed count as 0 for KOT
+            printedQty: 0
         });
     }
 
     if (typeof renderCart === 'function') renderCart();
     closePizzaModal();
 }
-
 // Attach functions explicitly to global window object
 window.openPizzaModal = openPizzaModal;
 window.closePizzaModal = closePizzaModal;
