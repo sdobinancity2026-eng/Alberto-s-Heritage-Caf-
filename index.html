@@ -4716,20 +4716,20 @@ function closeSetMealModal() {
 // PIZZA MODAL STATE & HANDLERS
 // ==========================================
 
-function fetchPizzaModal(itemName, itemId) {
+function openPizzaModal(itemName, itemId) {
     const modal = document.getElementById('pizza-modal');
     if (!modal) return;
 
     // 1. Set global state required by updateModalUI and confirmPizzaAddToCart
-    window.activePizzaId = itemId;
-    window.activePizzaFlavor = itemName;
-    window.selectedCrust = 'thin';     // 'thin' or 'regular'
-    window.selectedSize = '10';        // '10' or '12'
+    window.activePizzaId = itemId ? String(itemId).trim() : "";
+    window.activePizzaFlavor = itemName ? String(itemName).trim() : "";
+    window.selectedCrust = 'thin';     // Default: 'thin'
+    window.selectedSize = '10';        // Default: '10'
 
     // 2. Update modal title
     const titleEl = document.getElementById('pizza-modal-title');
     if (titleEl) {
-        titleEl.textContent = itemName;
+        titleEl.textContent = window.activePizzaFlavor;
     }
 
     // 3. Refresh UI highlights and calculate initial price/stock
@@ -4738,6 +4738,10 @@ function fetchPizzaModal(itemName, itemId) {
     // 4. Show modal
     modal.classList.remove('hidden');
 }
+
+// Alias for backwards compatibility
+window.fetchPizzaModal = openPizzaModal;
+window.openPizzaModal = openPizzaModal;
 
 function closePizzaModal() {
     const modal = document.getElementById('pizza-modal');
@@ -4754,25 +4758,8 @@ function selectPizzaSize(size) {
     updateModalUI();
 }
 
-// Global pricing database
-window.PIZZA_PRICING_DATABASE = window.PIZZA_PRICING_DATABASE || {};
-
-// Fetcher function
-function fetchPizzaPricing() {
-    fetch(GAS_URL + "?action=getPizzaPrices") // Replace GAS_URL with your Web App URL if needed
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === "SUCCESS" && data.pizzaPricing) {
-                window.PIZZA_PRICING_DATABASE = data.pizzaPricing;
-                // If modal is open, refresh UI
-                if (window.activePizzaFlavor) updateModalUI();
-            }
-        })
-        .catch(err => console.error("Error fetching pizza pricing:", err));
-}
-
 function updateModalUI() {
-    // 1. Highlight crust buttons
+    // 1. Highlight Crust Buttons
     const thinBtn = document.getElementById('crust-thin-btn');
     const regBtn = document.getElementById('crust-regular-btn');
     if (thinBtn && regBtn) {
@@ -4785,7 +4772,7 @@ function updateModalUI() {
             : "p-3 rounded-xl border-2 border-slate-200 bg-white text-slate-600 font-bold text-sm text-center hover:border-slate-300 transition-all";
     }
 
-    // 2. Highlight size buttons
+    // 2. Highlight Size Buttons
     const btn10 = document.getElementById('size-10-btn');
     const btn12 = document.getElementById('size-12-btn');
     if (btn10 && btn12) {
@@ -4803,39 +4790,53 @@ function updateModalUI() {
     let stock = 0;
     const crust = window.selectedCrust || 'thin';
     const size = window.selectedSize || '10';
-    const keyPrice = `${crust}${size}`; // e.g. "thin10"
-    const keyStock = `${keyPrice}_Stock`; // e.g. "thin10_Stock"
+    const variantKey = `${crust}${size}`;       // e.g. "thin10"
+    const stockKey = `${variantKey}_Stock`;     // e.g. "thin10_Stock"
 
     const activeId = String(window.activePizzaId || "").trim();
     const activeName = String(window.activePizzaFlavor || "").toLowerCase().trim();
 
-    // Source 1: Check fetched PIZZA_PRICING_DATABASE
-    let pizzaData = window.PIZZA_PRICING_DATABASE[activeId] || window.PIZZA_PRICING_DATABASE[activeName];
+    // Helper: Normalize names for flexible lookup
+    const cleanStr = (s) => String(s || "").toLowerCase().replace(/pizza/g, '').replace(/[^a-z0-9]/g, '');
+    const cleanActiveName = cleanStr(activeName);
 
-    // Source 2: Fallback check in db.inventory or db.pizza
-    if (!pizzaData && typeof db !== 'undefined') {
-        const sourceList = db.pizza || db.inventory || [];
-        pizzaData = sourceList.find(i => 
-            String(i.ItemID || i.id || "").trim() === activeId ||
-            String(i.ItemName || i.name || "").toLowerCase().trim() === activeName
-        );
+    const dbSource = window.PIZZA_PRICING_DATABASE || {};
+    let itemData = dbSource[activeId] || dbSource[activeName];
+
+    // Fallback: search array values if exact dictionary key misses
+    if (!itemData && typeof dbSource === 'object') {
+        itemData = Object.values(dbSource).find(p => {
+            const pId = String(p.itemId || "").trim();
+            const pName = String(p.itemName || "").toLowerCase().trim();
+            return (activeId && pId === activeId) ||
+                   (activeName && pName === activeName) ||
+                   (cleanActiveName && cleanStr(pName) === cleanActiveName);
+        });
     }
 
-    if (pizzaData) {
-        price = Number(pizzaData[keyPrice]) || 0;
-        stock = Number(pizzaData[keyStock]) || Number(pizzaData.StockQuantity) || Number(pizzaData.stock) || 0;
+    if (itemData) {
+        price = Number(itemData[variantKey]) || 0;
+        stock = Number(itemData[stockKey]) || 0;
         window.activePizzaVariantStock = stock;
+    } else {
+        console.warn("⚠️ Pizza item not found in database!", {
+            searchedId: activeId,
+            searchedName: activeName,
+            availableKeys: Object.keys(dbSource)
+        });
     }
 
-    // 4. Update Modal Display
-    const priceDisplay = document.getElementById('pizza-modal-price') || document.getElementById('computed-pizza-price');
+    // 4. Update Price Display in Modal
+    const priceDisplay = document.getElementById('pizza-modal-price') || 
+                         document.getElementById('computed-pizza-price') ||
+                         document.getElementById('pizza-price');
+
     if (priceDisplay) {
         priceDisplay.textContent = `₱${price.toFixed(2)}`;
     }
 
     return price;
 }
-
 // ==========================================
 // CONFIRM & ADD TO CART LOGIC
 // ==========================================
@@ -4887,6 +4888,50 @@ window.closePizzaModal = closePizzaModal;
 window.selectPizzaCrust = selectPizzaCrust;
 window.selectPizzaSize = selectPizzaSize;
 window.confirmPizzaAddToCart = confirmPizzaAddToCart;
+    // Load Pizza Pricing from Google Sheets API response
+function fetchPizzaPricing() {
+    // If loaded from full DB sync:
+    if (typeof db !== 'undefined' && db.pizzaPricing) {
+        PIZZA_PRICING_DATABASE = db.pizzaPricing;
+        if (typeof updateModalUI === 'function' && window.activePizzaFlavor) updateModalUI();
+        return;
+    }
+
+    // Fallback fetch
+    const fetchUrl = (typeof SCRIPT_URL !== 'undefined') ? SCRIPT_URL : (typeof GAS_URL !== 'undefined' ? GAS_URL : '');
+    if (!fetchUrl) return;
+
+    fetch(fetchUrl + '?action=getPizzaPrices')
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === "SUCCESS" && data.pizzaPricing) {
+                PIZZA_PRICING_DATABASE = data.pizzaPricing;
+                window.PIZZA_PRICING_DATABASE = data.pizzaPricing; // global sync
+                console.log("Pizza Pricing Loaded from Sheet:", PIZZA_PRICING_DATABASE);
+
+                // If pizza modal is currently active, re-calculate UI and show price
+                if (typeof updateModalUI === 'function' && window.activePizzaFlavor) {
+                    updateModalUI();
+                }
+            }
+        })
+        .catch(err => console.error("Error loading pizza prices:", err));
+}
+
+// Call this when app starts
+document.addEventListener("DOMContentLoaded", fetchPizzaPricing);
+
+/**
+ * Handles switching category tabs on the POS Menu
+ * @param {string} category - The category clicked by the user
+ */
+function setCategoryFilter(category) {
+    activeCategoryTab = category;
+    if (typeof renderMenu === 'function') renderMenu();
+}
+
+// Call this once when app starts
+document.addEventListener("DOMContentLoaded", fetchPizzaPricing);
 
     let activePastaId = null;
 let activePastaName = "";
@@ -6249,50 +6294,7 @@ function calculatePaymentMethodTotals(orders) {
     updatePaymentCard('bank', bankTotal, bankCount);
 }
 
-// Load Pizza Pricing from Google Sheets API response
-function fetchPizzaPricing() {
-    // If loaded from full DB sync:
-    if (typeof db !== 'undefined' && db.pizzaPricing) {
-        PIZZA_PRICING_DATABASE = db.pizzaPricing;
-        if (typeof updateModalUI === 'function' && window.activePizzaFlavor) updateModalUI();
-        return;
-    }
 
-    // Fallback fetch
-    const fetchUrl = (typeof SCRIPT_URL !== 'undefined') ? SCRIPT_URL : (typeof GAS_URL !== 'undefined' ? GAS_URL : '');
-    if (!fetchUrl) return;
-
-    fetch(fetchUrl + '?action=getPizzaPrices')
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === "SUCCESS" && data.pizzaPricing) {
-                PIZZA_PRICING_DATABASE = data.pizzaPricing;
-                window.PIZZA_PRICING_DATABASE = data.pizzaPricing; // global sync
-                console.log("Pizza Pricing Loaded from Sheet:", PIZZA_PRICING_DATABASE);
-
-                // If pizza modal is currently active, re-calculate UI and show price
-                if (typeof updateModalUI === 'function' && window.activePizzaFlavor) {
-                    updateModalUI();
-                }
-            }
-        })
-        .catch(err => console.error("Error loading pizza prices:", err));
-}
-
-// Call this when app starts
-document.addEventListener("DOMContentLoaded", fetchPizzaPricing);
-
-/**
- * Handles switching category tabs on the POS Menu
- * @param {string} category - The category clicked by the user
- */
-function setCategoryFilter(category) {
-    activeCategoryTab = category;
-    if (typeof renderMenu === 'function') renderMenu();
-
-// Call this when your app starts
-document.addEventListener("DOMContentLoaded", fetchPizzaPricing);
-}
  
 </script>
 </body>
