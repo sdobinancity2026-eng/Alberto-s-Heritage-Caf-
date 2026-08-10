@@ -2011,15 +2011,20 @@ function removeFromCart(index) {
 function renderCart() {
     const listEl = document.getElementById('basket-list');
     const counterEl = document.getElementById('basket-counter');
-    const totalEl = document.getElementById('basket-total');
+    const totalEl = document.getElementById('basket-total') || document.getElementById('total-amount');
     const summaryRow = document.getElementById('discount-summary-row');
     const summaryAmount = document.getElementById('basket-discount-amount');
-    const inputEl = document.getElementById('discount-id-input');
+    const inputEl = document.getElementById('discount-id-input') || document.getElementById('senior-pwd-id');
 
     if (!listEl) return;
     listEl.innerHTML = "";
 
-    if (activeCart.length === 0) {
+    // Resolve discount ID safely from DOM input or global variable
+    const currentDiscountID = (typeof discountID !== 'undefined' && discountID) 
+        ? discountID 
+        : (inputEl ? inputEl.value.trim() : "");
+
+    if (!activeCart || activeCart.length === 0) {
         listEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Basket is empty</p>`;
         if (counterEl) counterEl.innerText = "0";
         if (totalEl) totalEl.innerText = "₱0.00";
@@ -2033,21 +2038,26 @@ function renderCart() {
     }
 
     let rawSubtotal = 0;
-    let discountAmount = 0;
+    let totalDiscount = 0;
     let totalQty = 0;
 
     activeCart.forEach((item, index) => {
-        totalQty += item.quantity;
-        let itemTotal = item.price * item.quantity;
+        const qty = Number(item.quantity) || 1;
+        const price = Number(item.price) || 0;
+        const lineSubtotal = price * qty;
+        
+        totalQty += qty;
+        rawSubtotal += lineSubtotal;
 
-        // Apply 20% discount exclusively to 1 unit of the FIRST item entry in the cart
-        if (discountID && index === 0) {
-            const unitDiscount = item.price * 0.20;
-            discountAmount += unitDiscount;
-            itemTotal -= unitDiscount;
+        // Determine line item discount (Apply 20% to 1 unit of the first item when discount ID is present)
+        let lineDiscount = 0;
+        if (currentDiscountID && index === 0) {
+            // Apply 20% to 1 portion of the primary item
+            lineDiscount = price * 0.20; 
+            totalDiscount += lineDiscount;
         }
 
-        rawSubtotal += item.price * item.quantity;
+        const effectiveLineTotal = lineSubtotal - lineDiscount;
 
         const itemRow = document.createElement('div');
         itemRow.className = "flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs";
@@ -2055,41 +2065,42 @@ function renderCart() {
             <div class="flex-1 pr-2">
                 <p class="font-bold text-slate-800">${item.name}</p>
                 <p class="text-slate-400 text-[10px]">
-                    ₱${item.price.toFixed(2)} x ${item.quantity} 
-                    ${index === 0 && discountID ? '<span class="text-emerald-600 font-bold ml-1">(20% SC/PWD)</span>' : ''}
+                    ₱${price.toFixed(2)} x ${qty} 
+                    ${index === 0 && currentDiscountID ? '<span class="text-emerald-600 font-bold ml-1">(20% SC/PWD)</span>' : ''}
                 </p>
             </div>
             <div class="flex items-center gap-2">
-                <span class="font-mono font-bold text-slate-800">₱${itemTotal.toFixed(2)}</span>
+                <span class="font-mono font-bold text-slate-800">₱${effectiveLineTotal.toFixed(2)}</span>
                 <button onclick="removeFromCart(${index})" class="text-red-500 hover:text-red-700 font-bold px-1 text-sm">×</button>
             </div>
         `;
         listEl.appendChild(itemRow);
     });
 
-    const finalTotal = rawSubtotal - discountAmount;
+    const finalTotal = Math.max(0, rawSubtotal - totalDiscount);
 
     if (counterEl) counterEl.innerText = totalQty;
     if (totalEl) totalEl.innerText = `₱${finalTotal.toFixed(2)}`;
 
-    // Toggle discount line item
-    if (discountAmount > 0 && summaryRow && summaryAmount) {
+    // Toggle discount summary row UI
+    if (totalDiscount > 0 && summaryRow && summaryAmount) {
         summaryRow.classList.remove('hidden');
         summaryRow.classList.add('flex');
-        summaryAmount.innerText = `-₱${discountAmount.toFixed(2)}`;
+        summaryAmount.innerText = `-₱${totalDiscount.toFixed(2)}`;
     } else if (summaryRow) {
         summaryRow.classList.add('hidden');
         summaryRow.classList.remove('flex');
     }
 
-    if (typeof calculateChange === 'function') calculateChange();
+    // Trigger change calculation with updated discounted total
+    if (typeof calculateChange === 'function') calculateChange(finalTotal);
 }
 
 // ==========================================
 // 2. UPDATED PLACE ORDER FUNCTION
 // ==========================================
 async function placeOrder() {
-    if (activeCart.length === 0) {
+    if (!activeCart || activeCart.length === 0) {
         if (typeof showToast === 'function') showToast("Your basket is empty!", "warning");
         return;
     }
@@ -2106,38 +2117,28 @@ async function placeOrder() {
     const refInput = document.getElementById('transaction-no');
     const transactionNo = refInput ? refInput.value.trim() : "";
 
-    // 1. Grab Active Discount ID safely from DOM or global state
+    // 1. Grab Active Discount ID safely
     const discountIdInput = document.getElementById('discount-id-input') || document.getElementById('senior-pwd-id');
     const activeDiscountID = (typeof discountID !== 'undefined' && discountID) 
         ? discountID 
         : (discountIdInput ? discountIdInput.value.trim() : "");
 
-    // 2. Calculate Raw Subtotal & Check for Discounted Items
+    // 2. Calculate Raw Subtotal & Discount Amount accurately
     let rawSubtotal = 0;
     let discountAmount = 0;
 
-    activeCart.forEach(item => {
+    activeCart.forEach((item, index) => {
         const qty = Number(item.quantity) || 1;
         const price = Number(item.price) || 0;
-        const lineTotal = price * qty;
+        rawSubtotal += (price * qty);
 
-        rawSubtotal += lineTotal;
-
-        // Apply 20% discount if item is flagged for discount
-        if (activeDiscountID && (item.isDiscounted || item.discounted || item.applyDiscount)) {
-            discountAmount += (lineTotal * 0.20);
+        // Apply 20% discount to 1 unit of the first item entry in the cart
+        if (activeDiscountID && index === 0) {
+            discountAmount += (price * 0.20);
         }
     });
 
-    // 💡 FALLBACK: If Discount ID is entered BUT no items in cart had an explicit 'isDiscounted' flag,
-    // apply the 20% discount to the FIRST item in the cart (e.g. Sweet Filipino Breakfast)
-    if (activeDiscountID && discountAmount === 0 && activeCart.length > 0) {
-        const targetItem = activeCart[0];
-        const targetTotal = (Number(targetItem.price) || 0) * (Number(targetItem.quantity) || 1);
-        discountAmount = targetTotal * 0.20;
-    }
-
-    // 3. Extract Delivery Charge (If order type is For Delivery)
+    // 3. Extract Delivery Charge
     let deliveryCharge = 0;
     if (typeof getDeliveryChargeAmount === 'function') {
         deliveryCharge = getDeliveryChargeAmount();
@@ -2146,7 +2147,7 @@ async function placeOrder() {
         deliveryCharge = deliverySelect ? (parseFloat(deliverySelect.value) || 0) : 0;
     }
     
-    // 4. Calculate Final Grand Total (Subtotal + Delivery - Discount)
+    // 4. Calculate Final Grand Total
     const total = Math.max(0, (rawSubtotal + deliveryCharge) - discountAmount);
     
     let cashTendered = 0;
@@ -2195,9 +2196,9 @@ async function placeOrder() {
         })), 
         SubtotalAmount: rawSubtotal,
         DeliveryCharge: deliveryCharge,
-        DiscountAmount: discountAmount,       // 👈 Exact computed discount sent to Code.gs & receipt
-        TotalAmount: total,                    // 👈 Accurate grand total (Subtotal + Delivery - Discount)
-        DiscountIDNumber: activeDiscountID,   // 👈 ID saved in Column I and printed on receipt
+        DiscountAmount: discountAmount,       // Discount deducted
+        TotalAmount: total,                    // Final Net Total
+        DiscountIDNumber: activeDiscountID,   // Saved ID number
         PaymentMethod: paymentMethod,
         TransactionNo: transactionNo,
         CashReceived: cashTendered,
@@ -3242,9 +3243,18 @@ async function submitProductUpdate() {
         return;
     }
 
-    // 5. UI Loading Feedback
+    // 5. UI Loading Feedback Setup
     const btn = document.querySelector('button[onclick*="submitProductUpdate"]');
     let originalText = "Commit Database Updates";
+
+    const resetButton = () => {
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-60', 'cursor-not-allowed');
+            btn.innerHTML = originalText;
+        }
+    };
+
     if (btn) {
         originalText = btn.innerHTML;
         btn.disabled = true;
@@ -3266,23 +3276,24 @@ async function submitProductUpdate() {
         if (res.status === "SUCCESS") {
             if (typeof showToast === 'function') showToast("Metadata committed successfully.", "success");
             
-            if (typeof fetchAllData === 'function') await fetchAllData();
+            // Reset button immediately so UI unfreezes before navigation or fetching
+            resetButton();
+
+            // Run refreshes and navigation
+            if (typeof fetchAllData === 'function') fetchAllData();
             if (typeof renderMenu === 'function') renderMenu();
             if (typeof navigateView === 'function') navigateView('register');
         } else {
+            resetButton();
             console.error("Server returned error:", res);
             if (typeof showToast === 'function') showToast("Failed: " + (res.message || "Unknown error"), "error");
         }
     } catch(e) { 
+        resetButton();
         console.error("Update Product Error:", e);
         if (typeof showToast === 'function') showToast("Product updates failed: Network Error", "error"); 
     } finally {
-        // 7. Restore Button State
-        if (btn) {
-            btn.disabled = false;
-            btn.classList.remove('opacity-60', 'cursor-not-allowed');
-            btn.innerHTML = originalText;
-        }
+        resetButton(); // Catch-all safety reset
     }
 }
 let basketTotalSum = 0; // Tracking variable for basket totals
