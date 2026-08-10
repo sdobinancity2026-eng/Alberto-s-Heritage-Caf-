@@ -3070,7 +3070,7 @@ function populateEditForm() {
         : ((typeof menuData !== 'undefined' && Array.isArray(menuData)) ? menuData : []);
 
     const item = productList.find(p => 
-        String(p.id || p.ID || p.code || p.ItemCode || "").toLowerCase() === String(selectedIdOrName).toLowerCase() ||
+        String(p.id || p.ID || p.itemId || p.code || p.ItemCode || "").toLowerCase() === String(selectedIdOrName).toLowerCase() ||
         String(p.name || p.ItemName || "").toLowerCase() === String(selectedIdOrName).toLowerCase()
     );
 
@@ -3085,7 +3085,7 @@ function populateEditForm() {
     const nameEl = document.getElementById('edit-inv-name');
     const catEl = document.getElementById('edit-inv-cat');
 
-    const itemId = item.id || item.ID || item.code || item.ItemCode || "";
+    const itemId = item.id || item.ID || item.itemId || item.code || item.ItemCode || "";
     const itemName = item.name || item.ItemName || "";
     const itemCat = item.category || item.Category || "";
 
@@ -3167,7 +3167,7 @@ async function submitProductUpdate() {
         
         const match = productList.find(p => (p.name || p.ItemName || "").toLowerCase() === name.toLowerCase());
         if (match) {
-            id = match.id || match.ID || match.code || match.ItemCode;
+            id = match.id || match.ID || match.itemId || match.code || match.ItemCode;
         }
     }
 
@@ -3179,10 +3179,11 @@ async function submitProductUpdate() {
     // 3. Build Base Payload
     let payload = { 
         id: id, 
+        itemId: id,                 // Guaranteed mapping for updatePizzaPriceSheet()
         name: name, 
         itemName: name,             // Guaranteed fallback for sheet search
         category: category, 
-        categoryTab: category       // Tells GAS which specific tab to search
+        categoryTab: category        // Tells GAS which specific tab to search
     };
 
     if (isPizza) {
@@ -3213,11 +3214,17 @@ async function submitProductUpdate() {
 
         // Sync local JS cache if available
         if (typeof PIZZA_PRICING_DATABASE !== 'undefined') {
-            PIZZA_PRICING_DATABASE[name] = { 
+            PIZZA_PRICING_DATABASE[name.toLowerCase()] = { 
+                itemId: id,
+                itemName: name,
                 thin10: payload.thin10, 
+                thin10_Stock: payload.thin10_Stock,
                 thin12: payload.thin12, 
+                thin12_Stock: payload.thin12_Stock,
                 regular10: payload.regular10, 
-                regular12: payload.regular12 
+                regular10_Stock: payload.regular10_Stock,
+                regular12: payload.regular12, 
+                regular12_Stock: payload.regular12_Stock
             };
         }
     } else {
