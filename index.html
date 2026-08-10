@@ -2011,7 +2011,23 @@ function removeFromCart(index) {
 function renderCart() {
     const listEl = document.getElementById('basket-list');
     const counterEl = document.getElementById('basket-counter');
-    const totalEl = document.getElementById('basket-total') || document.getElementById('total-amount');
+    
+    // 🎯 QUERY ALL POSSIBLE TOTAL DISPLAY IDs IN YOUR DOM
+    const totalEl = document.getElementById('cart-total-amount') || 
+                    document.getElementById('total-amount') || 
+                    document.getElementById('basket-total') ||
+                    document.getElementById('grand-total');
+
+    // 🎯 FALLBACK: If ID is not assigned to the DOM element, search for the element next to "Total Amount:"
+    let totalTextNode = totalEl;
+    if (!totalTextNode) {
+        const labels = Array.from(document.querySelectorAll('span, div, p'));
+        const label = labels.find(el => el.textContent.trim().startsWith('Total Amount:'));
+        if (label && label.nextElementSibling) {
+            totalTextNode = label.nextElementSibling;
+        }
+    }
+
     const summaryRow = document.getElementById('discount-summary-row');
     const summaryAmount = document.getElementById('basket-discount-amount');
     const inputEl = document.getElementById('discount-id-input') || document.getElementById('senior-pwd-id');
@@ -2019,7 +2035,7 @@ function renderCart() {
     if (!listEl) return;
     listEl.innerHTML = "";
 
-    // Resolve discount ID safely from DOM input or global variable
+    // Resolve discount ID safely
     const currentDiscountID = (typeof discountID !== 'undefined' && discountID) 
         ? discountID 
         : (inputEl ? inputEl.value.trim() : "");
@@ -2027,13 +2043,13 @@ function renderCart() {
     if (!activeCart || activeCart.length === 0) {
         listEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Basket is empty</p>`;
         if (counterEl) counterEl.innerText = "0";
-        if (totalEl) totalEl.innerText = "₱0.00";
+        if (totalTextNode) totalTextNode.innerText = "₱0.00";
         if (summaryRow) {
             summaryRow.classList.add('hidden');
             summaryRow.classList.remove('flex');
         }
-        if (inputEl) inputEl.disabled = false; // Unlock input when empty
-        if (typeof calculateChange === 'function') calculateChange();
+        if (inputEl) inputEl.disabled = false;
+        if (typeof calculateChange === 'function') calculateChange(0);
         return;
     }
 
@@ -2049,10 +2065,9 @@ function renderCart() {
         totalQty += qty;
         rawSubtotal += lineSubtotal;
 
-        // Determine line item discount (Apply 20% to 1 unit of the first item when discount ID is present)
+        // Apply 20% discount to 1 unit of first item if SC/PWD ID is present
         let lineDiscount = 0;
         if (currentDiscountID && index === 0) {
-            // Apply 20% to 1 portion of the primary item
             lineDiscount = price * 0.20; 
             totalDiscount += lineDiscount;
         }
@@ -2080,7 +2095,12 @@ function renderCart() {
     const finalTotal = Math.max(0, rawSubtotal - totalDiscount);
 
     if (counterEl) counterEl.innerText = totalQty;
-    if (totalEl) totalEl.innerText = `₱${finalTotal.toFixed(2)}`;
+    
+    // 🎯 FORCE UPDATE BOTH SPAN/DIV VALUES IF THERE ARE MULTIPLE TOTAL ELEMENTS IN DOM
+    if (totalTextNode) totalTextNode.innerText = `₱${finalTotal.toFixed(2)}`;
+    if (document.getElementById('basket-total')) {
+        document.getElementById('basket-total').innerText = `₱${finalTotal.toFixed(2)}`;
+    }
 
     // Toggle discount summary row UI
     if (totalDiscount > 0 && summaryRow && summaryAmount) {
@@ -2092,7 +2112,7 @@ function renderCart() {
         summaryRow.classList.remove('flex');
     }
 
-    // Trigger change calculation with updated discounted total
+    // Trigger change calculation
     if (typeof calculateChange === 'function') calculateChange(finalTotal);
 }
 
@@ -3326,36 +3346,43 @@ function calculateChange() {
 }
 
 function calculateBasketTotal() {
-    const currentCart = (typeof activeCart !== 'undefined' && Array.isArray(activeCart)) 
+    const currentCart = (typeof activeCart !== 'undefined' && Array.isArray(activeCart) && activeCart.length > 0) 
         ? activeCart 
         : ((typeof basket !== 'undefined' && Array.isArray(basket)) ? basket : []);
 
-    // 1. Calculate actual subtotal respecting individual item discounts
-    let subtotal = 0;
-    currentCart.forEach(item => {
-        const qty = Number(item.quantity) || 1;
+    let rawSubtotal = 0;
+    let scPwdDiscount = 0;
+
+    currentCart.forEach((item, index) => {
+        const qty = Number(item.quantity) || Number(item.qty) || 1;
         let price = Number(item.price) || 0;
 
-        // If the item itself has a discounted price property or flag, use that
+        // Item-level preset discount checks
         if (item.discountedPrice) {
             price = Number(item.discountedPrice);
         } else if (item.isDiscounted) {
-            price = price * 0.80; // 20% off for this item only
+            price = price * 0.80; 
         }
 
-        subtotal += price * qty;
+        rawSubtotal += price * qty;
+
+        // SC/PWD ID 20% Discount (Applied to 1 unit of 1st item)
+        if (discountID && index === 0) {
+            scPwdDiscount += price * 0.20;
+        }
     });
 
-    // 2. Add delivery charge
+    // Add delivery charge
     const deliveryCharge = typeof getDeliveryChargeAmount === 'function' ? getDeliveryChargeAmount() : 0;
 
-    // 3. Overall Order Discount (only if applicable to global order level, not per item)
-    let discountAmount = 0;
+    // Additional global order discount
+    let extraDiscount = 0;
     if (typeof currentDiscountAmount !== 'undefined') {
-        discountAmount = Number(currentDiscountAmount) || 0;
+        extraDiscount = Number(currentDiscountAmount) || 0;
     }
 
-    const grandTotal = Math.max(0, (subtotal + deliveryCharge) - discountAmount);
+    const totalDiscount = scPwdDiscount + extraDiscount;
+    const grandTotal = Math.max(0, (rawSubtotal + deliveryCharge) - totalDiscount);
 
     // Update UI Total
     const basketTotalEl = document.getElementById('basket-total');
@@ -5168,12 +5195,13 @@ function handleDiscountIdInput() {
         if (clearBtn) clearBtn.classList.add('hidden');
     }
 
-    // Lock the ID input if there are already items in the cart
-    if (activeCart.length > 0) {
+    // Lock input if cart has items
+    const currentCart = (typeof activeCart !== 'undefined') ? activeCart : (typeof basket !== 'undefined' ? basket : []);
+    if (currentCart.length > 0 && discountID.length > 0) {
         inputEl.disabled = true;
     }
 
-    renderCart();
+    renderBasket(); // 👈 Must match function name renderBasket()
 }
 
 /**
@@ -5193,7 +5221,7 @@ function clearDiscountId() {
     if (msgEl) msgEl.classList.add('hidden');
     if (clearBtn) clearBtn.classList.add('hidden');
 
-    renderCart();
+    renderBasket(); // 👈 Must match function name renderBasket()
 }
     function renderBasket() {
     const listEl = document.getElementById('basket-list');
