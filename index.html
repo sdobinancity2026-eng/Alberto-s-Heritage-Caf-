@@ -3150,8 +3150,14 @@ async function submitProductUpdate() {
         return;
     }
 
-    // 3. Build Payload based on Category
-    let payload = { id, name, category };
+    // 3. Build Base Payload
+    let payload = { 
+        id: id, 
+        name: name, 
+        itemName: name,             // Guaranteed fallback for sheet search
+        category: category, 
+        categoryTab: category       // Tells GAS which specific tab to search
+    };
 
     if (isPizza) {
         // Read Prices
@@ -3167,20 +3173,19 @@ async function submitProductUpdate() {
         const regular12_Stock = document.getElementById('edit-pizza-stock-regular12')?.value;
 
         payload.action = "updatePizzaPrice";
-        payload.itemName = name;
 
-        // Option A: Specific Variant Prices & Stocks
-        if (thin10 !== "") payload.thin10 = Number(thin10);
-        if (thin12 !== "") payload.thin12 = Number(thin12);
-        if (regular10 !== "") payload.regular10 = Number(regular10);
-        if (regular12 !== "") payload.regular12 = Number(regular12);
+        // Assign numeric values if provided
+        if (thin10 !== "" && thin10 !== undefined) payload.thin10 = Number(thin10);
+        if (thin12 !== "" && thin12 !== undefined) payload.thin12 = Number(thin12);
+        if (regular10 !== "" && regular10 !== undefined) payload.regular10 = Number(regular10);
+        if (regular12 !== "" && regular12 !== undefined) payload.regular12 = Number(regular12);
 
-        if (thin10_Stock !== "") payload.thin10_Stock = Number(thin10_Stock);
-        if (thin12_Stock !== "") payload.thin12_Stock = Number(thin12_Stock);
-        if (regular10_Stock !== "") payload.regular10_Stock = Number(regular10_Stock);
-        if (regular12_Stock !== "") payload.regular12_Stock = Number(regular12_Stock);
+        if (thin10_Stock !== "" && thin10_Stock !== undefined) payload.thin10_Stock = Number(thin10_Stock);
+        if (thin12_Stock !== "" && thin12_Stock !== undefined) payload.thin12_Stock = Number(thin12_Stock);
+        if (regular10_Stock !== "" && regular10_Stock !== undefined) payload.regular10_Stock = Number(regular10_Stock);
+        if (regular12_Stock !== "" && regular12_Stock !== undefined) payload.regular12_Stock = Number(regular12_Stock);
 
-        // Immediately sync local JS cache if present
+        // Sync local JS cache if available
         if (typeof PIZZA_PRICING_DATABASE !== 'undefined') {
             PIZZA_PRICING_DATABASE[name] = { 
                 thin10: payload.thin10, 
@@ -3192,8 +3197,8 @@ async function submitProductUpdate() {
     } else {
         // Regular Non-Pizza product
         payload.action = "updateProduct";
-        payload.price = Number(priceEl ? priceEl.value : 0);
-        payload.stock = Number(stockEl ? stockEl.value : 0);
+        payload.price = priceEl && priceEl.value !== "" ? parseFloat(priceEl.value) : 0;
+        payload.stock = stockEl && stockEl.value !== "" ? parseInt(stockEl.value, 10) : 0;
     }
 
     // 4. API Endpoint Check
