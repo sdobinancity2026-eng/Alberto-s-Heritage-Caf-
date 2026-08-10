@@ -664,58 +664,82 @@
             <label class="block text-xs font-semibold text-slate-500 mb-1">Select Product to Edit</label>
             <select id="edit-select-prod" onchange="populateEditForm()" class="w-full p-3 rounded-lg border text-xs md:text-sm bg-slate-50 font-medium"></select>
         </div>
-
-        <div id="edit-form-fields" class="hidden space-y-4 border-t pt-4">
-            <!-- Hidden input to hold the item ID for database commits -->
+        <div id="edit-form-fields" class="hidden space-y-4">
+            <!-- Hidden Item ID -->
             <input type="hidden" id="edit-inv-id" />
-
+        
+            <!-- Name & Category -->
             <div>
-                <label class="block text-xs font-semibold text-slate-500 mb-1">Item Name</label>
-                <input type="text" id="edit-inv-name" class="w-full p-3 rounded-lg border text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                <label class="block text-sm font-medium text-gray-700">Item Name</label>
+                <input type="text" id="edit-inv-name" class="w-full border p-2 rounded bg-gray-50" readonly />
             </div>
+        
             <div>
-                <label class="block text-xs font-semibold text-slate-500 mb-1">Category</label>
-                <input type="text" id="edit-inv-cat" class="w-full p-3 rounded-lg border text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                <label class="block text-sm font-medium text-gray-700">Category</label>
+                <input type="text" id="edit-inv-cat" class="w-full border p-2 rounded bg-gray-50" readonly />
             </div>
-
-           <!-- STANDARD STOCK CONTAINER (Non-Pizza Items) -->
-                <div id="single-stock-container">
-                    <label class="block text-xs font-semibold text-slate-500 mb-1">Stock Level Count</label>
-                    <input type="number" id="edit-inv-stock" class="w-full p-3 rounded-lg border font-mono text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
-                </div>
-                
-                <!-- PIZZA VARIANT STOCKS CONTAINER (Pizza Items) -->
-                <div id="pizza-variant-stocks-container" class="hidden space-y-3 bg-amber-50/60 p-4 rounded-xl border border-amber-200/60">
-                    <div class="flex items-center justify-between">
-                        <label class="text-xs font-bold text-amber-900 uppercase">🍕 Pizza Variant Stocks</label>
-                        <span class="text-[10px] text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded font-semibold">Variant Stock Sync</span>
+        
+            <!-- NON-PIZZA FIELDS (Single Price & Stock) -->
+            <div id="single-price-container">
+                <label class="block text-sm font-medium text-gray-700">Price</label>
+                <input type="number" id="edit-inv-price" step="0.01" class="w-full border p-2 rounded" />
+            </div>
+        
+            <div id="single-stock-container">
+                <label class="block text-sm font-medium text-gray-700">Stock Count</label>
+                <input type="number" id="edit-inv-stock" class="w-full border p-2 rounded" />
+            </div>
+        
+            <!-- PIZZA VARIANT PRICES -->
+            <div id="pizza-variant-prices-container" class="hidden space-y-2">
+                <h4 class="font-semibold text-gray-700">Pizza Prices by Crust & Size</h4>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-xs text-gray-500">Thin 10"</label>
+                        <input type="number" id="edit-pizza-thin10" class="w-full border p-2 rounded" placeholder="Price" />
                     </div>
-                    
-                    <div class="grid grid-cols-2 gap-3">
-                        <!-- Thin Crust Stocks -->
-                        <div>
-                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Thin 10" Stock</label>
-                            <input type="number" id="edit-pizza-stock-thin10" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs md:text-sm font-mono font-bold text-amber-950 focus:ring-2 focus:ring-amber-800/20" placeholder="0">
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Thin 12" Stock</label>
-                            <input type="number" id="edit-pizza-stock-thin12" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs md:text-sm font-mono font-bold text-amber-950 focus:ring-2 focus:ring-amber-800/20" placeholder="0">
-                        </div>
-                
-                        <!-- Regular Crust Stocks -->
-                        <div>
-                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Regular 10" Stock</label>
-                            <input type="number" id="edit-pizza-stock-regular10" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs md:text-sm font-mono font-bold text-amber-950 focus:ring-2 focus:ring-amber-800/20" placeholder="0">
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Regular 12" Stock</label>
-                            <input type="number" id="edit-pizza-stock-regular12" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs md:text-sm font-mono font-bold text-amber-950 focus:ring-2 focus:ring-amber-800/20" placeholder="0">
-                        </div>
+                    <div>
+                        <label class="text-xs text-gray-500">Thin 12"</label>
+                        <input type="number" id="edit-pizza-thin12" class="w-full border p-2 rounded" placeholder="Price" />
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500">Regular 10"</label>
+                        <input type="number" id="edit-pizza-regular10" class="w-full border p-2 rounded" placeholder="Price" />
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500">Regular 12"</label>
+                        <input type="number" id="edit-pizza-regular12" class="w-full border p-2 rounded" placeholder="Price" />
                     </div>
                 </div>
-
-
-            <button onclick="submitProductUpdate()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition shadow-sm">Commit Database Updates</button>
+            </div>
+        
+            <!-- PIZZA VARIANT STOCKS -->
+            <div id="pizza-variant-stocks-container" class="hidden space-y-2">
+                <h4 class="font-semibold text-gray-700">Pizza Stock Counts</h4>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-xs text-gray-500">Thin 10" Stock</label>
+                        <input type="number" id="edit-pizza-stock-thin10" class="w-full border p-2 rounded" placeholder="Stock" />
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500">Thin 12" Stock</label>
+                        <input type="number" id="edit-pizza-stock-thin12" class="w-full border p-2 rounded" placeholder="Stock" />
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500">Regular 10" Stock</label>
+                        <input type="number" id="edit-pizza-stock-regular10" class="w-full border p-2 rounded" placeholder="Stock" />
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500">Regular 12" Stock</label>
+                        <input type="number" id="edit-pizza-stock-regular12" class="w-full border p-2 rounded" placeholder="Stock" />
+                    </div>
+                </div>
+            </div>
+        
+            <!-- Submit Button -->
+            <button onclick="submitProductUpdate()" class="w-full bg-blue-600 text-white py-2 rounded font-semibold hover:bg-blue-700">
+                Commit Database Updates
+            </button>
         </div>
     </div>
 </div>
@@ -3037,73 +3061,75 @@ function populateEditForm() {
     const selectEl = document.getElementById('edit-select-prod');
     if (!selectEl) return;
 
-    const selectedId = selectEl.value;
-    if (!selectedId) return;
+    const selectedIdOrName = selectEl.value;
+    if (!selectedIdOrName) return;
 
-    // 1. Locate the selected item from inventory or menuData cache
+    // 1. Find product from inventory or menuData array
     const productList = (typeof inventory !== 'undefined' && Array.isArray(inventory)) 
         ? inventory 
         : ((typeof menuData !== 'undefined' && Array.isArray(menuData)) ? menuData : []);
 
     const item = productList.find(p => 
-        String(p.id || p.ID || p.code || p.ItemCode) === String(selectedId)
+        String(p.id || p.ID || p.code || p.ItemCode || "").toLowerCase() === String(selectedIdOrName).toLowerCase() ||
+        String(p.name || p.ItemName || "").toLowerCase() === String(selectedIdOrName).toLowerCase()
     );
 
     if (!item) return;
 
-    // 2. Unhide the form container
+    // 2. Unhide Main Form Fields
     const formFields = document.getElementById('edit-form-fields');
     if (formFields) formFields.classList.remove('hidden');
 
-    // 3. Populate Hidden ID, Name, and Category
+    // 3. Set Hidden ID, Name, and Category
     const hiddenIdEl = document.getElementById('edit-inv-id');
     const nameEl = document.getElementById('edit-inv-name');
     const catEl = document.getElementById('edit-inv-cat');
 
-    if (hiddenIdEl) hiddenIdEl.value = item.id || item.ID || item.code || "";
-    if (nameEl) nameEl.value = item.name || item.ItemName || "";
-    if (catEl) catEl.value = item.category || item.Category || "";
+    const itemId = item.id || item.ID || item.code || item.ItemCode || "";
+    const itemName = item.name || item.ItemName || "";
+    const itemCat = item.category || item.Category || "";
 
-    // 4. Check if Category is Pizza
-    const categoryStr = (catEl ? catEl.value : (item.category || item.Category || "")).toLowerCase();
-    const isPizza = categoryStr.includes('pizza');
+    if (hiddenIdEl) hiddenIdEl.value = itemId;
+    if (nameEl) nameEl.value = itemName;
+    if (catEl) catEl.value = itemCat;
 
-    // 5. Get UI Containers
+    // 4. Check if Pizza
+    const isPizza = itemCat.trim().toLowerCase().includes('pizza');
+
+    // Containers
     const singlePriceContainer = document.getElementById('single-price-container');
-    const pizzaPriceContainer = document.getElementById('pizza-variant-prices-container');
     const singleStockContainer = document.getElementById('single-stock-container');
+    const pizzaPriceContainer = document.getElementById('pizza-variant-prices-container');
     const pizzaStockContainer = document.getElementById('pizza-variant-stocks-container');
 
-    // 6. Handle UI Visibility & Value Population
     if (isPizza) {
-        // --- SHOW PIZZA GRIDS, HIDE SINGLE INPUTS ---
+        // Toggle UI for Pizza
         if (singlePriceContainer) singlePriceContainer.classList.add('hidden');
         if (singleStockContainer) singleStockContainer.classList.add('hidden');
-
         if (pizzaPriceContainer) pizzaPriceContainer.classList.remove('hidden');
         if (pizzaStockContainer) pizzaStockContainer.classList.remove('hidden');
 
-        // Populate Pizza Variant Prices
-        document.getElementById('edit-pizza-thin10').value = item.thin10 ?? item.Thin10 ?? "";
-        document.getElementById('edit-pizza-thin12').value = item.thin12 ?? item.Thin12 ?? "";
-        document.getElementById('edit-pizza-regular10').value = item.regular10 ?? item.Regular10 ?? "";
-        document.getElementById('edit-pizza-regular12').value = item.regular12 ?? item.Regular12 ?? "";
+        // Populate Pizza Prices
+        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val ?? ""; };
+        setVal('edit-pizza-thin10', item.thin10 ?? item.Thin10);
+        setVal('edit-pizza-thin12', item.thin12 ?? item.Thin12);
+        setVal('edit-pizza-regular10', item.regular10 ?? item.Regular10);
+        setVal('edit-pizza-regular12', item.regular12 ?? item.Regular12);
 
         // Populate Pizza Variant Stocks
-        document.getElementById('edit-pizza-stock-thin10').value = item.thin10_Stock ?? item.Thin10_Stock ?? 0;
-        document.getElementById('edit-pizza-stock-thin12').value = item.thin12_Stock ?? item.Thin12_Stock ?? 0;
-        document.getElementById('edit-pizza-stock-regular10').value = item.regular10_Stock ?? item.Regular10_Stock ?? 0;
-        document.getElementById('edit-pizza-stock-regular12').value = item.regular12_Stock ?? item.Regular12_Stock ?? 0;
+        setVal('edit-pizza-stock-thin10', item.thin10_Stock ?? item.Thin10_Stock ?? 0);
+        setVal('edit-pizza-stock-thin12', item.thin12_Stock ?? item.Thin12_Stock ?? 0);
+        setVal('edit-pizza-stock-regular10', item.regular10_Stock ?? item.Regular10_Stock ?? 0);
+        setVal('edit-pizza-stock-regular12', item.regular12_Stock ?? item.Regular12_Stock ?? 0);
 
     } else {
-        // --- SHOW SINGLE INPUTS, HIDE PIZZA GRIDS ---
+        // Toggle UI for Non-Pizza
         if (pizzaPriceContainer) pizzaPriceContainer.classList.add('hidden');
         if (pizzaStockContainer) pizzaStockContainer.classList.add('hidden');
-
         if (singlePriceContainer) singlePriceContainer.classList.remove('hidden');
         if (singleStockContainer) singleStockContainer.classList.remove('hidden');
 
-        // Populate Standard Price & Stock
+        // Populate Standard Item Fields
         const priceEl = document.getElementById('edit-inv-price');
         const stockEl = document.getElementById('edit-inv-stock');
 
