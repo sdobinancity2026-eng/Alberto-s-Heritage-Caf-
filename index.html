@@ -2642,9 +2642,9 @@ Contact us at: 0969 299 2006
     }
 }
 // ==========================================
-// UPDATED KITCHEN ORDER TICKET (KOT)
+// RESTORED KITCHEN ORDER TICKET (KOT)
 // ==========================================
-async function printKitchenTicket(orderData) {
+function printKitchenTicket(orderData) {
     if (!orderData) return;
 
     const tableNo = orderData.TableNo || document.getElementById('table-number-input')?.value || "N/A";
@@ -2652,7 +2652,7 @@ async function printKitchenTicket(orderData) {
     const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const itemsList = orderData.ItemsOrdered || orderData.items || [];
 
-    // 1. Calculate incremental quantities (unprinted only)
+    // 🔍 1. Calculate incremental quantities (unprinted only)
     const newItemsToPrint = [];
 
     itemsList.forEach(item => {
@@ -2663,11 +2663,12 @@ async function printKitchenTicket(orderData) {
         if (unprintedQty > 0) {
             newItemsToPrint.push({
                 ...item,
-                printQty: unprintedQty
+                printQty: unprintedQty // Quantity printed in this round
             });
         }
     });
 
+    // If no new items exist, inform user and exit
     if (newItemsToPrint.length === 0) {
         if (typeof showToast === 'function') {
             showToast("No new items to send to kitchen.", "info");
@@ -2675,65 +2676,164 @@ async function printKitchenTicket(orderData) {
         return;
     }
 
-    // 2. Local stock deduction & cloud sync
-    const itemsToDeduct = newItemsToPrint.map(item => ({ ...item, quantity: item.printQty }));
+    // 📦 2. Deduct local stock for newly printed items
+    const itemsToDeduct = newItemsToPrint.map(item => ({
+        ...item,
+        quantity: item.printQty
+    }));
 
     if (typeof deductLocalStock === 'function') {
         deductLocalStock(itemsToDeduct);
     }
 
+    // 🌐 3. Send cloud sync request so Google Sheets backend records the stock deduction
     const targetUrl = (typeof SCRIPT_URL !== 'undefined' && SCRIPT_URL) ? SCRIPT_URL : ((typeof API_URL !== 'undefined') ? API_URL : "");
     if (targetUrl && !targetUrl.includes("YOUR_SCRIPT_URL_PLACEHOLDER")) {
         fetch(targetUrl, {
             method: "POST",
             mode: "cors",
             headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({ action: "deductStock", items: itemsToDeduct })
-        }).catch(err => console.warn("Stock sync error:", err));
+            body: JSON.stringify({
+                action: "deductStock",
+                items: itemsToDeduct
+            })
+        }).catch(err => {
+            console.warn("Stock cloud sync warning:", err);
+        });
     }
 
-    // 3. Build Raw ESC/POS Text Format (32-column width for 58mm printer)
-    let textTicket = `================================\n`;
-    textTicket += `   *** KITCHEN TICKET ***       \n`;
-    textTicket += `TYPE: ${orderType.toUpperCase()}\n`;
-    textTicket += `TBL/ORD: ${tableNo.toUpperCase()}\n`;
-    textTicket += `TIME: ${timeString}\n`;
-    textTicket += `STAFF: ${(typeof activeUser !== 'undefined' && activeUser?.name) ? activeUser.name : "Staff"}\n`;
-    textTicket += `================================\n\n`;
-
-    newItemsToPrint.forEach(item => {
-        const rawName = item.name || item.ItemName || "";
-        let mainTitle = rawName;
-        let modifiers = item.modifiers || [];
-
-        if (rawName.includes('(') && rawName.includes(')')) {
-            const firstParen = rawName.indexOf('(');
-            const lastParen = rawName.lastIndexOf(')');
-            mainTitle = rawName.substring(0, firstParen).trim();
-
-            if (!modifiers || modifiers.length === 0) {
-                const innerText = rawName.substring(firstParen + 1, lastParen);
-                modifiers = innerText.includes(',') 
-                    ? innerText.split(',').map(s => s.trim()) 
-                    : [innerText.trim()];
+    // 🖨️ 4. Build the KOT HTML payload
+    const kotHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>KOT - ${orderType.toUpperCase()} (${tableNo})</title>
+          <style>
+            @media print {
+              @page { margin: 0; size: 58mm auto; }
+              body { width: 100%; margin: 0; padding: 4px 2px; }
             }
+            body { 
+              font-family: 'Courier New', Courier, monospace; 
+              width: 185px; margin: 0 auto; padding: 4px 2px; 
+              font-size: 11px; color: #000; line-height: 1.2;
+            }
+            .header-box { border: 2px solid #000; padding: 4px 2px; margin-bottom: 4px; text-align: center; }
+            .title-tag { font-size: 10px; font-weight: bold; letter-spacing: 1px; }
+            .order-type-badge { font-size: 14px; font-weight: bold; text-transform: uppercase; margin-top: 2px; text-decoration: underline; }
+            .table-title { font-size: 13px; font-weight: bold; margin: 2px 0; word-break: break-word; }
+            .meta-info { font-size: 9px; margin-top: 2px; }
+            .line { border-bottom: 1px dashed #000; margin: 4px 0; }
+            .item-container { margin-bottom: 6px; }
+            .item-header { display: flex; align-items: flex-start; font-size: 12px; font-weight: bold; }
+            .item-qty { font-size: 13px; font-weight: bold; min-width: 32px; display: inline-block; }
+            .item-name { flex: 1; word-break: break-word; }
+            .modifier-line { font-size: 10px; padding-left: 32px; font-weight: normal; color: #111; }
+            .footer-note { font-size: 9px; margin-top: 6px; text-align: center; }
+          </style>
+        </head>
+        <body>
+          <div class="header-box">
+            <div class="title-tag">*** KITCHEN TICKET (ADD-ON) ***</div>
+            <div class="order-type-badge">*** ${orderType.toUpperCase()} ***</div>
+            <div class="table-title">TBL/ORD: ${tableNo.toUpperCase()}</div>
+            <div class="meta-info">
+              ${timeString} | Staff: ${(typeof activeUser !== 'undefined' && activeUser?.name) ? activeUser.name : "Staff"}
+            </div>
+          </div>
+
+          <div class="line"></div>
+
+          <div>
+            ${newItemsToPrint.map(item => {
+              const rawName = item.name || item.ItemName || "";
+              let mainTitle = rawName;
+              let modifiers = item.modifiers || [];
+
+              if (rawName.includes('(') && rawName.includes(')')) {
+                  const firstParen = rawName.indexOf('(');
+                  const lastParen = rawName.lastIndexOf(')');
+                  mainTitle = rawName.substring(0, firstParen).trim();
+
+                  if (!modifiers || modifiers.length === 0) {
+                      const innerText = rawName.substring(firstParen + 1, lastParen);
+                      modifiers = innerText.includes(',') 
+                          ? innerText.split(',').map(s => s.trim()) 
+                          : [innerText.trim()];
+                  }
+              }
+
+              return `
+                <div class="item-container">
+                  <div class="item-header">
+                    <span class="item-qty">[${item.printQty}x]</span>
+                    <span class="item-name">${mainTitle}</span>
+                  </div>
+                  ${modifiers.map(mod => `<div class="modifier-line">- ${mod}</div>`).join('')}
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <div class="line"></div>
+          <p class="footer-note">-- End of Kitchen Ticket --</p>
+        </body>
+      </html>
+    `;
+
+    // 🎯 SAFE PRINTING IMPLEMENTATION (IFRAME FALLBACK IF POPUP IS BLOCKED)
+    try {
+        const printWindow = window.open('', '_blank');
+
+        if (printWindow && printWindow.document) {
+            printWindow.document.open();
+            printWindow.document.write(kotHtml);
+            printWindow.document.close();
+            printWindow.focus();
+
+            setTimeout(() => {
+                printWindow.print();
+                printWindow.close();
+                // Mark quantities as printed
+                itemsList.forEach(item => { item.printedQty = Number(item.quantity || 0); });
+                if (typeof showToast === 'function') showToast("Kitchen ticket sent to printer!", "success");
+            }, 250);
+        } else {
+            throw new Error("Popup blocked");
+        }
+    } catch (err) {
+        // Fallback: Use dynamic hidden iframe for silent thermal printing
+        console.warn("Kitchen print popup blocked. Using iframe fallback instead.");
+
+        let iframe = document.getElementById('kot-print-iframe');
+        if (!iframe) {
+            iframe = document.createElement('iframe');
+            iframe.id = 'kot-print-iframe';
+            iframe.style.position = 'fixed';
+            iframe.style.right = '0';
+            iframe.style.bottom = '0';
+            iframe.style.width = '0';
+            iframe.style.height = '0';
+            iframe.style.border = '0';
+            document.body.appendChild(iframe);
         }
 
-        textTicket += `[${item.printQty}x] ${mainTitle.toUpperCase()}\n`;
-        modifiers.forEach(mod => {
-            textTicket += `   - ${mod}\n`;
-        });
-        textTicket += `--------------------------------\n`;
-    });
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        if (doc) {
+            doc.open();
+            doc.write(kotHtml);
+            doc.close();
 
-    textTicket += `\n-- End of Kitchen Ticket --\n`;
-
-    // 4. Send directly to Bluetooth printer
-    const success = await posBluetoothPrinter.printText(textTicket);
-
-    if (success) {
-        itemsList.forEach(item => { item.printedQty = Number(item.quantity || 0); });
-        if (typeof showToast === 'function') showToast("Kitchen ticket printed!", "success");
+            setTimeout(() => {
+                if (iframe.contentWindow) {
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                }
+                // Mark quantities as printed
+                itemsList.forEach(item => { item.printedQty = Number(item.quantity || 0); });
+                if (typeof showToast === 'function') showToast("Kitchen ticket sent to printer!", "success");
+            }, 250);
+        }
     }
 }
     // =========================================================
