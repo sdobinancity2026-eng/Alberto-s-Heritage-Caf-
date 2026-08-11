@@ -6638,29 +6638,33 @@ window.addIngredientRow = function(selectedConsumableId = "", qty = 1) {
     const container = document.getElementById('ingredients-container');
     if (!container) return;
 
-    // 2. Multi-source lookup for Consumables
+    // 1. Resolve consumables array
     let consumables = [];
     if (typeof globalConsumables !== 'undefined' && Array.isArray(globalConsumables) && globalConsumables.length > 0) {
         consumables = globalConsumables;
+    } else if (typeof db !== 'undefined' && Array.isArray(db.consumables) && db.consumables.length > 0) {
+        consumables = db.consumables;
     } else if (typeof allConsumables !== 'undefined' && Array.isArray(allConsumables) && allConsumables.length > 0) {
         consumables = allConsumables;
     } else if (window.globalData && Array.isArray(window.globalData.consumables)) {
         consumables = window.globalData.consumables;
     }
 
-    // Build options dynamically with robust key resolution
+    // 2. Build select dropdown HTML
     let optionsHtml = '<option value="">-- Select Consumable --</option>';
-    
-    if (consumables.length === 0) {
-        console.warn("Recipe Builder: No consumables found in global scope.");
+
+    if (!consumables || consumables.length === 0) {
+        console.warn("Recipe Builder: Consumables array is empty.");
     } else {
         consumables.forEach(c => {
-            const cId = c.ConsumableID || c.id || c["Consumable ID"] || c.ConsumableId || c.ID || "";
-            const cName = c.ConsumableName || c.name || c["Consumable Name"] || c.Consumablename || c.Name || "";
+            // Matches 'ItemID' and 'ItemName' from your Google Sheet screenshot
+            const cId = c.ItemID || c.ConsumableID || c.id || c["Item ID"] || "";
+            const cName = c.ItemName || c.ConsumableName || c.name || c["Item Name"] || "";
 
             if (cName) {
-                const isSelected = (String(cId) === String(selectedConsumableId) || String(cName) === String(selectedConsumableId)) ? 'selected' : '';
-                optionsHtml += `<option value="${cId || cName}" data-name="${cName}" ${isSelected}>${cName}</option>`;
+                const optVal = cId || cName;
+                const isSelected = (String(optVal) === String(selectedConsumableId) || String(cName) === String(selectedConsumableId)) ? 'selected' : '';
+                optionsHtml += `<option value="${optVal}" data-name="${cName}" ${isSelected}>${cName}</option>`;
             }
         });
     }
@@ -6680,7 +6684,6 @@ window.addIngredientRow = function(selectedConsumableId = "", qty = 1) {
 
     container.appendChild(row);
 };
-
 /**
  * Handle saving recipe data to Google Sheets backend
  */
