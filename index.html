@@ -6551,7 +6551,104 @@ function closeRecipesModal() {
     const modal = document.getElementById('recipes-modal');
     if (modal) modal.classList.add('hidden');
 }
+/**
+ * Populates menu items inside the dropdown
+ */
+function populateMenuDropdown() {
+    const menuSelect = document.getElementById('recipe-menu-select');
+    if (!menuSelect) return;
 
+    // Search across all common global variable names for inventory/menu data
+    let menuItems = [];
+    if (typeof globalMenuItems !== 'undefined' && Array.isArray(globalMenuItems)) {
+        menuItems = globalMenuItems;
+    } else if (typeof allMenuItems !== 'undefined' && Array.isArray(allMenuItems)) {
+        menuItems = allMenuItems;
+    } else if (typeof inventory !== 'undefined' && Array.isArray(inventory)) {
+        menuItems = inventory;
+    } else if (window.globalData && Array.isArray(window.globalData.inventory)) {
+        menuItems = window.globalData.inventory;
+    }
+
+    // Clear existing options
+    menuSelect.innerHTML = '';
+
+    // Default option
+    const defaultOpt = document.createElement('option');
+    defaultOpt.value = '';
+    defaultOpt.textContent = '-- Choose Menu Item --';
+    menuSelect.appendChild(defaultOpt);
+
+    // Populate options
+    menuItems.forEach(item => {
+        // Fallbacks for ID and Name across backend formats
+        const id = item.MenuItemID || item.ItemID || item.id || item.item_id || "";
+        const name = item.MenuName || item.ItemName || item.name || item.item_name || "";
+
+        if (name) {
+            const opt = document.createElement('option');
+            opt.value = id || name; // Fallback to name if ID is missing
+            opt.setAttribute('data-name', name);
+            opt.textContent = name;
+            menuSelect.appendChild(opt);
+        }
+    });
+
+    // Reset rows and add initial blank row
+    const ingredientsContainer = document.getElementById('ingredients-container');
+    if (ingredientsContainer) {
+        ingredientsContainer.innerHTML = '';
+        addIngredientRow();
+    }
+}
+
+/**
+ * Adds a new row to input dynamic consumables/ingredients
+ */
+function addIngredientRow(selectedConsumableId = "", qty = 1) {
+    const container = document.getElementById('ingredients-container');
+    if (!container) return;
+
+    // Search across all common global variable names for consumables
+    let consumables = [];
+    if (typeof globalConsumables !== 'undefined' && Array.isArray(globalConsumables)) {
+        consumables = globalConsumables;
+    } else if (typeof allConsumables !== 'undefined' && Array.isArray(allConsumables)) {
+        consumables = allConsumables;
+    } else if (window.globalData && Array.isArray(window.globalData.consumables)) {
+        consumables = window.globalData.consumables;
+    }
+
+    // Build options dynamically with robust key resolution
+    let optionsHtml = '<option value="">-- Select Consumable --</option>';
+    consumables.forEach(c => {
+        // Flexibly resolve Consumable ID
+        const cId = c.ConsumableID || c.id || c["Consumable ID"] || c.ConsumableId || c.ID || "";
+        
+        // Flexibly resolve Consumable Name
+        const cName = c.ConsumableName || c.name || c["Consumable Name"] || c.Consumablename || c.Name || "";
+
+        if (cName) {
+            const isSelected = (String(cId) === String(selectedConsumableId) || String(cName) === String(selectedConsumableId)) ? 'selected' : '';
+            optionsHtml += `<option value="${cId || cName}" data-name="${cName}" ${isSelected}>${cName}</option>`;
+        }
+    });
+
+    const rowId = "row-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
+    const row = document.createElement('div');
+    row.className = "flex items-center gap-2 ingredient-row bg-slate-50 p-2 rounded-xl border border-slate-200";
+    row.id = rowId;
+
+    row.innerHTML = `
+        <select class="consumable-select flex-1 border border-slate-300 rounded-lg p-2 text-xs focus:ring-1 focus:ring-amber-500 bg-white" required>
+            ${optionsHtml}
+        </select>
+        <input type="number" step="0.01" min="0.01" value="${qty}" placeholder="Qty/Order" class="qty-input w-24 border border-slate-300 rounded-lg p-2 text-xs font-mono text-center bg-white" required />
+        <button type="button" onclick="document.getElementById('${rowId}').remove()" class="text-red-500 hover:text-red-700 font-bold px-2 text-base" title="Remove Ingredient">&times;</button>
+    `;
+
+    container.appendChild(row);
+}
 /**
  * Adds a new row to input dynamic consumables/ingredients
  */
