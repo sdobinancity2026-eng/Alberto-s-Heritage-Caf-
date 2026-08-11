@@ -1126,31 +1126,63 @@
             <button onclick="closeRecipesModal()" class="text-amber-200 hover:text-white font-bold text-xl px-2">&times;</button>
         </div>
 
-        <!-- Form Content -->
-        <form id="recipe-form" onsubmit="handleSaveRecipe(event)" class="p-6 overflow-y-auto space-y-4 flex-1">
-            <!-- Select Menu Item -->
-            <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Select Menu Item</label>
-                <select id="recipe-menu-select" onchange="onMenuItemSelected(this.value)" class="w-full border border-slate-300 rounded-lg p-2 text-sm bg-white">
-                <option value="">-- Choose Menu Item --</option></select>
-            </div>
-
-            <hr class="border-slate-100">
-
-            <!-- Dynamic Ingredients List -->
-            <div>
-                <div class="flex justify-between items-center mb-2">
-                    <label class="block text-xs font-bold text-slate-700 uppercase">Recipe Ingredients (Consumables)</label>
-                    <button type="button" onclick="addIngredientRow()" class="text-xs text-amber-700 font-bold hover:underline flex items-center gap-1">
-                        + Add Ingredient
-                    </button>
+                  <!-- Form Content -->
+            <form id="recipe-form" onsubmit="handleSaveRecipe(event)" class="p-6 overflow-y-auto space-y-4 flex-1">
+                
+                <!-- SEARCH BAR FOR MENU ITEMS -->
+                <div class="relative">
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Search Menu Item</label>
+                    <div class="relative">
+                        <input 
+                            type="text" 
+                            id="recipe-menu-search" 
+                            placeholder="Type to search menu item..." 
+                            oninput="window.filterMenuSearch(this.value)"
+                            onfocus="window.filterMenuSearch(this.value)"
+                            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white pr-8"
+                            autocomplete="off"
+                        />
+                        <button 
+                            type="button" 
+                            onclick="window.clearMenuSearch()" 
+                            class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm font-bold px-1"
+                            title="Clear search"
+                        >
+                            &times;
+                        </button>
+                    </div>
+            
+                    <!-- Dynamic Auto-Suggest Dropdown Results -->
+                    <div 
+                        id="recipe-search-results" 
+                        class="hidden absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                    ></div>
                 </div>
-
-                <div id="ingredients-container" class="space-y-3">
-                    <!-- Dynamic Ingredient Rows Will Be Rendered Here -->
+            
+                <!-- Select Menu Item -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Select Menu Item</label>
+                    <select id="recipe-menu-select" onchange="onMenuItemSelected(this.value)" class="w-full border border-slate-300 rounded-lg p-2 text-sm bg-white">
+                        <option value="">-- Choose Menu Item --</option>
+                    </select>
                 </div>
-            </div>
-        </form>
+            
+                <hr class="border-slate-100">
+            
+                <!-- Dynamic Ingredients List -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-xs font-bold text-slate-700 uppercase">Recipe Ingredients (Consumables)</label>
+                        <button type="button" onclick="addIngredientRow()" class="text-xs text-amber-700 font-bold hover:underline flex items-center gap-1">
+                            + Add Ingredient
+                        </button>
+                    </div>
+            
+                    <div id="ingredients-container" class="space-y-3">
+                        <!-- Dynamic Ingredient Rows Will Be Rendered Here -->
+                    </div>
+                </div>
+            </form>
 
         <!-- Footer Actions -->
         <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
@@ -6812,6 +6844,137 @@ window.onMenuItemSelected = function(selectedVal) {
         window.addIngredientRow();
     }
 };
+    /**
+ * Filters menu items as the user types into the search bar
+ */
+window.filterMenuSearch = function(query) {
+    const resultsContainer = document.getElementById('recipe-search-results');
+    if (!resultsContainer) return;
+
+    const searchTerm = query.trim().toLowerCase();
+
+    // Hide dropdown if query is empty
+    if (!searchTerm) {
+        resultsContainer.classList.add('hidden');
+        resultsContainer.innerHTML = '';
+        return;
+    }
+
+    // Resolve menu items list
+    let menuItems = [];
+    if (typeof globalMenuItems !== 'undefined' && Array.isArray(globalMenuItems) && globalMenuItems.length > 0) {
+        menuItems = globalMenuItems;
+    } else if (typeof db !== 'undefined' && Array.isArray(db.inventory) && db.inventory.length > 0) {
+        menuItems = db.inventory;
+    } else if (typeof allMenuItems !== 'undefined' && Array.isArray(allMenuItems)) {
+        menuItems = allMenuItems;
+    }
+
+    // Filter items matching search term
+    const matches = menuItems.filter(item => {
+        const name = (item.MenuName || item.ItemName || item.name || '').toLowerCase();
+        const cat = (item.Category || item.category || '').toLowerCase();
+        return name.includes(searchTerm) || cat.includes(searchTerm);
+    });
+
+    if (matches.length === 0) {
+        resultsContainer.innerHTML = `<div class="p-2.5 text-xs text-slate-400 italic text-center">No menu items found</div>`;
+        resultsContainer.classList.remove('hidden');
+        return;
+    }
+
+    // Build suggestion items list
+    let html = '';
+    matches.forEach(item => {
+        const id = item.MenuItemID || item.ItemID || item.id || '';
+        const name = item.MenuName || item.ItemName || item.name || '';
+        const category = item.Category || item.category || 'General';
+
+        // Escaping double quotes in names for safety
+        const safeName = name.replace(/"/g, '&quot;');
+        const safeId = id.replace(/"/g, '&quot;');
+
+        html += `
+            <div 
+                onclick="window.selectMenuItemFromSearch('${safeId || safeName}', '${safeName}')"
+                class="px-3 py-2 text-xs hover:bg-amber-50 cursor-pointer border-b border-slate-100 last:border-b-0 flex justify-between items-center transition-colors"
+            >
+                <span class="font-medium text-slate-800">${name}</span>
+                <span class="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">${category}</span>
+            </div>
+        `;
+    });
+
+    resultsContainer.innerHTML = html;
+    resultsContainer.classList.remove('hidden');
+};
+
+/**
+ * Handles choosing an item directly from the search dropdown
+ */
+window.selectMenuItemFromSearch = function(itemId, itemName) {
+    const searchInput = document.getElementById('recipe-menu-search');
+    const menuSelect = document.getElementById('recipe-menu-select');
+    const resultsContainer = document.getElementById('recipe-search-results');
+
+    // 1. Set search box value
+    if (searchInput) searchInput.value = itemName;
+
+    // 2. Hide suggestions dropdown
+    if (resultsContainer) {
+        resultsContainer.classList.add('hidden');
+        resultsContainer.innerHTML = '';
+    }
+
+    // 3. Sync and select item inside the <select> element
+    if (menuSelect) {
+        let matchedOption = Array.from(menuSelect.options).find(opt => 
+            String(opt.value) === String(itemId) || opt.textContent.trim() === itemName.trim()
+        );
+
+        if (matchedOption) {
+            menuSelect.value = matchedOption.value;
+        } else {
+            // Fallback: If not found in select list, force set value
+            menuSelect.value = itemId || itemName;
+        }
+
+        // 4. Trigger onMenuItemSelected to populate/clear consumable rows!
+        if (typeof window.onMenuItemSelected === 'function') {
+            window.onMenuItemSelected(menuSelect.value);
+        }
+    }
+};
+
+/**
+ * Clears the menu search bar
+ */
+window.clearMenuSearch = function() {
+    const searchInput = document.getElementById('recipe-menu-search');
+    const resultsContainer = document.getElementById('recipe-search-results');
+    const menuSelect = document.getElementById('recipe-menu-select');
+
+    if (searchInput) searchInput.value = '';
+    if (resultsContainer) {
+        resultsContainer.classList.add('hidden');
+        resultsContainer.innerHTML = '';
+    }
+    if (menuSelect) {
+        menuSelect.value = '';
+        if (typeof window.onMenuItemSelected === 'function') {
+            window.onMenuItemSelected('');
+        }
+    }
+};
+
+// Close search suggestions dropdown when user clicks anywhere outside
+document.addEventListener('click', function(e) {
+    const searchInput = document.getElementById('recipe-menu-search');
+    const resultsContainer = document.getElementById('recipe-search-results');
+    if (resultsContainer && searchInput && !resultsContainer.contains(e.target) && e.target !== searchInput) {
+        resultsContainer.classList.add('hidden');
+    }
+});
 
  
 </script>
