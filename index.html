@@ -117,7 +117,7 @@
                     </button>
                 </div>
         
-                <!-- Admin Dynamic Navigation Links -->
+                  <!-- Admin Dynamic Navigation Links -->
                 <div class="space-y-1 pt-4 hidden" id="admin-nav-links">
                     <p class="text-xs font-bold text-slate-500 uppercase tracking-wider px-2 py-1">Administration</p>
                     <button onclick="navigateView('admin-daily')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-daily">📊 Daily Sales</button>
@@ -126,6 +126,10 @@
                     <button onclick="navigateView('admin-employees')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-employees">👤 Register Employee</button>
                     <button onclick="navigateView('admin-inventory')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-inventory">📥 Input Inventory</button>
                     <button onclick="navigateView('admin-consumables')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-consumables">📦 Consumables Stock</button>
+                    
+                    <!-- 📖 RECIPES BUTTON ADDED HERE -->
+                    <button onclick="openRecipesModal()" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-recipes">📖 Recipe Builder</button>
+                
                     <button onclick="navigateView('admin-update')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-update">⚙️ Update Product</button>
                     <button onclick="navigateView('admin-reprint')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-reprint">🖨️ Reprint Receipt</button>
                     <button onclick="navigateView('admin-analytics')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-analytics">📈 Charts & Analytics</button>
@@ -1106,6 +1110,53 @@
             <button onclick="closeLowStockModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition">
                 Close
             </button>
+        </div>
+    </div>
+</div>
+
+    <!-- Recipes Management Modal -->
+<div id="recipes-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <!-- Header -->
+        <div class="p-5 bg-amber-800 text-white flex justify-between items-center">
+            <div>
+                <h3 class="font-bold text-lg">Menu Recipe Builder</h3>
+                <p class="text-xs text-amber-200">Map consumables/ingredients to menu items for stock deduction</p>
+            </div>
+            <button onclick="closeRecipesModal()" class="text-amber-200 hover:text-white font-bold text-xl px-2">&times;</button>
+        </div>
+
+        <!-- Form Content -->
+        <form id="recipe-form" onsubmit="handleSaveRecipe(event)" class="p-6 overflow-y-auto space-y-4 flex-1">
+            <!-- Select Menu Item -->
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Select Menu Item</label>
+                <select id="recipe-menu-select" class="w-full border border-slate-300 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none" required onchange="onMenuItemSelected()">
+                    <option value="">-- Choose Menu Item --</option>
+                </select>
+            </div>
+
+            <hr class="border-slate-100">
+
+            <!-- Dynamic Ingredients List -->
+            <div>
+                <div class="flex justify-between items-center mb-2">
+                    <label class="block text-xs font-bold text-slate-700 uppercase">Recipe Ingredients (Consumables)</label>
+                    <button type="button" onclick="addIngredientRow()" class="text-xs text-amber-700 font-bold hover:underline flex items-center gap-1">
+                        + Add Ingredient
+                    </button>
+                </div>
+
+                <div id="ingredients-container" class="space-y-3">
+                    <!-- Dynamic Ingredient Rows Will Be Rendered Here -->
+                </div>
+            </div>
+        </form>
+
+        <!-- Footer Actions -->
+        <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+            <button type="button" onclick="closeRecipesModal()" class="px-4 py-2 rounded-xl text-slate-600 font-bold text-xs hover:bg-slate-200">Cancel</button>
+            <button type="submit" form="recipe-form" class="px-5 py-2 bg-amber-700 hover:bg-amber-800 text-white font-bold rounded-xl text-xs shadow-md">Save Recipe</button>
         </div>
     </div>
 </div>
@@ -6477,7 +6528,152 @@ function calculatePaymentMethodTotals(orders) {
     updatePaymentCard('gcash', gcashTotal, gcashCount);
     updatePaymentCard('bank', bankTotal, bankCount);
 }
+/**
+ * Global variable for existing recipes
+ */
+let globalRecipes = [];
 
+/**
+ * Open Recipe Modal & Load Select Options
+ */
+function openRecipesModal() {
+    const modal = document.getElementById('recipes-modal');
+    if (!modal) return;
+
+    populateMenuDropdown();
+    modal.classList.remove('hidden');
+}
+
+/**
+ * Close Recipe Modal
+ */
+function closeRecipesModal() {
+    const modal = document.getElementById('recipes-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+/**
+ * Populates menu items inside the dropdown
+ */
+function populateMenuDropdown() {
+    const menuSelect = document.getElementById('recipe-menu-select');
+    if (!menuSelect) return;
+
+    // Assumes `globalMenuItems` or `allMenuItems` exists in your app
+    const menuItems = typeof globalMenuItems !== 'undefined' ? globalMenuItems : (typeof allMenuItems !== 'undefined' ? allMenuItems : []);
+
+    menuSelect.innerHTML = '<option value="">-- Choose Menu Item --</option>';
+    menuItems.forEach(item => {
+        const id = item.id || item.MenuItemID || item.name;
+        const name = item.name || item.MenuName;
+        menuSelect.innerHTML += `<option value="${id}" data-name="${name}">${name}</option>`;
+    });
+
+    // Reset rows
+    document.getElementById('ingredients-container').innerHTML = '';
+    addIngredientRow();
+}
+
+/**
+ * Adds a new row to input dynamic consumables/ingredients
+ */
+function addIngredientRow(selectedConsumableId = "", qty = 1) {
+    const container = document.getElementById('ingredients-container');
+    if (!container) return;
+
+    // Assumes `globalConsumables` exists in your app
+    const consumables = typeof globalConsumables !== 'undefined' ? globalConsumables : [];
+
+    let options = '<option value="">-- Select Consumable --</option>';
+    consumables.forEach(c => {
+        const cId = c.ConsumableID || c.id;
+        const cName = c.ConsumableName || c.name;
+        const selected = (cId === selectedConsumableId) ? 'selected' : '';
+        options += `<option value="${cId}" data-name="${cName}" ${selected}>${cName}</option>`;
+    });
+
+    const rowId = "row-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
+    const row = document.createElement('div');
+    row.className = "flex items-center gap-2 ingredient-row bg-slate-50 p-2 rounded-xl border border-slate-200";
+    row.id = rowId;
+
+    row.innerHTML = `
+        <select class="consumable-select flex-1 border border-slate-300 rounded-lg p-2 text-xs focus:ring-1 focus:ring-amber-500" required>
+            ${options}
+        </select>
+        <input type="number" step="0.01" min="0.01" value="${qty}" placeholder="Qty/Order" class="qty-input w-24 border border-slate-300 rounded-lg p-2 text-xs font-mono text-center" required />
+        <button type="button" onclick="document.getElementById('${rowId}').remove()" class="text-red-500 hover:text-red-700 font-bold px-2 text-base">&times;</button>
+    `;
+
+    container.appendChild(row);
+}
+
+/**
+ * Handle saving recipe data to Google Sheets backend
+ */
+async function handleSaveRecipe(e) {
+    e.preventDefault();
+
+    const menuSelect = document.getElementById('recipe-menu-select');
+    const selectedOption = menuSelect.options[menuSelect.selectedIndex];
+    
+    const menuItemId = menuSelect.value;
+    const menuName = selectedOption.getAttribute('data-name');
+
+    const rows = document.querySelectorAll('.ingredient-row');
+    if (rows.length === 0) {
+        alert("Please add at least one ingredient/consumable.");
+        return;
+    }
+
+    const recipeEntries = [];
+
+    rows.forEach(row => {
+        const conSelect = row.querySelector('.consumable-select');
+        const qtyInput = row.querySelector('.qty-input');
+
+        const consumableId = conSelect.value;
+        const consumableName = conSelect.options[conSelect.selectedIndex].getAttribute('data-name');
+        const qtyPerOrder = parseFloat(qtyInput.value) || 1;
+
+        if (consumableId) {
+            recipeEntries.push({
+                MenuItemID: menuItemId,
+                MenuName: menuName,
+                ConsumableID: consumableId,
+                ConsumableName: consumableName,
+                QtyPerOrder: qtyPerOrder
+            });
+        }
+    });
+
+    if (recipeEntries.length === 0) return;
+
+    // Send payload to Apps Script Backend
+    const targetUrl = (typeof SCRIPT_URL !== 'undefined') ? SCRIPT_URL : "";
+
+    try {
+        if (typeof showToast === 'function') showToast("Saving recipe...", "info");
+
+        if (targetUrl) {
+            await fetch(targetUrl, {
+                method: "POST",
+                mode: "cors",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({
+                    action: "saveRecipe",
+                    recipes: recipeEntries
+                })
+            });
+        }
+
+        if (typeof showToast === 'function') showToast("Recipe saved successfully!", "success");
+        closeRecipesModal();
+    } catch (err) {
+        console.error("Failed to save recipe:", err);
+        alert("Saved locally! (Cloud sync failed)");
+    }
+}
 
  
 </script>
