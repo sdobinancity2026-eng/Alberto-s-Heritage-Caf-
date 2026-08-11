@@ -1131,9 +1131,8 @@
             <!-- Select Menu Item -->
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Select Menu Item</label>
-                <select id="recipe-menu-select" class="w-full border border-slate-300 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none" required onchange="onMenuItemSelected()">
-                    <option value="">-- Choose Menu Item --</option>
-                </select>
+                <select id="recipe-menu-select" onchange="onMenuItemSelected(this.value)" class="w-full border border-slate-300 rounded-lg p-2 text-sm bg-white">
+                <option value="">-- Choose Menu Item --</option></select>
             </div>
 
             <hr class="border-slate-100">
@@ -6763,6 +6762,54 @@ window.handleSaveRecipe = async function(e) {
     } catch (err) {
         console.error("Failed to save recipe:", err);
         alert("Saved locally! (Cloud sync failed)");
+    }
+};
+
+    /**
+ * Triggers when a menu item is selected in the Recipe Builder dropdown.
+ * Loads existing recipe ingredients if found, otherwise resets to 1 empty row.
+ */
+window.onMenuItemSelected = function(selectedVal) {
+    const ingredientsContainer = document.getElementById('ingredients-container');
+    if (!ingredientsContainer) return;
+
+    // Clear existing ingredient rows
+    ingredientsContainer.innerHTML = '';
+
+    if (!selectedVal) {
+        // If blank default option selected, just add 1 empty row
+        window.addIngredientRow();
+        return;
+    }
+
+    // Search for existing recipe entries matching this MenuItemID or MenuName
+    let existingRecipes = [];
+    if (typeof globalRecipes !== 'undefined' && Array.isArray(globalRecipes)) {
+        existingRecipes = globalRecipes;
+    } else if (typeof db !== 'undefined' && Array.isArray(db.recipes)) {
+        existingRecipes = db.recipes;
+    } else if (window.globalData && Array.isArray(window.globalData.recipes)) {
+        existingRecipes = window.globalData.recipes;
+    }
+
+    // Filter ingredients for the selected menu item
+    const matchedIngredients = existingRecipes.filter(r => {
+        const rId = String(r.MenuItemID || r.itemId || r.id || '');
+        const rName = String(r.MenuName || r.itemName || r.name || '');
+        const target = String(selectedVal);
+        return rId === target || rName === target;
+    });
+
+    if (matchedIngredients.length > 0) {
+        // Populate existing ingredient rows
+        matchedIngredients.forEach(item => {
+            const consumableId = item.ConsumableID || item.ItemID || item.id || item.ConsumableName || '';
+            const qty = item.QtyPerOrder || item.quantity || item.qty || 1;
+            window.addIngredientRow(consumableId, qty);
+        });
+    } else {
+        // No existing recipe found -> add 1 initial blank row for new entry
+        window.addIngredientRow();
     }
 };
 
