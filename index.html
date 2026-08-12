@@ -1203,8 +1203,6 @@
 
     <!-- Hidden Printable Node Container for Thermal Output -->
     <div id="receipt-print-zone" class="hidden"></div>
-    <!-- Hidden Printable Node Container for Thermal Output -->
-    <div id="receipt-print-zone" class="hidden"></div>
 
 
 <script>
@@ -2668,7 +2666,7 @@ function printKitchenTicket(orderData) {
         }
     });
 
-    // If no new items exist, inform user and exit
+    // If no new items exist, cancel operation
     if (newItemsToPrint.length === 0) {
         if (typeof showToast === 'function') {
             showToast("No new items to send to kitchen.", "info");
@@ -2794,9 +2792,7 @@ function printKitchenTicket(orderData) {
             setTimeout(() => {
                 printWindow.print();
                 printWindow.close();
-                // Mark quantities as printed
                 itemsList.forEach(item => { item.printedQty = Number(item.quantity || 0); });
-                if (typeof showToast === 'function') showToast("Kitchen ticket sent to printer!", "success");
             }, 250);
         } else {
             throw new Error("Popup blocked");
@@ -2829,9 +2825,7 @@ function printKitchenTicket(orderData) {
                     iframe.contentWindow.focus();
                     iframe.contentWindow.print();
                 }
-                // Mark quantities as printed
                 itemsList.forEach(item => { item.printedQty = Number(item.quantity || 0); });
-                if (typeof showToast === 'function') showToast("Kitchen ticket sent to printer!", "success");
             }, 250);
         }
     }
