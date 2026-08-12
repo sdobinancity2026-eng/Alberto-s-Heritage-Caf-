@@ -2640,54 +2640,128 @@ Contact us at: 0969 299 2006
     }
 }
 // Example: Converting printKitchenTicket to use RawBT directly
-function printKitchenTicketRawBT(orderData) {
+// ==========================================
+// KITCHEN ORDER TICKET (KOT) FOR ESC POS PRINT SERVICE
+// ==========================================
+function printKitchenTicket(orderData) {
     if (!orderData) return;
 
-    const tableNo = orderData.TableNo || orderData.tableNo || document.getElementById('table-number-input')?.value || "N/A";
+    // 1. Get print zone element
+    const receipt = document.getElementById('receipt-print-zone');
+    if (!receipt) {
+        console.error("Receipt rendering element (#receipt-print-zone) not found!");
+        return;
+    }
+
+    const tableNoInput = document.getElementById('table-number-input');
+    const tableNo = orderData.TableNo || orderData.tableNo || (tableNoInput ? tableNoInput.value.trim() : "") || "N/A";
     const orderType = orderData.OrderType || orderData.orderType || document.getElementById('order-type-select')?.value || "Dine In";
     const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const itemsList = orderData.ItemsOrdered || orderData.items || [];
 
-    // 1. Calculate unprinted items
+    // 2. Identify items to print
     const newItemsToPrint = [];
+
     itemsList.forEach(item => {
-        const unprintedQty = Number(item.quantity || 0) - Number(item.printedQty || 0);
-        if (unprintedQty > 0) {
-            newItemsToPrint.push({ ...item, printQty: unprintedQty });
-        }
-    });
+        const fullQty = Number(item.quantity || 0);
+        const prevQty = Number(item.printedQty || 0);
+        const unprintedQty = fullQty - prevQty;
 
-    if (newItemsToPrint.length === 0) {
-        if (typeof showToast === 'function') showToast("No new items to print.", "info");
-        return;
-    }
+        // Force print fallback: If prevQty isn't tracked properly, fallback to full quantity
+        const printQty = unprintedQty > 0 ? unprintedQty : fullQty;
 
-    // 2. Build plain text payload
-    let rawText = `================================\n`;
-    rawText += `  *** KITCHEN ORDER TICKET ***  \n`;
-    rawText += `================================\n`;
-    rawText += `TYPE: ${orderType.toUpperCase()}\n`;
-    rawText += `TABLE / ORDER: ${tableNo.toUpperCase()}\n`;
-    rawText += `TIME: ${timeString}\n`;
-    rawText += `--------------------------------\n`;
-
-    newItemsToPrint.forEach(item => {
-        const mainTitle = (item.name || item.ItemName || "").toUpperCase();
-        rawText += `[${item.printQty}x] ${mainTitle}\n`;
-        if (item.modifiers && item.modifiers.length > 0) {
-            item.modifiers.forEach(mod => {
-                rawText += `   - ${mod}\n`;
+        if (printQty > 0) {
+            newItemsToPrint.push({
+                ...item,
+                printQty: printQty
             });
         }
     });
 
-    rawText += `--------------------------------\n\n\n`;
+    if (newItemsToPrint.length === 0) {
+        if (typeof showToast === 'function') {
+            showToast("No items to send to kitchen.", "info");
+        }
+        return;
+    }
 
-    // 3. Update printedQty tracking
-    itemsList.forEach(item => { item.printedQty = Number(item.quantity || 0); });
+    // 3. Deduct Local Stock & Cloud Sync
+    const itemsToDeduct = newItemsToPrint.map(item => ({ ...item, quantity: item.printQty }));
 
-    // 4. Send via RawBT intent
-    sendToRawBT(rawText);
+    if (typeof deductLocalStock === 'function') {
+        deductLocalStock(itemsToDeduct);
+    }
+
+    const targetUrl = (typeof SCRIPT_URL !== 'undefined' && SCRIPT_URL) ? SCRIPT_URL : ((typeof API_URL !== 'undefined') ? API_URL : "");
+    if (targetUrl && !targetUrl.includes("YOUR_SCRIPT_URL_PLACEHOLDER")) {
+        fetch(targetUrl, {
+            method: "POST",
+            mode: "cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ action: "deductStock", items: itemsToDeduct })
+        }).catch(err => console.warn("Stock cloud sync warning:", err));
+    }
+
+    // 4. Build Monospaced Kitchen Items List
+    const itemLines = newItemsToPrint.map(item => {
+        const rawName = item.name || item.ItemName || "";
+        let mainTitle = rawName;
+        let selections = item.modifiers || [];
+
+        if (rawName.includes('(') && rawName.includes(')')) {
+            const firstParenIndex = rawName.indexOf('(');
+            const lastParenIndex = rawName.lastIndexOf(')');
+            mainTitle = rawName.substring(0, firstParenIndex).trim();
+
+            if (!selections || selections.length === 0) {
+                const innerText = rawName.substring(firstParenIndex + 1, lastParenIndex);
+                selections = innerText.includes(',')
+                    ? innerText.split(',').map(s => s.trim())
+                    : [innerText.trim()];
+            }
+        }
+
+        let line = `[${item.printQty}x] ${mainTitle.toUpperCase()}`;
+
+        if (selections && selections.length > 0) {
+            const dishLines = selections.map(dish => `   - ${dish}`).join('\n');
+            line += `\n${dishLines}`;
+        }
+
+        return line;
+    }).join('\n--------------------------------\n');
+
+    // 5. Render directly to DOM (#receipt-print-zone) like printThermalReceipt
+    receipt.innerHTML = `
+<pre style="font-family: monospace; font-size: 12px; line-height: 1.3; margin: 0; white-space: pre-wrap; font-weight: bold;">
+================================
+  *** KITCHEN ORDER TICKET ***  
+================================
+TYPE: ${orderType.toUpperCase()}
+TABLE / ORDER: ${tableNo.toUpperCase()}
+TIME: ${timeString}
+STAFF: ${orderData.EmployeeName || (typeof activeUser !== 'undefined' && activeUser?.name ? activeUser.name : 'Staff')}
+--------------------------------
+${itemLines}
+--------------------------------
+
+    -- End of Kitchen Ticket --
+</pre>
+    `;
+
+    // 6. Trigger native window.print() (Caught by ESC POS Print Service on Lenovo M10/M11)
+    setTimeout(() => {
+        window.print();
+
+        // Mark items as printed after opening the print dialog
+        itemsList.forEach(item => { 
+            item.printedQty = Number(item.quantity || 0); 
+        });
+
+        if (typeof showToast === 'function') {
+            showToast("Kitchen ticket sent to ESC POS Print Service!", "success");
+        }
+    }, 150);
 }
 
     // Function to send raw ticket text directly to RawBT app on Android
