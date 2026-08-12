@@ -2827,13 +2827,94 @@ function printKitchenTicket(orderData) {
         }
     }
 }
-    // Function to send raw ticket text directly to RawBT app on Android
-function sendToRawBT(textPayload) {
-    const encodedText = encodeURIComponent(textPayload);
-    // Opens RawBT silently and prints over Bluetooth/USB
-    window.location.href = "intent:" + encodedText + "#Intent;scheme=rawbt;package=ru.a404m.rawbtprinter;end;";
+// =========================================================
+// WEB BLUETOOTH ESC/POS PRINTER HELPER
+// =========================================================
+class BluetoothPrinter {
+    constructor() {
+        this.device = null;
+        this.characteristic = null;
+    }
+
+    // Connect to Bluetooth Thermal Printer
+
+    async connect() {
+        try {
+            console.log('Requesting Bluetooth Device...');
+            this.device = await navigator.bluetooth.requestDevice({
+                acceptAllDevices: true,
+                optionalServices: [
+                    '000018f0-0000-1000-8000-00805f9b34fb', // Standard Serial / Printer Service
+                    'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+                    '49535343-fe7d-41aa-87d2-72f6d4a614d6'
+                ]
+            });
+            const server = await this.device.gatt.connect();
+            const services = await server.getPrimaryServices();
+
+            for (let service of services) {
+                const characteristics = await service.getCharacteristics();
+                for (let c of characteristics) {
+                    if (c.properties.write || c.properties.writeWithoutResponse) {
+                        this.characteristic = c;
+                        break;
+                    }
+                }
+                if (this.characteristic) break;
+            }
+
+            if (!this.characteristic) {
+                throw new Error("Could not find a writeable Bluetooth characteristic.");
+            }
+
+            alert("Connected to Bluetooth Printer: " + this.device.name);
+            return true;
+        } catch (err) {
+            console.error("Bluetooth connection error:", err);
+            alert("Bluetooth connection failed: " + err.message);
+            return false;
+        }
+    }
+
+    // Send Raw ESC/POS Text to Printer
+
+    async printText(text) {
+        if (!this.characteristic) {
+            const connected = await this.connect();
+            if (!connected) return false;
+        }
+        try {
+            // Convert string text to UTF-8 / ASCII bytes
+            const encoder = new TextEncoder();
+
+            // Add ESC/POS Initialize (ESC @) + Text + Feed & Cut commands
+            const escInit = new Uint8Array([0x1B, 0x40]); 
+            const textBytes = encoder.encode(text);
+            const escFeedCut = new Uint8Array([0x0A, 0x0A, 0x0A, 0x1D, 0x56, 0x00]); // 3 feeds + partial cut
+            const payload = new Uint8Array(escInit.length + textBytes.length + escFeedCut.length);
+            payload.set(escInit, 0);
+            payload.set(textBytes, escInit.length);
+            payload.set(escFeedCut, escInit.length + textBytes.length);
+
+            // Send in chunks (Bluetooth characteristic buffer limit ~512 bytes)
+
+            const chunkSize = 100;
+            for (let i = 0; i < payload.length; i += chunkSize) {
+                const chunk = payload.slice(i, i + chunkSize);
+                await this.characteristic.writeValue(chunk);
+            }
+            return true;
+        } catch (err) {
+            console.error("Print transmission error:", err);
+            alert("Failed to send data to Bluetooth printer.");
+            this.characteristic = null; // Reset connection
+            return false;
+        }
+    }
 }
-    
+
+// Global instance
+const posBluetoothPrinter = new BluetoothPrinter();
     let employeePettyCash = 0;
 
 // Call this function inside your logic flow right after the staff member logs in successfully
