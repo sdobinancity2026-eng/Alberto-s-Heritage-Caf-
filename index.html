@@ -13,73 +13,21 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-   <style>
-    button { touch-action: manipulation; }
-
-    /* ==========================================
-       OPTIMIZED CROSS-PLATFORM THERMAL PRINT CSS
-       ========================================== */
-    @media print {
-        /* Set page size specifically for 58mm thermal printers */
-        @page {
-            size: 58mm auto;
-            margin: 0;
+<style>
+        button { touch-action: manipulation; }
+        @media print {
+            body * { visibility: hidden; }
+            #receipt-print-zone, #receipt-print-zone * { visibility: visible; }
+            #receipt-print-zone { position: absolute; left: 0; top: 0; width: 58mm; display: block !important; }
         }
 
-        /* 1. Hide everything on the page by default */
-        html, body {
-            background: #fff !important;
-            color: #000 !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            width: 58mm !important;
-            height: auto !important;
+        /* Smooth backdrop styles for the background image */
+        .login-bg {
+            background-image: linear-gradient(to bottom, rgba(146, 64, 14, 0.75), rgba(15, 23, 42, 0.9)), url('Bg.jpg');
+            background-size: cover;
+            background-position: center;
         }
-
-        /* Hide all direct children of body EXCEPT #receipt-print-zone */
-        body > *:not(#receipt-print-zone) {
-            display: none !important;
-        }
-
-        /* 2. Force #receipt-print-zone to be fully visible & positioned at origin */
-        #receipt-print-zone {
-            display: block !important;
-            visibility: visible !important;
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 2px !important;
-            overflow: visible !important;
-        }
-
-        /* Force inner elements (pre, img, text) to show */
-        #receipt-print-zone * {
-            visibility: visible !important;
-            display: block !important;
-        }
-
-        /* Keep text lines inline inside <pre> blocks */
-        #receipt-print-zone pre {
-            white-space: pre-wrap !important;
-            font-family: monospace !important;
-            font-size: 11px !important;
-        }
-    }
-
-    /* Screen display style: Hide print zone while using the POS */
-    #receipt-print-zone {
-        display: none;
-    }
-
-    /* Smooth backdrop styles for the background image */
-    .login-bg {
-        background-image: linear-gradient(to bottom, rgba(146, 64, 14, 0.75), rgba(15, 23, 42, 0.9)), url('Bg.jpg');
-        background-size: cover;
-        background-position: center;
-    }
-</style>
+    </style> 
 </head>
 <body class="bg-slate-50 font-sans h-screen overflow-hidden flex flex-col">
 
@@ -2691,285 +2639,63 @@ Contact us at: 0969 299 2006
         setTimeout(() => window.print(), 100);
     }
 }
-// ==========================================
-// RESTORED KITCHEN ORDER TICKET (KOT)
-// ==========================================
-function printKitchenTicket(orderData) {
+// Example: Converting printKitchenTicket to use RawBT directly
+function printKitchenTicketRawBT(orderData) {
     if (!orderData) return;
 
-    const tableNo = orderData.TableNo || document.getElementById('table-number-input')?.value || "N/A";
+    const tableNo = orderData.TableNo || orderData.tableNo || document.getElementById('table-number-input')?.value || "N/A";
     const orderType = orderData.OrderType || orderData.orderType || document.getElementById('order-type-select')?.value || "Dine In";
     const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const itemsList = orderData.ItemsOrdered || orderData.items || [];
 
-    // 🔍 1. Calculate incremental quantities (unprinted only)
+    // 1. Calculate unprinted items
     const newItemsToPrint = [];
-
     itemsList.forEach(item => {
-        const fullQty = Number(item.quantity || 0);
-        const prevQty = Number(item.printedQty || 0);
-        const unprintedQty = fullQty - prevQty;
-
+        const unprintedQty = Number(item.quantity || 0) - Number(item.printedQty || 0);
         if (unprintedQty > 0) {
-            newItemsToPrint.push({
-                ...item,
-                printQty: unprintedQty // Quantity printed in this round
+            newItemsToPrint.push({ ...item, printQty: unprintedQty });
+        }
+    });
+
+    if (newItemsToPrint.length === 0) {
+        if (typeof showToast === 'function') showToast("No new items to print.", "info");
+        return;
+    }
+
+    // 2. Build plain text payload
+    let rawText = `================================\n`;
+    rawText += `  *** KITCHEN ORDER TICKET ***  \n`;
+    rawText += `================================\n`;
+    rawText += `TYPE: ${orderType.toUpperCase()}\n`;
+    rawText += `TABLE / ORDER: ${tableNo.toUpperCase()}\n`;
+    rawText += `TIME: ${timeString}\n`;
+    rawText += `--------------------------------\n`;
+
+    newItemsToPrint.forEach(item => {
+        const mainTitle = (item.name || item.ItemName || "").toUpperCase();
+        rawText += `[${item.printQty}x] ${mainTitle}\n`;
+        if (item.modifiers && item.modifiers.length > 0) {
+            item.modifiers.forEach(mod => {
+                rawText += `   - ${mod}\n`;
             });
         }
     });
 
-    // If no new items exist, cancel operation
-    if (newItemsToPrint.length === 0) {
-        if (typeof showToast === 'function') {
-            showToast("No new items to send to kitchen.", "info");
-        }
-        return;
-    }
+    rawText += `--------------------------------\n\n\n`;
 
-    // 📦 2. Deduct local stock for newly printed items
-    const itemsToDeduct = newItemsToPrint.map(item => ({
-        ...item,
-        quantity: item.printQty
-    }));
+    // 3. Update printedQty tracking
+    itemsList.forEach(item => { item.printedQty = Number(item.quantity || 0); });
 
-    if (typeof deductLocalStock === 'function') {
-        deductLocalStock(itemsToDeduct);
-    }
-
-    // 🌐 3. Send cloud sync request so Google Sheets backend records the stock deduction
-    const targetUrl = (typeof SCRIPT_URL !== 'undefined' && SCRIPT_URL) ? SCRIPT_URL : ((typeof API_URL !== 'undefined') ? API_URL : "");
-    if (targetUrl && !targetUrl.includes("YOUR_SCRIPT_URL_PLACEHOLDER")) {
-        fetch(targetUrl, {
-            method: "POST",
-            mode: "cors",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({
-                action: "deductStock",
-                items: itemsToDeduct
-            })
-        }).catch(err => {
-            console.warn("Stock cloud sync warning:", err);
-        });
-    }
-
-    // 🖨️ 4. Build the KOT HTML payload
-    const kotHtml = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>KOT - ${orderType.toUpperCase()} (${tableNo})</title>
-          <style>
-            @media print {
-              @page { margin: 0; size: 58mm auto; }
-              body { width: 100%; margin: 0; padding: 4px 2px; }
-            }
-            body { 
-              font-family: 'Courier New', Courier, monospace; 
-              width: 185px; margin: 0 auto; padding: 4px 2px; 
-              font-size: 11px; color: #000; line-height: 1.2;
-            }
-            .header-box { border: 2px solid #000; padding: 4px 2px; margin-bottom: 4px; text-align: center; }
-            .title-tag { font-size: 10px; font-weight: bold; letter-spacing: 1px; }
-            .order-type-badge { font-size: 14px; font-weight: bold; text-transform: uppercase; margin-top: 2px; text-decoration: underline; }
-            .table-title { font-size: 13px; font-weight: bold; margin: 2px 0; word-break: break-word; }
-            .meta-info { font-size: 9px; margin-top: 2px; }
-            .line { border-bottom: 1px dashed #000; margin: 4px 0; }
-            .item-container { margin-bottom: 6px; }
-            .item-header { display: flex; align-items: flex-start; font-size: 12px; font-weight: bold; }
-            .item-qty { font-size: 13px; font-weight: bold; min-width: 32px; display: inline-block; }
-            .item-name { flex: 1; word-break: break-word; }
-            .modifier-line { font-size: 10px; padding-left: 32px; font-weight: normal; color: #111; }
-            .footer-note { font-size: 9px; margin-top: 6px; text-align: center; }
-          </style>
-        </head>
-        <body>
-          <div class="header-box">
-            <div class="title-tag">*** KITCHEN TICKET (ADD-ON) ***</div>
-            <div class="order-type-badge">*** ${orderType.toUpperCase()} ***</div>
-            <div class="table-title">TBL/ORD: ${tableNo.toUpperCase()}</div>
-            <div class="meta-info">
-              ${timeString} | Staff: ${(typeof activeUser !== 'undefined' && activeUser?.name) ? activeUser.name : "Staff"}
-            </div>
-          </div>
-
-          <div class="line"></div>
-
-          <div>
-            ${newItemsToPrint.map(item => {
-              const rawName = item.name || item.ItemName || "";
-              let mainTitle = rawName;
-              let modifiers = item.modifiers || [];
-
-              if (rawName.includes('(') && rawName.includes(')')) {
-                  const firstParen = rawName.indexOf('(');
-                  const lastParen = rawName.lastIndexOf(')');
-                  mainTitle = rawName.substring(0, firstParen).trim();
-
-                  if (!modifiers || modifiers.length === 0) {
-                      const innerText = rawName.substring(firstParen + 1, lastParen);
-                      modifiers = innerText.includes(',') 
-                          ? innerText.split(',').map(s => s.trim()) 
-                          : [innerText.trim()];
-                  }
-              }
-
-              return `
-                <div class="item-container">
-                  <div class="item-header">
-                    <span class="item-qty">[${item.printQty}x]</span>
-                    <span class="item-name">${mainTitle}</span>
-                  </div>
-                  ${modifiers.map(mod => `<div class="modifier-line">- ${mod}</div>`).join('')}
-                </div>
-              `;
-            }).join('')}
-          </div>
-
-          <div class="line"></div>
-          <p class="footer-note">-- End of Kitchen Ticket --</p>
-        </body>
-      </html>
-    `;
-
-    // 🎯 SAFE PRINTING IMPLEMENTATION (IFRAME FALLBACK IF POPUP IS BLOCKED)
-    try {
-        const printWindow = window.open('', '_blank');
-
-        if (printWindow && printWindow.document) {
-            printWindow.document.open();
-            printWindow.document.write(kotHtml);
-            printWindow.document.close();
-            printWindow.focus();
-
-            setTimeout(() => {
-                printWindow.print();
-                printWindow.close();
-                itemsList.forEach(item => { item.printedQty = Number(item.quantity || 0); });
-            }, 250);
-        } else {
-            throw new Error("Popup blocked");
-        }
-    } catch (err) {
-        // Fallback: Use dynamic hidden iframe for silent thermal printing
-        console.warn("Kitchen print popup blocked. Using iframe fallback instead.");
-
-        let iframe = document.getElementById('kot-print-iframe');
-        if (!iframe) {
-            iframe = document.createElement('iframe');
-            iframe.id = 'kot-print-iframe';
-            iframe.style.position = 'fixed';
-            iframe.style.right = '0';
-            iframe.style.bottom = '0';
-            iframe.style.width = '0';
-            iframe.style.height = '0';
-            iframe.style.border = '0';
-            document.body.appendChild(iframe);
-        }
-
-        const doc = iframe.contentDocument || iframe.contentWindow.document;
-        if (doc) {
-            doc.open();
-            doc.write(kotHtml);
-            doc.close();
-
-            setTimeout(() => {
-                if (iframe.contentWindow) {
-                    iframe.contentWindow.focus();
-                    iframe.contentWindow.print();
-                }
-                itemsList.forEach(item => { item.printedQty = Number(item.quantity || 0); });
-            }, 250);
-        }
-    }
-}
-    // =========================================================
-// WEB BLUETOOTH ESC/POS PRINTER HELPER
-// =========================================================
-class BluetoothPrinter {
-    constructor() {
-        this.device = null;
-        this.characteristic = null;
-    }
-
-    // Connect to Bluetooth Thermal Printer
-    async connect() {
-        try {
-            console.log('Requesting Bluetooth Device...');
-            this.device = await navigator.bluetooth.requestDevice({
-                acceptAllDevices: true,
-                optionalServices: [
-                    '000018f0-0000-1000-8000-00805f9b34fb', // Standard Serial / Printer Service
-                    'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
-                    '49535343-fe7d-41aa-87d2-72f6d4a614d6'
-                ]
-            });
-
-            const server = await this.device.gatt.connect();
-            const services = await server.getPrimaryServices();
-            
-            for (let service of services) {
-                const characteristics = await service.getCharacteristics();
-                for (let c of characteristics) {
-                    if (c.properties.write || c.properties.writeWithoutResponse) {
-                        this.characteristic = c;
-                        break;
-                    }
-                }
-                if (this.characteristic) break;
-            }
-
-            if (!this.characteristic) {
-                throw new Error("Could not find a writeable Bluetooth characteristic.");
-            }
-
-            alert("Connected to Bluetooth Printer: " + this.device.name);
-            return true;
-        } catch (err) {
-            console.error("Bluetooth connection error:", err);
-            alert("Bluetooth connection failed: " + err.message);
-            return false;
-        }
-    }
-
-    // Send Raw ESC/POS Text to Printer
-    async printText(text) {
-        if (!this.characteristic) {
-            const connected = await this.connect();
-            if (!connected) return false;
-        }
-
-        try {
-            // Convert string text to UTF-8 / ASCII bytes
-            const encoder = new TextEncoder();
-            
-            // Add ESC/POS Initialize (ESC @) + Text + Feed & Cut commands
-            const escInit = new Uint8Array([0x1B, 0x40]); 
-            const textBytes = encoder.encode(text);
-            const escFeedCut = new Uint8Array([0x0A, 0x0A, 0x0A, 0x1D, 0x56, 0x00]); // 3 feeds + partial cut
-
-            const payload = new Uint8Array(escInit.length + textBytes.length + escFeedCut.length);
-            payload.set(escInit, 0);
-            payload.set(textBytes, escInit.length);
-            payload.set(escFeedCut, escInit.length + textBytes.length);
-
-            // Send in chunks (Bluetooth characteristic buffer limit ~512 bytes)
-            const chunkSize = 100;
-            for (let i = 0; i < payload.length; i += chunkSize) {
-                const chunk = payload.slice(i, i + chunkSize);
-                await this.characteristic.writeValue(chunk);
-            }
-            return true;
-        } catch (err) {
-            console.error("Print transmission error:", err);
-            alert("Failed to send data to Bluetooth printer.");
-            this.characteristic = null; // Reset connection
-            return false;
-        }
-    }
+    // 4. Send via RawBT intent
+    sendToRawBT(rawText);
 }
 
-// Global instance
-const posBluetoothPrinter = new BluetoothPrinter();
+    // Function to send raw ticket text directly to RawBT app on Android
+function sendToRawBT(textPayload) {
+    const encodedText = encodeURIComponent(textPayload);
+    // Opens RawBT silently and prints over Bluetooth/USB
+    window.location.href = "intent:" + encodedText + "#Intent;scheme=rawbt;package=ru.a404m.rawbtprinter;end;";
+}
     
     let employeePettyCash = 0;
 
