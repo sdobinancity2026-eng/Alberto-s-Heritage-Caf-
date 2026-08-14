@@ -7013,6 +7013,39 @@ function printToRawBT(textPayload) {
     // Triggers RawBT app on Android to print silently over Bluetooth
     window.location.href = "rawbt:" + encodedText;
 }
+
+    // Function called when clicking "Import Product to Sheet"
+function importProductToSheet() {
+  const sheetTabValue = document.getElementById('new-sheet-tab-input')?.value || "";
+  const dropdownValue = document.getElementById('category-select-input')?.value || "";
+
+  // Prefer the sheet tab input if typed, otherwise use dropdown
+  const category = sheetTabValue.trim() !== "" ? sheetTabValue : dropdownValue;
+
+  const payload = {
+    action: "saveProduct",
+    categoryTab: category,
+    category: category,
+    id: document.getElementById('product-id-input')?.value || ("PRD-" + Math.floor(1000 + Math.random() * 9000)),
+    name: document.getElementById('product-name-input')?.value || "",
+    price: Number(document.getElementById('product-price-input')?.value || 0),
+    stock: Number(document.getElementById('product-stock-input')?.value || 0)
+  };
+
+  fetch(SCRIPT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(payload)
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.status === "SUCCESS") {
+      alert("Saved successfully!");
+    } else {
+      alert("Error: " + data.message);
+    }
+  });
+}
  
 </script>
 </body>
