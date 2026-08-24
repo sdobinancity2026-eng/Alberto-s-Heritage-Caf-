@@ -6953,11 +6953,11 @@ window.selectMenuItemFromSearch = function(itemId, itemName) {
     // 1. Set search box value
     if (searchInput) searchInput.value = itemName;
 
-    // 2. Hide suggestions dropdown
-    if (resultsContainer) {
-        resultsContainer.classList.add('hidden');
-        resultsContainer.innerHTML = '';
-    }
+    // 2. KEEP RESULTS VISIBLE (Commented out hiding logic)
+    // if (resultsContainer) {
+    //     resultsContainer.classList.add('hidden');
+    //     resultsContainer.innerHTML = '';
+    // }
 
     // 3. Sync and select item inside the <select> element
     if (menuSelect) {
