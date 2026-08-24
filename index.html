@@ -6877,16 +6877,18 @@ window.onMenuItemSelected = function(selectedVal) {
         window.addIngredientRow();
     }
 };
-    /**
+  /**
  * Filters menu items as the user types into the search bar
  */
 window.filterMenuSearch = function(query) {
+    // 1. Get input value directly if query isn't explicitly passed
+    const searchInput = document.getElementById('menu-search-input') || document.getElementById('recipe-menu-search');
+    const searchTerm = (typeof query === 'string' ? query : (searchInput ? searchInput.value : '')).trim().toLowerCase();
+
     const resultsContainer = document.getElementById('recipe-search-results');
     if (!resultsContainer) return;
 
-    const searchTerm = query.trim().toLowerCase();
-
-    // Hide dropdown if query is empty
+    // Hide dropdown ONLY if query is completely empty
     if (!searchTerm) {
         resultsContainer.classList.add('hidden');
         resultsContainer.innerHTML = '';
@@ -6907,7 +6909,8 @@ window.filterMenuSearch = function(query) {
     const matches = menuItems.filter(item => {
         const name = (item.MenuName || item.ItemName || item.name || '').toLowerCase();
         const cat = (item.Category || item.category || '').toLowerCase();
-        return name.includes(searchTerm) || cat.includes(searchTerm);
+        const id = (item.MenuItemID || item.ItemID || item.id || '').toLowerCase();
+        return name.includes(searchTerm) || cat.includes(searchTerm) || id.includes(searchTerm);
     });
 
     if (matches.length === 0) {
@@ -6916,23 +6919,28 @@ window.filterMenuSearch = function(query) {
         return;
     }
 
+    // Currently selected item ID/Name to add visual highlight
+    const selectedValue = window.currentSelectedItemId || '';
+
     // Build suggestion items list
     let html = '';
     matches.forEach(item => {
-        const id = item.MenuItemID || item.ItemID || item.id || '';
+        const id = String(item.MenuItemID || item.ItemID || item.id || '');
         const name = item.MenuName || item.ItemName || item.name || '';
         const category = item.Category || item.category || 'General';
 
-        // Escaping double quotes in names for safety
         const safeName = name.replace(/"/g, '&quot;');
         const safeId = id.replace(/"/g, '&quot;');
 
+        const isSelected = (selectedValue === id || selectedValue === name);
+        const bgClass = isSelected ? 'bg-amber-100/70 font-semibold' : 'hover:bg-amber-50';
+
         html += `
             <div 
-                onclick="window.selectMenuItemFromSearch('${safeId || safeName}', '${safeName}')"
-                class="px-3 py-2 text-xs hover:bg-amber-50 cursor-pointer border-b border-slate-100 last:border-b-0 flex justify-between items-center transition-colors"
+                onclick="window.selectMenuItemFromSearch('${safeId || safeName}', '${safeName}', event)"
+                class="px-3 py-2 text-xs ${bgClass} cursor-pointer border-b border-slate-100 last:border-b-0 flex justify-between items-center transition-colors"
             >
-                <span class="font-medium text-slate-800">${name}</span>
+                <span class="text-slate-800">${name} ${isSelected ? '✓' : ''}</span>
                 <span class="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">${category}</span>
             </div>
         `;
@@ -6941,25 +6949,19 @@ window.filterMenuSearch = function(query) {
     resultsContainer.innerHTML = html;
     resultsContainer.classList.remove('hidden');
 };
-
 /**
  * Handles choosing an item directly from the search dropdown
  */
-window.selectMenuItemFromSearch = function(itemId, itemName) {
-    const searchInput = document.getElementById('recipe-menu-search');
+window.selectMenuItemFromSearch = function(itemId, itemName, event) {
+    if (event) event.stopPropagation(); // Stop click from propagating to outside click listeners
+
+    // Track active selection
+    window.currentSelectedItemId = itemId || itemName;
+
+    const searchInput = document.getElementById('menu-search-input') || document.getElementById('recipe-menu-search');
     const menuSelect = document.getElementById('recipe-menu-select');
-    const resultsContainer = document.getElementById('recipe-search-results');
 
-    // 1. Set search box value
-    if (searchInput) searchInput.value = itemName;
-
-    // 2. KEEP RESULTS VISIBLE (Commented out hiding logic)
-    // if (resultsContainer) {
-    //     resultsContainer.classList.add('hidden');
-    //     resultsContainer.innerHTML = '';
-    // }
-
-    // 3. Sync and select item inside the <select> element
+    // 1. Sync select dropdown value
     if (menuSelect) {
         let matchedOption = Array.from(menuSelect.options).find(opt => 
             String(opt.value) === String(itemId) || opt.textContent.trim() === itemName.trim()
@@ -6968,14 +6970,18 @@ window.selectMenuItemFromSearch = function(itemId, itemName) {
         if (matchedOption) {
             menuSelect.value = matchedOption.value;
         } else {
-            // Fallback: If not found in select list, force set value
             menuSelect.value = itemId || itemName;
         }
 
-        // 4. Trigger onMenuItemSelected to populate/clear consumable rows!
+        // Trigger change callback to load recipe/consumables
         if (typeof window.onMenuItemSelected === 'function') {
             window.onMenuItemSelected(menuSelect.value);
         }
+    }
+
+    // 2. Refresh search results so selected item shows the checkmark (✓) and remains visible
+    if (searchInput) {
+        window.filterMenuSearch(searchInput.value);
     }
 };
 
