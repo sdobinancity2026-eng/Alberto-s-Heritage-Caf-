@@ -4462,79 +4462,91 @@ function printShiftSalesHistory() {
 // =========================================================
 
 async function printEndShiftSummary() {
-    const todayStr = new Date().toDateString();
-    const ordersList = (typeof db !== 'undefined' && Array.isArray(db.orders)) ? db.orders : [];
+  try {
+    // Show loading state or toast if applicable
+    console.log("Fetching Orders sheet summary...");
 
-    // Filter all transactions that happened today regardless of time
-    const todaysOrders = ordersList.filter(o => {
-        if (!o || !o.Date) return false;
-        const orderDate = new Date(o.Date);
-        return !isNaN(orderDate.getTime()) && orderDate.toDateString() === todayStr;
+    // 1. Fetch data from your Google Apps Script Web App
+    // Replace WEB_APP_URL with your actual Google Apps Script Web App URL variable
+    const response = await fetch(`${WEB_APP_URL}?action=getOrdersSummary`);
+    const result = await response.json();
+
+    if (result.status !== "SUCCESS") {
+      alert("Error fetching orders summary: " + (result.message || "Unknown error"));
+      return;
+    }
+
+    const orders = result.data || [];
+    if (orders.length === 0) {
+      alert("No orders found to print.");
+      return;
+    }
+
+    // 2. Build Thermal Receipt Text Layout
+    const now = new Date().toLocaleString();
+    let totalSales = 0;
+
+    let receiptText = `
+================================
+       END SHIFT SALES SUMMARY  
+================================
+Date/Time: ${now}
+--------------------------------
+OrderID       Employee    Amount
+--------------------------------
+`;
+
+    orders.forEach(order => {
+      const orderId = String(order.orderId || "").padEnd(12, ' ').substring(0, 12);
+      const employee = String(order.employee || "").padEnd(10, ' ').substring(0, 10);
+      const amountVal = parseFloat(order.totalAmount) || 0;
+      totalSales += amountVal;
+
+      const amountStr = "P" + amountVal.toFixed(2).padStart(7, ' ');
+
+      receiptText += `${orderId} ${employee} ${amountStr}\n`;
     });
 
-    if (todaysOrders.length === 0) {
-        if (typeof showToast === 'function') showToast("No transactions found for today.", "info");
-        else alert("No transactions found for today.");
-        return;
+    receiptText += `--------------------------------
+TOTAL SALES:       P${totalSales.toFixed(2)}
+TOTAL ORDERS:      ${orders.length}
+================================
+\n\n\n`; // Extra newlines for thermal printer feed/cut
+
+    // 3. Send to Thermal Printer
+    // If you are using Web Bluetooth / ESC/POS driver printing:
+    if (typeof printThermalText === "function") {
+      await printThermalText(receiptText);
+    } else {
+      // Fallback: Open print dialog in a pop-up window formatted for thermal receipts
+      const printWindow = window.open('', '', 'width=300,height=600');
+      printWindow.document.write(`
+        <html>
+          <head>
+            <style>
+              body {
+                font-family: 'Courier New', Courier, monospace;
+                width: 58mm; /* Adjust to 80mm if using wider paper */
+                font-size: 12px;
+                white-space: pre-wrap;
+                margin: 0;
+                padding: 10px;
+              }
+            </style>
+          </head>
+          <body>${receiptText}</body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
     }
 
-    const totalSales = todaysOrders.reduce((sum, o) => sum + (parseFloat(o.TotalAmount || o.total) || 0), 0);
-    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    // Build thermal printer ESC/POS text
-    let escText = "";
-    escText += "==============================\n";
-    escText += "  *** END SHIFT SALES REPORT *** \n";
-    escText += "==============================\n";
-    escText += `DATE: ${new Date().toLocaleDateString()}\n`;
-    escText += `TIME: ${timeStr}\n`;
-    escText += `STAFF: ${(activeUser?.name) || 'Admin/Staff'}\n`;
-    escText += "------------------------------\n";
-    escText += `TOTAL TRANSACTIONS: ${todaysOrders.length}\n`;
-    escText += `TOTAL DAY SALES: P${totalSales.toFixed(2)}\n`;
-    escText += "------------------------------\n";
-    escText += "TRANSACTION LIST:\n";
-
-    todaysOrders.forEach((o, index) => {
-        const id = (o.OrderID || o.id || `#${index + 1}`).toString().slice(-8);
-        const amt = parseFloat(o.TotalAmount || o.total || 0).toFixed(2);
-        escText += `${id.padEnd(18, ' ')} P${amt.padStart(8, ' ')}\n`;
-    });
-
-    escText += "==============================\n";
-    escText += "    -- END OF REPORT --       \n\n\n";
-
-    // Attempt Bluetooth thermal printing
-    let printed = false;
-    if (typeof posBluetoothPrinter !== 'undefined' && posBluetoothPrinter) {
-        printed = await posBluetoothPrinter.printText(escText);
-    }
-
-    // Fallback to browser dialog if Bluetooth is not connected
-    if (!printed) {
-        const receiptZone = document.getElementById('receipt-print-zone');
-        if (receiptZone) {
-            receiptZone.innerHTML = `
-                <div style="font-family: monospace; width: 100%; font-size: 11px; text-align: center;">
-                    <h3>*** END SHIFT REPORT ***</h3>
-                    <p>Date: ${new Date().toLocaleDateString()} | ${timeStr}</p>
-                    <hr/>
-                    <p>Total Orders: ${todaysOrders.length}</p>
-                    <p><strong>Total Day Sales: ₱${totalSales.toFixed(2)}</strong></p>
-                    <hr/>
-                    ${todaysOrders.map(o => `
-                        <div style="display:flex; justify-content:space-between; font-size:10px;">
-                            <span>${o.OrderID || 'Order'}</span>
-                            <span>₱${parseFloat(o.TotalAmount || 0).toFixed(2)}</span>
-                        </div>
-                    `).join('')}
-                    <hr/>
-                    <p>-- END OF REPORT --</p>
-                </div>
-            `;
-            setTimeout(() => window.print(), 150);
-        }
-    }
+  } catch (error) {
+    console.error("Failed to print End Shift Sale summary:", error);
+    alert("Failed to connect to spreadsheet or printer.");
+  }
 }
 
 // Restore shift session on page reload
