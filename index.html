@@ -7331,6 +7331,65 @@ function importProductToSheet() {
     }
   });
 }
+
+    function getActiveShiftSales(ordersList, activeShift) {
+  // If there is no active shift or the shift is closed, return 0.00
+  if (!activeShift || activeShift.status !== "OPEN") {
+    return 0.00;
+  }
+
+  const shiftStartTime = new Date(activeShift.startTime).getTime();
+  const shiftEmployee = (activeShift.employeeName || "").toLowerCase();
+
+  return ordersList.reduce((total, order) => {
+    const orderTime = new Date(order.Timestamp).getTime();
+    const orderEmployee = (order.EmployeeName || "").toLowerCase();
+
+    // Check if order happened during the active shift and matches employee
+    const isSameShift = activeShift.shiftId && order.ShiftID === activeShift.shiftId;
+    const isWithinShiftTime = orderTime >= shiftStartTime && orderEmployee === shiftEmployee;
+
+    if (isSameShift || isWithinShiftTime) {
+      return total + (parseFloat(order.TotalAmount) || 0);
+    }
+    return total;
+  }, 0);
+}
+
+    function onShiftClosed() {
+  // 1. Clear local shift session tracker
+  localStorage.removeItem("activeShift");
+  
+  // 2. Reset state/DOM variable to 0.00
+  updateShiftSalesDisplay(0.00);
+}
+
+function updateShiftSalesDisplay(amount) {
+  const formatted = new Intl.NumberFormat('en-PH', { 
+    style: 'currency', 
+    currency: 'PHP' 
+  }).format(amount || 0);
+
+  const shiftSalesEl = document.getElementById("shiftSalesBadge"); // Adjust ID to match your HTML
+  if (shiftSalesEl) {
+    shiftSalesEl.innerText = `Shift Sales: ${formatted}`;
+  }
+}
+    function checkAndStartNewShift(employeeName, startCash) {
+  const newShift = {
+    shiftId: "SHIFT-" + Date.now(),
+    employeeName: employeeName,
+    startTime: new Date().toISOString(),
+    status: "OPEN",
+    startCash: startCash
+  };
+
+  // Save as active shift
+  localStorage.setItem("activeShift", JSON.stringify(newShift));
+
+  // Reset shift sales display to 0 immediately
+  updateShiftSalesDisplay(0.00);
+}
  
 </script>
 </body>
