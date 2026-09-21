@@ -121,25 +121,25 @@
                 </div>
         
                   <!-- Admin Dynamic Navigation Links -->
-                <div class="space-y-1 pt-4 hidden" id="admin-nav-links">
-                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider px-2 py-1">Administration</p>
-                    <button onclick="navigateView('admin-daily')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-daily">📊 Daily Sales</button>
-                    <button onclick="navigateView('admin-weekly')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-weekly">📅 Weekly Sales</button>
-                    <button onclick="navigateView('admin-monthly')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-monthly">🗓️ Monthly Sales</button>
-                    <button onclick="navigateView('admin-employees')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-employees">👤 Register Employee</button>
-                    <button onclick="navigateView('admin-inventory')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-inventory">📥 Input Inventory</button>
-                    <button onclick="navigateView('admin-consumables')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-consumables">📦 Consumables Stock</button>
-                    
-                    <!-- 📖 RECIPES BUTTON ADDED HERE -->
-                    <button onclick="openRecipesModal()" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-recipes">📖 Recipe Builder</button>
+              <div class="space-y-1 pt-4 hidden" id="admin-nav-links"><p class="text-xs font-bold text-slate-500 uppercase tracking-wider px-2 py-1">Administration</p>
+                <button onclick="navigateView('admin-daily')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-daily">📊 Daily Sales</button>
+                <button onclick="navigateView('admin-weekly')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-weekly">📅 Weekly Sales</button>
+                <button onclick="navigateView('admin-monthly')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-monthly">🗓️ Monthly Sales</button>
+                <button onclick="navigateView('admin-employees')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-employees">👤 Register Employee</button>
+                <button onclick="navigateView('admin-inventory')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-inventory">📥 Input Inventory</button>
+                <button onclick="navigateView('admin-consumables')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-consumables">📦 Consumables Stock</button>
                 
-                    <button onclick="navigateView('admin-update')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-update">⚙️ Update Product</button>
-                    <button onclick="navigateView('admin-reprint')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-reprint">🖨️ Reprint Receipt</button>
-                    <button onclick="navigateView('admin-analytics')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-analytics">📈 Charts & Analytics</button>
-                    <!-- Add under OPERATIONS or ADMINISTRATION section in your Sidebar HTML -->
-                    <button class="nav-item" onclick="openShiftSalesModal()"><i class="fas fa-history"></i> Shift Sales</button>
-                    <button class="nav-item" onclick="printEndShiftSummary()"><i class="fas fa-print"></i> End Shift Sale</button>
-                </div>
+                <!-- 📖 RECIPES BUTTON -->
+                <button onclick="openRecipesModal()" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-recipes">📖 Recipe Builder</button>
+            
+                <button onclick="navigateView('admin-update')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-update">⚙️ Update Product</button>
+                <button onclick="navigateView('admin-reprint')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-reprint">🖨️ Reprint Receipt</button>
+                <button onclick="navigateView('admin-analytics')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-analytics">📈 Charts & Analytics</button>
+            
+                <!-- FIXED SHIFT BUTTONS BELOW -->
+                <button onclick="openShiftSalesModal()" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-shiftsales">📜 Shift Sales</button>
+                <button onclick="printEndShiftSummary()" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-endshift">🧾 End Shift Sale</button>
+            </div>
             </nav>
         
             <!-- ================= OFFLINE USB BACKUP TOOLS (ADDED AT BOTTOM OF SIDEBAR) ================= -->
