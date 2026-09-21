@@ -3035,7 +3035,7 @@ async function submitShiftReconciliation() {
         actualCash: actualCash,
         discrepancy: discrepancy
     };
-
+    
     try {
         const response = await fetch(SCRIPT_URL, {
             method: "POST",
