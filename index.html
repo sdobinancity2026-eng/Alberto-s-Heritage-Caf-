@@ -136,6 +136,9 @@
                     <button onclick="navigateView('admin-update')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-update">⚙️ Update Product</button>
                     <button onclick="navigateView('admin-reprint')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-reprint">🖨️ Reprint Receipt</button>
                     <button onclick="navigateView('admin-analytics')" class="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800 hover:text-white transition" id="nav-btn-admin-analytics">📈 Charts & Analytics</button>
+                    <!-- Add under OPERATIONS or ADMINISTRATION section in your Sidebar HTML -->
+                    <button class="nav-item" onclick="openShiftSalesModal()"><i class="fas fa-history"></i> Shift Sales</button>
+                    <button class="nav-item" onclick="printEndShiftSummary()"><i class="fas fa-print"></i> End Shift Sale</button>
                 </div>
             </nav>
         
@@ -1089,6 +1092,39 @@
         <div class="pt-4 border-t flex gap-3">
             <button onclick="closePastaModal()" class="w-1/2 py-3 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
             <button onclick="confirmPastaAddToCart()" class="w-1/2 py-3 rounded-xl bg-amber-800 text-white font-bold hover:bg-amber-900 transition-all">Add to Order</button>
+        </div>
+    </div>
+</div>
+
+    <!-- Shift Sales History Modal -->
+<div id="shift-sales-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:#fff; width:90%; max-width:900px; max-height:85vh; border-radius:8px; padding:20px; display:flex; flex-direction:column; box-shadow:0 10px 25px rgba(0,0,0,0.3);">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #ddd; padding-bottom:10px;">
+            <h3 style="margin:0; font-size:18px;">Shift Sales History</h3>
+            <div>
+                <button onclick="printShiftSalesHistory()" style="background:#8B3A0F; color:#fff; border:none; padding:8px 14px; border-radius:4px; cursor:pointer; margin-right:8px;">
+                    <i class="fas fa-print"></i> Print Shifts
+                </button>
+                <button onclick="closeShiftSalesModal()" style="background:#ccc; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;">Close</button>
+            </div>
+        </div>
+        
+        <div style="overflow-y:auto; flex:1; margin-top:15px;" id="shift-sales-print-area">
+            <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+                <thead>
+                    <tr style="background:#f4f4f4; border-bottom:2px solid #ccc;">
+                        <th style="padding:8px;">Shift ID</th>
+                        <th style="padding:8px;">Employee</th>
+                        <th style="padding:8px;">Date</th>
+                        <th style="padding:8px;">Start Cash</th>
+                        <th style="padding:8px;">System Sales</th>
+                        <th style="padding:8px;">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="shift-sales-table-body">
+                    <!-- Populated dynamically -->
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -2920,72 +2956,6 @@ let employeeStartingCashAllocations = {
     "Kristine Reyes": 1000.00,
     "Employee": 500.00
 };
-
-function calculateShiftSales() {
-    // 1. Safety Guard: Check if activeUser and currentShiftSession exist
-    if (!activeUser || !currentShiftSession || typeof currentShiftSession !== 'object') {
-        const salesField = document.getElementById('recon-sales');
-        if (salesField) salesField.value = 0;
-        if (typeof calculateDrawerDiscrepancy === 'function') {
-            calculateDrawerDiscrepancy(0);
-        }
-        return 0;
-    }
-
-    // 2. Safely extract and parse startTime using optional chaining (?.)
-    const rawStartTime = currentShiftSession?.startTime || currentShiftSession?.start_time || currentShiftSession?.Date || null;
-    let sessionStartTime = null;
-
-    if (rawStartTime) {
-        const parsedDate = new Date(rawStartTime);
-        // Verify the date object is valid before assigning
-        if (!isNaN(parsedDate.getTime())) {
-            sessionStartTime = parsedDate;
-        }
-    }
-
-    const sessionShiftId = currentShiftSession?.shiftId || currentShiftSession?.ShiftID || null;
-
-    // 3. Get orders list safely
-    const ordersList = (typeof db !== 'undefined' && Array.isArray(db.orders)) ? db.orders : [];
-
-    // 4. Calculate total for the logged-in staff
-    const staffSales = ordersList
-        .filter(o => {
-            if (!o || !o.EmployeeName || !activeUser.name) return false;
-            
-            // Check employee match
-            if (o.EmployeeName.toString().trim().toLowerCase() !== activeUser.name.toString().trim().toLowerCase()) {
-                return false;
-            }
-
-            // Filter by Shift ID if available
-            if (sessionShiftId && o.ShiftID) {
-                return o.ShiftID === sessionShiftId;
-            }
-
-            // Filter by Start Time threshold if Shift ID isn't matched
-            if (sessionStartTime && o.Date) {
-                const orderDate = new Date(o.Date);
-                if (!isNaN(orderDate.getTime())) {
-                    return orderDate >= sessionStartTime;
-                }
-            }
-
-            return true;
-        })
-        .reduce((sum, o) => sum + (parseFloat(o.TotalAmount || o.total) || 0), 0);
-
-    // 5. Update UI
-    const salesField = document.getElementById('recon-sales');
-    if (salesField) salesField.value = staffSales;
-
-    if (typeof calculateDrawerDiscrepancy === 'function') {
-        calculateDrawerDiscrepancy(staffSales);
-    }
-
-    return staffSales;
-}
 function calculateDrawerDiscrepancy(systemSales = null) {
     const salesField = document.getElementById('recon-sales');
     
@@ -4338,19 +4308,233 @@ currentShiftSession = {
     shiftId: null
 };
 
-// Call this when starting a shift or on successful employee login
+// =========================================================
+// 1. SHIFT MANAGEMENT & DAY RESET LOGIC
+// =========================================================
+
+// Updated Start Shift Function (Enforces daily reset if calendar date changes)
 function startEmployeeShift(employeeName, shiftId = null) {
-    currentShiftSession = {
-        employeeName: employeeName,
-        startTime: new Date(), // Marks the exact start of THIS shift session
-        shiftId: shiftId || "SHIFT-" + Date.now()
-    };
+    const todayStr = new Date().toDateString();
+    let savedShift = null;
+
+    try {
+        savedShift = JSON.parse(localStorage.getItem('activeShift'));
+    } catch(e) {}
+
+    // Check if existing session was started on a previous day
+    if (savedShift && savedShift.startTime) {
+        const shiftDateStr = new Date(savedShift.startTime).toDateString();
+        if (shiftDateStr !== todayStr) {
+            // Automatically close previous day's shift and reset
+            endCurrentShiftSilently(savedShift);
+            savedShift = null;
+        }
+    }
+
+    if (savedShift) {
+        currentShiftSession = savedShift;
+    } else {
+        currentShiftSession = {
+            employeeName: employeeName,
+            startTime: new Date().toISOString(),
+            shiftId: shiftId || "SHIFT-" + Date.now(),
+            date: todayStr
+        };
+        localStorage.setItem('activeShift', JSON.stringify(currentShiftSession));
+    }
     
-    // Save to localStorage so refreshing the page doesn't reset the shift session
-    localStorage.setItem('activeShift', JSON.stringify(currentShiftSession));
-    
-    // Immediately calculate and show ₱0.00 or existing shift sales
     calculateShiftSales();
+}
+
+// Auto-closes shift and pushes data to the "Shifts" sheet
+async function endCurrentShiftSilently(shiftToClose) {
+    const shiftSession = shiftToClose || currentShiftSession;
+    if (!shiftSession) return;
+
+    const systemSales = calculateShiftSales();
+    const payload = {
+        action: "recordShift",
+        shiftId: shiftSession.shiftId,
+        employeeName: shiftSession.employeeName,
+        date: new Date().toLocaleString(),
+        startCash: 0,
+        systemSales: systemSales,
+        actualCash: systemSales,
+        discrepancy: 0,
+        status: "CLOSED"
+    };
+
+    // Save to Google Sheets "Shifts" tab
+    const targetUrl = (typeof SCRIPT_URL !== 'undefined') ? SCRIPT_URL : "";
+    if (targetUrl) {
+        try {
+            await fetch(targetUrl, {
+                method: "POST",
+                mode: "cors",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify(payload)
+            });
+        } catch(err) {
+            console.warn("Error recording closed shift to Google Sheets:", err);
+        }
+    }
+
+    // Save to local shift history array
+    if (typeof db !== 'undefined') {
+        db.shifts = db.shifts || [];
+        db.shifts.push(payload);
+    }
+
+    localStorage.removeItem('activeShift');
+    currentShiftSession = null;
+    calculateShiftSales(); // Resets header counter to ₱0.00
+}
+
+// =========================================================
+// 2. SHIFT SALES MODAL & DISPLAY LOGIC
+// =========================================================
+
+function openShiftSalesModal() {
+    const modal = document.getElementById('shift-sales-modal');
+    const tbody = document.getElementById('shift-sales-table-body');
+    if (!modal || !tbody) return;
+
+    const shiftsList = (typeof db !== 'undefined' && Array.isArray(db.shifts)) ? db.shifts : [];
+    
+    if (shiftsList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:15px; color:#888;">No shift records found.</td></tr>`;
+    } else {
+        tbody.innerHTML = shiftsList.map(s => `
+            <tr style="border-bottom:1px solid #eee;">
+                <td style="padding:8px;">${s.shiftId || 'N/A'}</td>
+                <td style="padding:8px;">${s.employeeName || 'Staff'}</td>
+                <td style="padding:8px;">${s.date || ''}</td>
+                <td style="padding:8px;">₱${Number(s.startCash || 0).toFixed(2)}</td>
+                <td style="padding:8px; font-weight:bold;">₱${Number(s.systemSales || 0).toFixed(2)}</td>
+                <td style="padding:8px;"><span style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px; font-size:11px;">${s.status || 'CLOSED'}</span></td>
+            </tr>
+        `).join('');
+    }
+
+    modal.style.display = 'flex';
+}
+
+function closeShiftSalesModal() {
+    const modal = document.getElementById('shift-sales-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+// Print all shift records
+function printShiftSalesHistory() {
+    const printArea = document.getElementById('shift-sales-print-area');
+    if (!printArea) return;
+
+    const printWin = window.open('', '', 'width=800,height=600');
+    printWin.document.write(`
+        <html>
+            <head>
+                <title>Shift Sales Report</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 20px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 12px; }
+                    th { background: #f0f0f0; }
+                    h2 { margin: 0 0 10px 0; }
+                </style>
+            </head>
+            <body>
+                <h2>Alberto's Heritage Café - Shift Sales History</h2>
+                <p>Printed on: ${new Date().toLocaleString()}</p>
+                ${printArea.innerHTML}
+            </body>
+        </html>
+    `);
+    printWin.document.close();
+    printWin.focus();
+    setTimeout(() => {
+        printWin.print();
+        printWin.close();
+    }, 250);
+}
+
+// =========================================================
+// 3. END SHIFT SALE THERMAL PRINTING LOGIC
+// =========================================================
+
+async function printEndShiftSummary() {
+    const todayStr = new Date().toDateString();
+    const ordersList = (typeof db !== 'undefined' && Array.isArray(db.orders)) ? db.orders : [];
+
+    // Filter all transactions that happened today regardless of time
+    const todaysOrders = ordersList.filter(o => {
+        if (!o || !o.Date) return false;
+        const orderDate = new Date(o.Date);
+        return !isNaN(orderDate.getTime()) && orderDate.toDateString() === todayStr;
+    });
+
+    if (todaysOrders.length === 0) {
+        if (typeof showToast === 'function') showToast("No transactions found for today.", "info");
+        else alert("No transactions found for today.");
+        return;
+    }
+
+    const totalSales = todaysOrders.reduce((sum, o) => sum + (parseFloat(o.TotalAmount || o.total) || 0), 0);
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // Build thermal printer ESC/POS text
+    let escText = "";
+    escText += "==============================\n";
+    escText += "  *** END SHIFT SALES REPORT *** \n";
+    escText += "==============================\n";
+    escText += `DATE: ${new Date().toLocaleDateString()}\n`;
+    escText += `TIME: ${timeStr}\n`;
+    escText += `STAFF: ${(activeUser?.name) || 'Admin/Staff'}\n`;
+    escText += "------------------------------\n";
+    escText += `TOTAL TRANSACTIONS: ${todaysOrders.length}\n`;
+    escText += `TOTAL DAY SALES: P${totalSales.toFixed(2)}\n`;
+    escText += "------------------------------\n";
+    escText += "TRANSACTION LIST:\n";
+
+    todaysOrders.forEach((o, index) => {
+        const id = (o.OrderID || o.id || `#${index + 1}`).toString().slice(-8);
+        const amt = parseFloat(o.TotalAmount || o.total || 0).toFixed(2);
+        escText += `${id.padEnd(18, ' ')} P${amt.padStart(8, ' ')}\n`;
+    });
+
+    escText += "==============================\n";
+    escText += "    -- END OF REPORT --       \n\n\n";
+
+    // Attempt Bluetooth thermal printing
+    let printed = false;
+    if (typeof posBluetoothPrinter !== 'undefined' && posBluetoothPrinter) {
+        printed = await posBluetoothPrinter.printText(escText);
+    }
+
+    // Fallback to browser dialog if Bluetooth is not connected
+    if (!printed) {
+        const receiptZone = document.getElementById('receipt-print-zone');
+        if (receiptZone) {
+            receiptZone.innerHTML = `
+                <div style="font-family: monospace; width: 100%; font-size: 11px; text-align: center;">
+                    <h3>*** END SHIFT REPORT ***</h3>
+                    <p>Date: ${new Date().toLocaleDateString()} | ${timeStr}</p>
+                    <hr/>
+                    <p>Total Orders: ${todaysOrders.length}</p>
+                    <p><strong>Total Day Sales: ₱${totalSales.toFixed(2)}</strong></p>
+                    <hr/>
+                    ${todaysOrders.map(o => `
+                        <div style="display:flex; justify-content:space-between; font-size:10px;">
+                            <span>${o.OrderID || 'Order'}</span>
+                            <span>₱${parseFloat(o.TotalAmount || 0).toFixed(2)}</span>
+                        </div>
+                    `).join('')}
+                    <hr/>
+                    <p>-- END OF REPORT --</p>
+                </div>
+            `;
+            setTimeout(() => window.print(), 150);
+        }
+    }
 }
 
 // Restore shift session on page reload
