@@ -1111,18 +1111,20 @@
         
         <div style="overflow-y:auto; flex:1; margin-top:15px;" id="shift-sales-print-area">
             <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
-                <thead>
-                    <tr style="background:#f4f4f4; border-bottom:2px solid #ccc;">
-                        <th style="padding:8px;">Shift ID</th>
-                        <th style="padding:8px;">Employee</th>
-                        <th style="padding:8px;">Date</th>
-                        <th style="padding:8px;">Start Cash</th>
-                        <th style="padding:8px;">System Sales</th>
-                        <th style="padding:8px;">Status</th>
-                    </tr>
+               <thead>
+                  <tr class="bg-slate-100 text-slate-600 text-left text-xs uppercase font-bold">
+                    <th class="px-3 py-2">Shift ID</th>
+                    <th class="px-3 py-2">Employee</th>
+                    <th class="px-3 py-2">Date</th>
+                    <th class="px-3 py-2">Start Cash</th>
+                    <th class="px-3 py-2">System Sales</th>
+                    <th class="px-3 py-2">Actual Cash</th>
+                    <th class="px-3 py-2">Discrepancy</th>
+                    <th class="px-3 py-2">Status</th>
+                  </tr>
                 </thead>
                 <tbody id="shift-sales-table-body">
-                    <!-- Populated dynamically -->
+                  <!-- Populated dynamically -->
                 </tbody>
             </table>
         </div>
@@ -4395,29 +4397,72 @@ async function endCurrentShiftSilently(shiftToClose) {
 // 2. SHIFT SALES MODAL & DISPLAY LOGIC
 // =========================================================
 
-function openShiftSalesModal() {
+async function openShiftSalesModal() {
     const modal = document.getElementById('shift-sales-modal');
     const tbody = document.getElementById('shift-sales-table-body');
     if (!modal || !tbody) return;
 
-    const shiftsList = (typeof db !== 'undefined' && Array.isArray(db.shifts)) ? db.shifts : [];
-    
-    if (shiftsList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:15px; color:#888;">No shift records found.</td></tr>`;
-    } else {
-        tbody.innerHTML = shiftsList.map(s => `
-            <tr style="border-bottom:1px solid #eee;">
-                <td style="padding:8px;">${s.shiftId || 'N/A'}</td>
-                <td style="padding:8px;">${s.employeeName || 'Staff'}</td>
-                <td style="padding:8px;">${s.date || ''}</td>
-                <td style="padding:8px;">₱${Number(s.startCash || 0).toFixed(2)}</td>
-                <td style="padding:8px; font-weight:bold;">₱${Number(s.systemSales || 0).toFixed(2)}</td>
-                <td style="padding:8px;"><span style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px; font-size:11px;">${s.status || 'CLOSED'}</span></td>
-            </tr>
-        `).join('');
+    // Show modal immediately with loading state
+    modal.style.display = 'flex';
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:15px; color:#888;">Loading shift records...</td></tr>`;
+
+    let shiftsList = [];
+
+    // 1. Fetch fresh shifts data from Apps Script backend
+    try {
+        const response = await fetch(`${API_URL}?action=getShifts`);
+        const result = await response.json();
+        
+        if (result.status === "SUCCESS" && Array.isArray(result.shifts)) {
+            shiftsList = result.shifts;
+        }
+    } catch (err) {
+        console.warn("Could not fetch online shift records, falling back to local memory:", err);
     }
 
-    modal.style.display = 'flex';
+    // Fallback to local db.shifts if API fetch yielded no results or failed
+    if (shiftsList.length === 0 && typeof db !== 'undefined' && Array.isArray(db.shifts)) {
+        shiftsList = db.shifts;
+    }
+
+    // 2. Render Columns A to H
+    if (shiftsList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:15px; color:#888;">No shift records found.</td></tr>`;
+    } else {
+        tbody.innerHTML = shiftsList.map(s => {
+            const startCash = Number(s.startCash || 0).toFixed(2);
+            const systemSales = Number(s.systemSales || 0).toFixed(2);
+            const actualCash = Number(s.actualCash || 0).toFixed(2);
+            const discrepancyVal = Number(s.discrepancy || 0);
+            const discrepancy = discrepancyVal.toFixed(2);
+
+            // Dynamic color for discrepancy
+            let discColor = '#475569'; // default slate
+            if (discrepancyVal < 0) discColor = '#dc2626'; // red for shortage
+            if (discrepancyVal > 0) discColor = '#16a34a'; // green for overage
+
+            const statusUpper = String(s.status || 'CLOSED').toUpperCase();
+            const statusBg = statusUpper === 'OPEN' ? '#dcfce7' : '#e0f2fe';
+            const statusColor = statusUpper === 'OPEN' ? '#15803d' : '#0369a1';
+
+            return `
+                <tr style="border-bottom:1px solid #eee; font-size:13px;">
+                    <td style="padding:8px; font-family:monospace;">${s.shiftId || 'N/A'}</td>
+                    <td style="padding:8px;">${s.employeeName || s.EmployeeName || 'Staff'}</td>
+                    <td style="padding:8px; font-size:11px; color:#666;">${s.date ? new Date(s.date).toLocaleString() : ''}</td>
+                    <td style="padding:8px;">₱${startCash}</td>
+                    <td style="padding:8px; font-weight:bold;">₱${systemSales}</td>
+                    <td style="padding:8px;">₱${actualCash}</td>
+                    <td style="padding:8px; font-weight:600; color:${discColor};">₱${discrepancy}</td>
+                    <td style="padding:8px;">
+                        <span style="background:${statusBg}; color:${statusColor}; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold;">
+                            ${statusUpper}
+                        </span>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
 }
 
 function closeShiftSalesModal() {
