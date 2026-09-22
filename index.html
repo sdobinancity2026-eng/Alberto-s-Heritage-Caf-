@@ -4627,39 +4627,39 @@ function restoreActiveShift() {
     const shiftIncomeEl = document.getElementById('header-shift-income');
     if (!shiftIncomeEl) return 0;
 
-    // 1. Get current logged-in employee name
+    // Fallback for null/undefined shift session
+    if (typeof currentShiftSession === 'undefined' || !currentShiftSession) {
+        if (typeof restoreActiveShift === 'function') {
+            restoreActiveShift();
+        }
+    }
+
+    // 1. Check if user is logged in
     const currentStaffElement = document.getElementById('topbar-user-name');
     const currentStaffName = currentStaffElement ? currentStaffElement.innerText.trim() : "";
 
-    if (!currentStaffName || currentStaffName === "Staff Name") {
+    // 2. Return 0.00 if no staff logged in or shift is not active
+    if (!currentStaffName || currentStaffName === "Staff Name" || !currentShiftSession) {
         shiftIncomeEl.innerText = "₱0.00";
         return 0;
     }
 
-    // 2. Ensure shift session details are loaded
-    if (!currentShiftSession.startTime) {
-        restoreActiveShift();
-    }
-
     let activeShiftTotal = 0;
-    const ordersList = (db && Array.isArray(db.orders)) ? db.orders : [];
+    const ordersList = (typeof db !== 'undefined' && db && Array.isArray(db.orders)) ? db.orders : [];
 
     ordersList.forEach(order => {
         const orderEmployee = order.EmployeeName || order.employee || "";
         const orderTime = new Date(order.Date || order.timestamp || Date.now());
 
-        // MUST MATCH: 
-        // 1. Employee Name
-        // 2. Order placed AFTER shift start time (or matching ShiftID)
         const isSameEmployee = orderEmployee.toLowerCase() === currentStaffName.toLowerCase();
-        
+
         let isWithinCurrentShift = false;
         if (currentShiftSession.shiftId && order.ShiftID) {
             isWithinCurrentShift = (order.ShiftID === currentShiftSession.shiftId);
         } else if (currentShiftSession.startTime) {
             isWithinCurrentShift = orderTime >= new Date(currentShiftSession.startTime);
         } else {
-            // Fallback: If no shift start time recorded, match orders from today
+            // Fallback: match orders from today
             isWithinCurrentShift = orderTime.toDateString() === new Date().toDateString();
         }
 
@@ -4669,7 +4669,7 @@ function restoreActiveShift() {
         }
     });
 
-    // 3. Update navbar display in real time
+    // 3. Format and render to header element
     shiftIncomeEl.innerText = `₱${activeShiftTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
     return activeShiftTotal;
