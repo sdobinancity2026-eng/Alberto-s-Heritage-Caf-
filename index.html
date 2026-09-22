@@ -4311,11 +4311,12 @@ currentShiftSession = {
     shiftId: null
 };
 
+let currentShiftSession = null;
+
 // =========================================================
 // 1. SHIFT MANAGEMENT & DAY RESET LOGIC
 // =========================================================
 
-// Updated Start Shift Function (Enforces daily reset if calendar date changes)
 function startEmployeeShift(employeeName, shiftId = null) {
     const todayStr = new Date().toDateString();
     let savedShift = null;
@@ -4329,7 +4330,7 @@ function startEmployeeShift(employeeName, shiftId = null) {
         const shiftDateStr = new Date(savedShift.startTime).toDateString();
         if (shiftDateStr !== todayStr) {
             // Automatically close previous day's shift and reset
-            endCurrentShiftSilently(savedShift);
+            endShiftSession();
             savedShift = null;
         }
     }
@@ -4339,13 +4340,25 @@ function startEmployeeShift(employeeName, shiftId = null) {
     } else {
         currentShiftSession = {
             employeeName: employeeName,
-            startTime: new Date().toISOString(),
+            startTime: new Date().toISOString(), // Critical timestamp boundary
             shiftId: shiftId || "SHIFT-" + Date.now(),
             date: todayStr
         };
         localStorage.setItem('activeShift', JSON.stringify(currentShiftSession));
+        
+        // Notify backend about the new shift start
+        fetch(WEB_APP_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'startshift',
+                employeeName: employeeName,
+                shiftId: currentShiftSession.shiftId,
+                startTime: currentShiftSession.startTime
+            })
+        });
     }
     
+    // Immediately display ₱0.00 or recalculate active shift sales
     calculateShiftSales();
 }
 
@@ -4623,63 +4636,86 @@ function restoreActiveShift() {
     }
 }
 
-   function calculateShiftSales() {
-    const shiftIncomeEl = document.getElementById('header-shift-income');
-    if (!shiftIncomeEl) return 0;
+   // =========================================================
+// FIXED SHIFT SALES CALCULATION & DISPLAY
+// =========================================================
 
-    // Fallback for null/undefined shift session
-    if (typeof currentShiftSession === 'undefined' || !currentShiftSession) {
+function calculateShiftSales() {
+    const shiftIncomeEl = document.getElementById('header-shift-income');
+
+    // 1. Restore session from localStorage if global variable is missing
+    if (typeof currentShiftSession === 'undefined' || !currentShiftSession || !currentShiftSession.startTime) {
         if (typeof restoreActiveShift === 'function') {
             restoreActiveShift();
         }
     }
 
-    // 1. Check if user is logged in
+    // 2. Identify active logged-in employee
     const currentStaffElement = document.getElementById('topbar-user-name');
     const currentStaffName = currentStaffElement ? currentStaffElement.innerText.trim() : "";
 
-    // 2. Return 0.00 if no staff logged in or shift is not active
-    if (!currentStaffName || currentStaffName === "Staff Name" || !currentShiftSession) {
-        shiftIncomeEl.innerText = "₱0.00";
+    // 3. Enforce ₱0.00 if user is logged out or no active shift exists
+    if (
+        !currentStaffName || 
+        currentStaffName === "Staff Name" || 
+        !currentShiftSession || 
+        !currentShiftSession.startTime
+    ) {
+        if (shiftIncomeEl) shiftIncomeEl.innerText = "₱0.00";
         return 0;
     }
 
     let activeShiftTotal = 0;
     const ordersList = (typeof db !== 'undefined' && db && Array.isArray(db.orders)) ? db.orders : [];
 
-    ordersList.forEach(order => {
-        const orderEmployee = order.EmployeeName || order.employee || "";
-        const orderTime = new Date(order.Date || order.timestamp || Date.now());
+    // Parse shift start boundary as unix epoch milliseconds for precision comparison
+    const shiftStartTimeMs = new Date(currentShiftSession.startTime).getTime();
 
+    ordersList.forEach(order => {
+        // Handle property name variations from sheet/DB
+        const orderEmployee = order.EmployeeName || order.employee || "";
+        const rawDate = order.Timestamp || order.Date || order.date || order.timestamp;
+        const orderTimeMs = rawDate ? new Date(rawDate).getTime() : 0;
+
+        // Verify Employee match
         const isSameEmployee = orderEmployee.toLowerCase() === currentStaffName.toLowerCase();
 
+        // Strict Shift Filtering (NO same-day fallbacks)
         let isWithinCurrentShift = false;
+
         if (currentShiftSession.shiftId && order.ShiftID) {
-            isWithinCurrentShift = (order.ShiftID === currentShiftSession.shiftId);
-        } else if (currentShiftSession.startTime) {
-            isWithinCurrentShift = orderTime >= new Date(currentShiftSession.startTime);
-        } else {
-            // Fallback: match orders from today
-            isWithinCurrentShift = orderTime.toDateString() === new Date().toDateString();
+            // Priority 1: Direct ShiftID match
+            isWithinCurrentShift = String(order.ShiftID) === String(currentShiftSession.shiftId);
+        } else if (shiftStartTimeMs > 0 && orderTimeMs > 0) {
+            // Priority 2: Timestamp boundary comparison
+            isWithinCurrentShift = orderTimeMs >= shiftStartTimeMs;
         }
 
         if (isSameEmployee && isWithinCurrentShift) {
-            const amount = parseFloat(order.TotalAmount || order.total || 0);
-            activeShiftTotal += amount;
+            const amount = parseFloat(order.TotalAmount || order.totalAmount || order.Total || order.amount || 0);
+            if (!isNaN(amount)) {
+                activeShiftTotal += amount;
+            }
         }
     });
 
-    // 3. Format and render to header element
-    shiftIncomeEl.innerText = `₱${activeShiftTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    // 4. Single source of truth for UI render
+    updateShiftSalesDisplay(activeShiftTotal);
 
     return activeShiftTotal;
 }
     function endShiftSession() {
+    // 1. Capture final shift total before wiping
+    const finalShiftSales = calculateShiftSales();
+
+    // 2. Clear stored session
     localStorage.removeItem('activeShift');
-    currentShiftSession = { employeeName: "", startTime: null, shiftId: null };
-    
-    const shiftIncomeEl = document.getElementById('header-shift-income');
-    if (shiftIncomeEl) shiftIncomeEl.innerText = "₱0.00";
+    currentShiftSession = null;
+
+    // 3. Reset UI display immediately back to zero
+    updateShiftSalesDisplay(0);
+
+    return finalShiftSales;
 }
 
     // Local store for employee allocations
@@ -7364,16 +7400,17 @@ function importProductToSheet() {
   updateShiftSalesDisplay(0.00);
 }
 
-function updateShiftSalesDisplay(amount) {
-  const formatted = new Intl.NumberFormat('en-PH', { 
-    style: 'currency', 
-    currency: 'PHP' 
-  }).format(amount || 0);
+function updateShiftSalesDisplay(amount = 0) {
+    const formatted = new Intl.NumberFormat('en-PH', { 
+        style: 'currency', 
+        currency: 'PHP' 
+    }).format(amount || 0);
 
-  const shiftSalesEl = document.getElementById("shiftSalesBadge"); // Adjust ID to match your HTML
-  if (shiftSalesEl) {
-    shiftSalesEl.innerText = `Shift Sales: ${formatted}`;
-  }
+    // Target the actual element ID in your top navigation header HTML
+    const shiftIncomeEl = document.getElementById('header-shift-income');
+    if (shiftIncomeEl) {
+        shiftIncomeEl.innerText = formatted;
+    }
 }
     function checkAndStartNewShift(employeeName, startCash) {
   const newShift = {
