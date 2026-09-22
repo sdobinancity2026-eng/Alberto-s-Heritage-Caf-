@@ -1245,30 +1245,6 @@
 
 <script>
 
-    var syncInterval = null; // Using var prevents Temporal Dead Zone errors across function calls
-
-function startRealtimeSync() {
-    if (syncInterval) clearInterval(syncInterval);
-    syncInterval = setInterval(async () => {
-        if (activeUser && typeof fetchDatabase === 'function') {
-            try {
-                await fetchDatabase();
-                if (typeof renderMenu === 'function') renderMenu();
-                if (typeof updateOrdersUI === 'function') updateOrdersUI();
-            } catch (err) {
-                console.warn("Background sync failed:", err);
-            }
-        }
-    }, 5000);
-}
-
-function stopRealtimeSync() {
-    if (syncInterval) {
-        clearInterval(syncInterval);
-        syncInterval = null;
-    }
-}
-
 // Silence background extension promise rejections when tab is idle
 window.addEventListener('unhandledrejection', function(event) {
     if (event.reason && event.reason.message && event.reason.message.includes('message channel closed')) {
@@ -1617,6 +1593,10 @@ async function fetchAllData() {
     }
 }
 
+// Keep this variable near the top of your script (or above line 1620)
+var syncInterval = null;
+let consecutiveSyncErrors = 0;
+
 function startRealtimeSync() {
     // Stop any existing timer to prevent duplicates
     if (syncInterval) clearInterval(syncInterval);
@@ -1628,16 +1608,26 @@ function startRealtimeSync() {
             try {
                 await fetchDatabase(); // Fetch latest data from Google Apps Script
                 
+                // Reset error counter on successful sync
+                consecutiveSyncErrors = 0;
+
                 // Re-render components that depend on live data
                 if (typeof renderMenu === 'function') renderMenu();
                 if (typeof updateOrdersUI === 'function') updateOrdersUI();
                 if (typeof populateDynamicCategories === 'function') populateDynamicCategories();
                 
             } catch (err) {
-                console.warn("Background sync failed:", err);
+                consecutiveSyncErrors++;
+                console.warn(`Background sync failed (${consecutiveSyncErrors}):`, err.message || err);
+
+                // If 5 consecutive errors occur (e.g., 404 or internet dropped), pause polling
+                if (consecutiveSyncErrors >= 5) {
+                    console.error("Pausing background sync due to repeated connection errors. Check your deployment URL.");
+                    stopRealtimeSync();
+                }
             }
         }
-    }, 5000); // Adjust interval time as needed (5000ms = 5s)
+    }, 5000);
 }
 
 function stopRealtimeSync() {
@@ -4328,11 +4318,10 @@ function startEmployeeShift(employeeName, shiftId = null) {
         savedShift = JSON.parse(localStorage.getItem('activeShift'));
     } catch(e) {}
 
-    // Check if existing session was started on a previous day
+    // Reset shift if it belonged to a previous day
     if (savedShift && savedShift.startTime) {
         const shiftDateStr = new Date(savedShift.startTime).toDateString();
         if (shiftDateStr !== todayStr) {
-            // Automatically close previous day's shift and reset
             endShiftSession();
             savedShift = null;
         }
@@ -4343,28 +4332,28 @@ function startEmployeeShift(employeeName, shiftId = null) {
     } else {
         window.currentShiftSession = {
             employeeName: employeeName,
-            startTime: new Date().toISOString(), // Critical timestamp boundary
+            startTime: new Date().toISOString(),
             shiftId: shiftId || "SHIFT-" + Date.now(),
             date: todayStr
         };
         localStorage.setItem('activeShift', JSON.stringify(window.currentShiftSession));
         
-        // Notify backend about the new shift start
-        fetch(WEB_APP_URL, {
+        // Notify Apps Script backend (with redirect follow)
+        const targetUrl = typeof API_URL !== 'undefined' ? API_URL : WEB_APP_URL;
+        fetch(targetUrl, {
             method: 'POST',
+            redirect: 'follow',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify({
                 action: 'startshift',
                 employeeName: employeeName,
                 shiftId: window.currentShiftSession.shiftId,
                 startTime: window.currentShiftSession.startTime
             })
-        });
+        }).catch(err => console.warn("Shift notification failed:", err));
     }
 
-    // Keep global alias synchronized
     currentShiftSession = window.currentShiftSession;
-    
-    // Immediately display ₱0.00 or recalculate active shift sales
     calculateShiftSales();
 }
 // Auto-closes shift and pushes data to the "Shifts" sheet
@@ -4648,65 +4637,74 @@ function restoreActiveShift() {
 function calculateShiftSales() {
     const shiftIncomeEl = document.getElementById('header-shift-income');
 
-    // 1. Restore session from localStorage if global variable is missing
-    if (typeof currentShiftSession === 'undefined' || !currentShiftSession || !currentShiftSession.startTime) {
+    // 1. Restore active shift if global variable is missing
+    if (typeof window.currentShiftSession === 'undefined' || !window.currentShiftSession || !window.currentShiftSession.startTime) {
         if (typeof restoreActiveShift === 'function') {
             restoreActiveShift();
+        } else {
+            try {
+                const saved = localStorage.getItem('activeShift');
+                if (saved) window.currentShiftSession = JSON.parse(saved);
+            } catch(e) {}
         }
     }
 
-    // 2. Identify active logged-in employee
+    const shiftSession = window.currentShiftSession;
+
+    // 2. Identify active staff
     const currentStaffElement = document.getElementById('topbar-user-name');
     const currentStaffName = currentStaffElement ? currentStaffElement.innerText.trim() : "";
 
-    // 3. Enforce ₱0.00 if user is logged out or no active shift exists
-    if (
-        !currentStaffName || 
-        currentStaffName === "Staff Name" || 
-        !currentShiftSession || 
-        !currentShiftSession.startTime
-    ) {
-        if (shiftIncomeEl) shiftIncomeEl.innerText = "₱0.00";
+    // If no active shift session exists or no staff is logged in, show 0.00
+    if (!shiftSession || !shiftSession.startTime) {
+        console.warn("Shift Sales: No active shift session or startTime found.");
+        updateShiftSalesDisplay(0);
         return 0;
     }
 
     let activeShiftTotal = 0;
     const ordersList = (typeof db !== 'undefined' && db && Array.isArray(db.orders)) ? db.orders : [];
 
-    // Parse shift start boundary as unix epoch milliseconds for precision comparison
-    const shiftStartTimeMs = new Date(currentShiftSession.startTime).getTime();
+    // Parse shift start time (Subtract 2-minute safety grace buffer to account for clock drift)
+    const shiftStartMs = new Date(shiftSession.startTime).getTime() - (2 * 60 * 1000);
 
-    ordersList.forEach(order => {
-        // Handle property name variations from sheet/DB
-        const orderEmployee = order.EmployeeName || order.employee || "";
-        const rawDate = order.Timestamp || order.Date || order.date || order.timestamp;
-        const orderTimeMs = rawDate ? new Date(rawDate).getTime() : 0;
+    console.log(`--- Calculating Shift Sales ---`);
+    console.log(`Shift ID: ${shiftSession.shiftId}`);
+    console.log(`Shift Start Time: ${shiftSession.startTime} (${shiftStartMs} ms)`);
+    console.log(`Total Orders in DB: ${ordersList.length}`);
 
-        // Verify Employee match
-        const isSameEmployee = orderEmployee.toLowerCase() === currentStaffName.toLowerCase();
+    ordersList.forEach((order, index) => {
+        // Extract raw timestamp property
+        const rawTime = order.Timestamp || order.timestamp || order.Date || order.date || order.created_at;
+        const orderTimeMs = rawTime ? new Date(rawTime).getTime() : 0;
 
-        // Strict Shift Filtering (NO same-day fallbacks)
-        let isWithinCurrentShift = false;
+        // Extract employee name
+        const orderEmp = (order.EmployeeName || order.employee || order.staff || "").trim().toLowerCase();
+        const activeEmp = (currentStaffName || shiftSession.employeeName || "").trim().toLowerCase();
 
-        if (currentShiftSession.shiftId && order.ShiftID) {
-            // Priority 1: Direct ShiftID match
-            isWithinCurrentShift = String(order.ShiftID) === String(currentShiftSession.shiftId);
-        } else if (shiftStartTimeMs > 0 && orderTimeMs > 0) {
-            // Priority 2: Timestamp boundary comparison
-            isWithinCurrentShift = orderTimeMs >= shiftStartTimeMs;
-        }
+        // 1. Shift ID Match (highest priority)
+        const matchByShiftId = shiftSession.shiftId && order.ShiftID && String(order.ShiftID) === String(shiftSession.shiftId);
 
-        if (isSameEmployee && isWithinCurrentShift) {
-            const amount = parseFloat(order.TotalAmount || order.totalAmount || order.Total || order.amount || 0);
-            if (!isNaN(amount)) {
+        // 2. Time-based Match (Order placed AFTER or AT shift start time)
+        const matchByTime = orderTimeMs >= shiftStartMs;
+
+        // Employee filter: Match if same employee OR if order has no employee specified
+        const matchEmployee = !orderEmp || !activeEmp || orderEmp === activeEmp;
+
+        if ((matchByShiftId || matchByTime) && matchEmployee) {
+            const amount = parseFloat(order.TotalAmount || order.totalAmount || order.Total || order.total || order.amount || 0);
+            if (!isNaN(amount) && amount > 0) {
                 activeShiftTotal += amount;
+                console.log(`  [✓] Included Order #${index + 1}: ₱${amount} (${rawTime})`);
             }
+        } else {
+            console.log(`  [✗] Skipped Order #${index + 1}: timeMs=${orderTimeMs}, startMs=${shiftStartMs}, matchTime=${matchByTime}, matchEmp=${matchEmployee}`);
         }
     });
 
-    // 4. Single source of truth for UI render
-    updateShiftSalesDisplay(activeShiftTotal);
+    console.log(`Final Shift Total: ₱${activeShiftTotal}`);
 
+    updateShiftSalesDisplay(activeShiftTotal);
     return activeShiftTotal;
 }
     function endShiftSession() {
@@ -7452,6 +7450,23 @@ function updateShiftSalesDisplay(amount = 0) {
 
   // Reset shift sales display to 0 immediately
   updateShiftSalesDisplay(0.00);
+}
+
+    function onCheckoutSuccess(completedOrder) {
+    // 1. Attach active Shift ID & Timestamp to the new order
+    if (window.currentShiftSession) {
+        completedOrder.ShiftID = window.currentShiftSession.shiftId;
+        completedOrder.EmployeeName = window.currentShiftSession.employeeName;
+    }
+    completedOrder.Timestamp = new Date().toISOString();
+
+    // 2. Add to local db.orders array
+    if (typeof db !== 'undefined' && Array.isArray(db.orders)) {
+        db.orders.push(completedOrder);
+    }
+
+    // 3. Immediately recalculate and increment topbar Shift Sales display
+    calculateShiftSales();
 }
  
 </script>
