@@ -4303,13 +4303,18 @@ function showLoginScreen() {
     }
 }
 
-    // Global variable to hold active shift session info
-// Global variable to hold active shift session info
-currentShiftSession = {
-    employeeName: "",
-    startTime: null, // e.g., new Date() when shift was opened
-    shiftId: null
-};
+  // Safe Global Initialization (Prevents SyntaxError across script loads)
+if (typeof window.currentShiftSession === 'undefined' || !window.currentShiftSession) {
+    window.currentShiftSession = {
+        employeeName: "",
+        startTime: null,
+        shiftId: null,
+        date: null
+    };
+}
+
+// Shortcut reference for easy access within this file
+var currentShiftSession = window.currentShiftSession;
 
 // =========================================================
 // 1. SHIFT MANAGEMENT & DAY RESET LOGIC
@@ -4334,15 +4339,15 @@ function startEmployeeShift(employeeName, shiftId = null) {
     }
 
     if (savedShift) {
-        currentShiftSession = savedShift;
+        window.currentShiftSession = savedShift;
     } else {
-        currentShiftSession = {
+        window.currentShiftSession = {
             employeeName: employeeName,
             startTime: new Date().toISOString(), // Critical timestamp boundary
             shiftId: shiftId || "SHIFT-" + Date.now(),
             date: todayStr
         };
-        localStorage.setItem('activeShift', JSON.stringify(currentShiftSession));
+        localStorage.setItem('activeShift', JSON.stringify(window.currentShiftSession));
         
         // Notify backend about the new shift start
         fetch(WEB_APP_URL, {
@@ -4350,16 +4355,18 @@ function startEmployeeShift(employeeName, shiftId = null) {
             body: JSON.stringify({
                 action: 'startshift',
                 employeeName: employeeName,
-                shiftId: currentShiftSession.shiftId,
-                startTime: currentShiftSession.startTime
+                shiftId: window.currentShiftSession.shiftId,
+                startTime: window.currentShiftSession.startTime
             })
         });
     }
+
+    // Keep global alias synchronized
+    currentShiftSession = window.currentShiftSession;
     
     // Immediately display ₱0.00 or recalculate active shift sales
     calculateShiftSales();
 }
-
 // Auto-closes shift and pushes data to the "Shifts" sheet
 async function endCurrentShiftSilently(shiftToClose) {
     const shiftSession = shiftToClose || currentShiftSession;
