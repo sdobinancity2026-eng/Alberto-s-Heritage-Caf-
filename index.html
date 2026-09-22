@@ -4630,7 +4630,7 @@ function restoreActiveShift() {
     }
 }
 
-   // =========================================================
+ // =========================================================
 // FIXED SHIFT SALES CALCULATION & DISPLAY
 // =========================================================
 
@@ -4655,7 +4655,7 @@ function calculateShiftSales() {
     const currentStaffElement = document.getElementById('topbar-user-name');
     const currentStaffName = currentStaffElement ? currentStaffElement.innerText.trim() : "";
 
-    // If no active shift session exists or no staff is logged in, show 0.00
+    // If no active shift session exists, reset display and exit
     if (!shiftSession || !shiftSession.startTime) {
         console.warn("Shift Sales: No active shift session or startTime found.");
         updateShiftSalesDisplay(0);
@@ -4665,44 +4665,67 @@ function calculateShiftSales() {
     let activeShiftTotal = 0;
     const ordersList = (typeof db !== 'undefined' && db && Array.isArray(db.orders)) ? db.orders : [];
 
-    // Parse shift start time (Subtract 2-minute safety grace buffer to account for clock drift)
-    const shiftStartMs = new Date(shiftSession.startTime).getTime() - (2 * 60 * 1000);
+    // Safe Date Parsing Helper to handle Sheets formats & string timestamps
+    const parseMs = (dateVal) => {
+        if (!dateVal) return 0;
+        if (dateVal instanceof Date) return dateVal.getTime();
+        
+        // Handle numeric timestamps
+        if (!isNaN(dateVal) && Number(dateVal) > 1000000000) return Number(dateVal);
+
+        // Standard JS Date parse
+        let ms = new Date(dateVal).getTime();
+        if (!isNaN(ms)) return ms;
+
+        // Fallback for "MM/DD/YYYY, HH:MM:SS AM/PM" or "YYYY-MM-DD HH:MM:SS"
+        const cleanStr = String(dateVal).replace(/,/g, '').trim();
+        ms = new Date(cleanStr).getTime();
+        return !isNaN(ms) ? ms : 0;
+    };
+
+    // Define strict boundaries (Start time with 2-min buffer & End time or Current Time)
+    const shiftStartMs = parseMs(shiftSession.startTime) - (2 * 60 * 1000);
+    const shiftEndMs = shiftSession.endTime ? parseMs(shiftSession.endTime) + (2 * 60 * 1000) : Date.now() + (60 * 1000);
 
     console.log(`--- Calculating Shift Sales ---`);
     console.log(`Shift ID: ${shiftSession.shiftId}`);
-    console.log(`Shift Start Time: ${shiftSession.startTime} (${shiftStartMs} ms)`);
+    console.log(`Shift Start: ${new Date(shiftStartMs).toISOString()}`);
+    console.log(`Shift End: ${new Date(shiftEndMs).toISOString()}`);
     console.log(`Total Orders in DB: ${ordersList.length}`);
 
     ordersList.forEach((order, index) => {
-        // Extract raw timestamp property
         const rawTime = order.Timestamp || order.timestamp || order.Date || order.date || order.created_at;
-        const orderTimeMs = rawTime ? new Date(rawTime).getTime() : 0;
+        const orderTimeMs = parseMs(rawTime);
 
-        // Extract employee name
         const orderEmp = (order.EmployeeName || order.employee || order.staff || "").trim().toLowerCase();
         const activeEmp = (currentStaffName || shiftSession.employeeName || "").trim().toLowerCase();
 
-        // 1. Shift ID Match (highest priority)
-        const matchByShiftId = shiftSession.shiftId && order.ShiftID && String(order.ShiftID) === String(shiftSession.shiftId);
+        // Check explicit Shift ID match
+        const orderShiftId = order.ShiftID || order.shiftId || order.shiftID;
+        const matchByShiftId = shiftSession.shiftId && orderShiftId && String(orderShiftId) === String(shiftSession.shiftId);
 
-        // 2. Time-based Match (Order placed AFTER or AT shift start time)
-        const matchByTime = orderTimeMs >= shiftStartMs;
+        // Check Bounded Time Range match (MUST be between Start AND End)
+        const matchByTime = orderTimeMs > 0 && orderTimeMs >= shiftStartMs && orderTimeMs <= shiftEndMs;
 
-        // Employee filter: Match if same employee OR if order has no employee specified
+        // Employee filter match
         const matchEmployee = !orderEmp || !activeEmp || orderEmp === activeEmp;
 
-        if ((matchByShiftId || matchByTime) && matchEmployee) {
+        // Inclusion Logic:
+        // Prioritize Shift ID match; otherwise fall back to strict bounded Time Range AND Employee matching.
+        const isShiftOrder = matchByShiftId || (matchByTime && matchEmployee);
+
+        if (isShiftOrder) {
             const amount = parseFloat(order.TotalAmount || order.totalAmount || order.Total || order.total || order.amount || 0);
             if (!isNaN(amount) && amount > 0) {
                 activeShiftTotal += amount;
                 console.log(`  [✓] Included Order #${index + 1}: ₱${amount} (${rawTime})`);
             }
         } else {
-            console.log(`  [✗] Skipped Order #${index + 1}: timeMs=${orderTimeMs}, startMs=${shiftStartMs}, matchTime=${matchByTime}, matchEmp=${matchEmployee}`);
+            console.log(`  [✗] Skipped Order #${index + 1}: timeMs=${orderTimeMs}, startMs=${shiftStartMs}, endMs=${shiftEndMs}, matchShiftId=${matchByShiftId}, matchTime=${matchByTime}, matchEmp=${matchEmployee}`);
         }
     });
 
-    console.log(`Final Shift Total: ₱${activeShiftTotal}`);
+    console.log(`Final Shift Total: ₱${activeShiftTotal.toFixed(2)}`);
 
     updateShiftSalesDisplay(activeShiftTotal);
     return activeShiftTotal;
