@@ -4516,18 +4516,30 @@ function printShiftSalesHistory() {
 
 async function printEndShiftSummary() {
   try {
-    console.log("Fetching today's Orders sheet summary...");
+    // 1. Fallback to SCRIPT_URL if API_URL is not defined
+    const endpoint = (typeof API_URL !== "undefined" && API_URL) ? API_URL : (typeof SCRIPT_URL !== "undefined" ? SCRIPT_URL : "");
 
-    const response = await fetch(`${API_URL}?action=getOrdersSummary`);
+    if (!endpoint || !endpoint.startsWith("http")) {
+      alert("API URL is missing or invalid. Please check your API_URL configuration.");
+      return;
+    }
+
+    const requestUrl = `${endpoint}?action=getOrdersSummary`;
+    console.log("Fetching today's Orders sheet summary from:", requestUrl);
+
+    const response = await fetch(requestUrl, {
+      method: "GET",
+      redirect: "follow"
+    });
     
-    // Check if response returned HTML instead of JSON
     const responseText = await response.text();
     let result;
+
     try {
       result = JSON.parse(responseText);
     } catch (e) {
-      alert("Apps Script returned non-JSON output. Please verify you published a 'New version' deployment.");
-      console.error("Non-JSON Response:", responseText);
+      alert("Apps Script returned non-JSON output. Please verify your Web App deployment settings.");
+      console.error("Non-JSON Server Output:", responseText);
       return;
     }
 
@@ -4538,10 +4550,10 @@ async function printEndShiftSummary() {
 
     const allOrders = result.data || [];
     
-    // 1. Get today's date standard string (YYYY-MM-DD or MM/DD/YYYY matching locale)
+    // 2. Get today's date standard string
     const todayStr = new Date().toLocaleDateString();
 
-    // 2. Filter transactions for the CURRENT DATE ONLY
+    // 3. Filter transactions for CURRENT DATE ONLY
     const todayOrders = allOrders.filter(order => {
       if (!order.timestamp) return false;
       const orderDate = new Date(order.timestamp).toLocaleDateString();
@@ -4553,7 +4565,7 @@ async function printEndShiftSummary() {
       return;
     }
 
-    // 3. Build Thermal Receipt Text Layout
+    // 4. Build Thermal Receipt Text Layout
     const now = new Date().toLocaleString();
     let totalSales = 0;
 
@@ -4564,7 +4576,7 @@ async function printEndShiftSummary() {
 Date/Time: ${now}
 Filter: TODAY ONLY (${todayStr})
 --------------------------------
-OrderID       Employee    Amount
+OrderID        Employee    Amount
 --------------------------------
 `;
 
@@ -4580,12 +4592,12 @@ OrderID       Employee    Amount
     });
 
     receiptText += `--------------------------------
-TOTAL SALES:       P${totalSales.toFixed(2)}
-TOTAL ORDERS:      ${todayOrders.length}
+TOTAL SALES:        P${totalSales.toFixed(2)}
+TOTAL ORDERS:       ${todayOrders.length}
 ================================
 \n\n\n`;
 
-    // 4. Send to Thermal Printer / Print Dialog
+    // 5. Send to Thermal Printer / Print Dialog
     if (typeof printThermalText === "function") {
       await printThermalText(receiptText);
     } else {
@@ -4617,17 +4629,6 @@ TOTAL ORDERS:      ${todayOrders.length}
     console.error("Failed to print End Shift Sale summary:", error);
     alert("Failed to connect to spreadsheet or printer.");
   }
-}
-
-// Restore shift session on page reload
-function restoreActiveShift() {
-    const saved = localStorage.getItem('activeShift');
-    if (saved) {
-        currentShiftSession = JSON.parse(saved);
-        if (currentShiftSession.startTime) {
-            currentShiftSession.startTime = new Date(currentShiftSession.startTime);
-        }
-    }
 }
 
 // =========================================================
