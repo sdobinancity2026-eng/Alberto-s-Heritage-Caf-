@@ -6272,22 +6272,39 @@ async function fetchDatabase() {
         if (statusMsg) {
             statusMsg.style.display = 'flex';
             statusMsg.className = "text-xs text-center text-amber-700/80 font-medium mt-2 flex items-center justify-center gap-1.5";
-            statusMsg.innerHTML = `${SPINNER_SVG} <span>Syncing database... Please wait</span>`;
+            statusMsg.innerHTML = `${typeof SPINNER_SVG !== 'undefined' ? SPINNER_SVG : ''} <span>Syncing database... Please wait</span>`;
         }
 
-        // 2. Fetch Data
-        const targetUrl = (typeof API_URL !== 'undefined') ? API_URL : (window.SCRIPT_URL || "");
+        // 2. Fallback check for target endpoint URL
+        const targetUrl = (typeof API_URL !== 'undefined' && API_URL) 
+            ? API_URL 
+            : ((typeof WEB_APP_URL !== 'undefined' && WEB_APP_URL) 
+                ? WEB_APP_URL 
+                : (window.SCRIPT_URL || ""));
+
+        if (!targetUrl) {
+            throw new Error("No Google Apps Script URL defined (API_URL / WEB_APP_URL is missing).");
+        }
+
+        // 3. Fetch Data
         const response = await fetch(`${targetUrl}?action=getInitialData`, {
             method: "GET",
-            redirect: "follow",
-            headers: { "Content-Type": "text/plain;charset=utf-8" }
+            redirect: "follow"
         });
 
-        if (!response.ok) throw new Error(`HTTP status ${response.status}`);
+        if (!response.ok) {
+            throw new Error(`HTTP status ${response.status}`);
+        }
+
+        // Check if response is HTML error page instead of JSON
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("text/html")) {
+            throw new Error("Received HTML response from Google Apps Script. Check deployment permissions ('Anyone').");
+        }
 
         const data = await response.json();
 
-        // 3. Update local DB
+        // 4. Update local DB
         if (typeof db !== 'undefined') {
             db.inventory = data.inventory || [];
             db.employees = data.employees || [];
@@ -6296,18 +6313,22 @@ async function fetchDatabase() {
             db.consumables = data.consumables || [];
         }
 
-        // 4. SET GLOBAL VARIABLES FOR RECIPE BUILDER DROPDOWNS
+        // 5. Set Global References
         window.globalMenuItems = data.inventory || data.menuItems || [];
         window.globalConsumables = data.consumables || [];
-        window.globalData = data; // Keep backup reference
+        window.globalData = data;
 
-        // 5. Set Success State
+        // 6. Automatically recalculate Shift Sales UI upon fresh order sync
+        if (typeof calculateShiftSales === 'function') {
+            calculateShiftSales();
+        }
+
+        // 7. Set Success State
         if (loginBtn) loginBtn.disabled = false;
         if (statusMsg) {
             statusMsg.className = "text-xs text-center text-emerald-600 font-medium mt-2 flex items-center justify-center gap-1.5";
-            statusMsg.innerHTML = `${CHECK_SVG} <span>Database synchronized</span>`;
+            statusMsg.innerHTML = `${typeof CHECK_SVG !== 'undefined' ? CHECK_SVG : ''} <span>Database synchronized</span>`;
             
-            // Auto-hide status message after 3 seconds
             setTimeout(() => {
                 statusMsg.style.display = 'none';
             }, 3000);
@@ -6316,11 +6337,11 @@ async function fetchDatabase() {
     } catch (err) {
         console.error("Database sync failed:", err);
         
-        // 6. Set Error State
+        // 8. Set Error State
         if (loginBtn) loginBtn.disabled = false;
         if (statusMsg) {
             statusMsg.className = "text-xs text-center text-rose-600 font-medium mt-2 flex items-center justify-center gap-1.5";
-            statusMsg.innerHTML = `${ERROR_SVG} <span>Sync failed. Working offline.</span>`;
+            statusMsg.innerHTML = `${typeof ERROR_SVG !== 'undefined' ? ERROR_SVG : ''} <span>Sync failed. Working offline.</span>`;
         }
     }
 }
