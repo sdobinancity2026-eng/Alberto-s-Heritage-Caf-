@@ -1251,7 +1251,7 @@ window.addEventListener('unhandledrejection', function(event) {
         event.preventDefault(); // Suppress Chrome extension background noise
     }
 });
-
+ 
 // Window-scoped state preservation
 window.employeeStartingCashAllocations = window.employeeStartingCashAllocations || JSON.parse(localStorage.getItem('caf_cash_allocations')) || {};
 
